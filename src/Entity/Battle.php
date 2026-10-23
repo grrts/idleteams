@@ -5,7 +5,7 @@ namespace App\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * One long battle: several dungeon clears in a row, simulated on the server when it starts and played back
+ * One long battle: a full run through a dungeon (trash packs and bosses), simulated on the server when it starts and played back
  * on every member's screen in step with the clock. Results land when it ends; the group chest opens then.
  */
 #[ORM\Entity]

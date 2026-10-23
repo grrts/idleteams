@@ -71,7 +71,7 @@ class Hero
     #[ORM\Column(type: 'json')]
     public array $marks = [];
 
-    /** Career counters: battles, clears, bossKills, deaths, legendaries. */
+    /** Career counters: battles, dungeons (full clears), bossKills, deaths, legendaries. */
     #[ORM\Column(type: 'json')]
     public array $career = [];
 

@@ -18,9 +18,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 - Gear: wear anything (nothing binds), temper, socket glyphs for Resonance at 3/6/9, imprint Codex powers,
   reforge from level 50, salvage, craft, give to another player, sell on the market.
 - Group: start a group or join one from the tavern board, invite heroes, set the dungeon level, rest.
-- Battle: when the group has five heroes, a battle of six clears runs on the server and is replayed on every
-  member's screen in step with the clock. Results land when it ends, then the group chest opens for
-  need/greed/pass. Players who are away roll by their loot setting when the chest closes.
+- Battle: when the group has five heroes, it runs one dungeon, Ember Hollow: three wings, each with trash
+  packs and then a boss (Cinder Hound, Slag Matron, Ember Golem). The run is simulated on the server and
+  played out on every member's screen in step with the clock, walking between fights. When it ends, every
+  run pays materials (plus XP and gold for each fight won), and each boss may drop an item into the group
+  chest for need/greed/pass. Loot is never guaranteed. Players who are away roll by their loot setting
+  when the chest closes.
 - Guilds and chat (tavern, guild and group channels).
 
 ## Run it locally
@@ -101,7 +104,7 @@ a database and cron.
 
 ## Balance notes
 
-`app:balance` shows where tuning stands. A balanced group (guardian, cleric, ranger, mage, rogue) clears all
-six clears at levels 1 to 50. Groups without a tank or a healer fail, as intended. Known gaps: a Warden plus
+`app:balance` shows where tuning stands. A balanced group (guardian, cleric, ranger, mage, rogue) clears the
+whole dungeon at levels 1 to 50. Groups without a tank or a healer fail, as intended. Known gaps: a Warden plus
 Druid group falls behind on damage from level 35, and level 80+ needs another pass once gear past 50 is
 designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.

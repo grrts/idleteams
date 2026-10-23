@@ -9,20 +9,41 @@ use Random\Randomizer;
  * Deterministic battle simulation. Same inputs and seed always give the same battle, so it can run once on the
  * server, be replayed on every screen, and be checked later.
  *
- * A battle is several clears in a row. Each clear is a pack of three enemies, then the Ember Golem:
- * auto attacks on its top-threat target, Tank Buster, Magma Rain (fire, hits everyone), Shockwave (knockback),
- * a curse on a random hero, Ember Shards at half health, and an enrage that ends the fight if damage is too low.
+ * A battle is one run through a dungeon: three wings, each with trash packs and then a boss. Bosses pick from
+ * the same toolbox: auto attacks on the top-threat target, Tank Buster, Magma Rain (fire, hits everyone),
+ * Shockwave (knockback), a curse on a random hero, adds at half health, and an enrage that ends the fight if
+ * damage is too low. The last boss, the Ember Golem, uses all of it.
  * Every role owns one way to fail: tank (threat, Tank Buster), healer (Magma Rain, mana), damage (enrage, adds).
  */
 final class Simulator
 {
     public const DT = 0.5;
 
+    /** Seconds the group walks between fights. */
+    public const WALK = 4;
+
+    /** Ember Hollow: [kind, name, wing]. */
+    public const DUNGEON = [
+        ['pack', 'Imp pack', 0], ['pack', 'Imp pack', 0], ['boss', 'Cinder Hound', 0],
+        ['pack', 'Brute pack', 1], ['pack', 'Imp pack', 1], ['boss', 'Slag Matron', 1],
+        ['pack', 'Brute pack', 2], ['pack', 'Brute pack', 2], ['boss', 'Ember Golem', 2],
+    ];
+    public const DUNGEON_NAME = 'Ember Hollow';
+
+    /** Boss: [health share, damage share, mechanics, enrage at, name of its melee hit]. */
+    public const BOSSES = [
+        'Cinder Hound' => [0.55, 0.9, ['buster', 'rain'], 70.0, 'Cinder Bite'],
+        'Slag Matron' => [0.75, 0.85, ['rain', 'curse', 'adds'], 80.0, 'Slag Slap'],
+        'Ember Golem' => [1.0, 1.0, ['buster', 'rain', 'shock', 'curse', 'adds'], 85.0, 'Golem Fist'],
+    ];
+
     private Randomizer $r;
     private float $t = 0.0;
     private array $h = [];
     private array $e = [];
+    /** Index of the current encounter in DUNGEON. */
     private int $clear = 0;
+    private int $wing = 0;
     private float $phaseStart = 0.0;
     private string $phase = 'pack';
     private array $ev = [];
@@ -67,7 +88,7 @@ final class Simulator
         return array_sum(array_column($this->report, 'damage')) / $seconds;
     }
 
-    public function run(array $heroes, int $dungeonLevel, int $clears, int $seed): array
+    public function run(array $heroes, int $dungeonLevel, int $seed): array
     {
         $this->r = new Randomizer(new Mt19937($seed));
         $this->dungeonLevel = max(1, $dungeonLevel);
@@ -77,8 +98,13 @@ final class Simulator
             $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0];
         }
         $done = 0;
-        for ($c = 0; $c < $clears && !$this->wipe; ++$c) {
+        $bosses = 0;
+        foreach (self::DUNGEON as $c => [$kind, $name, $wing]) {
             $this->clear = $c;
+            $this->wing = $wing;
+            if ($c > 0) {
+                $this->walk();
+            }
             foreach ($this->h as &$hero) {
                 if ($hero['dead']) {
                     $hero['dead'] = false;
@@ -88,18 +114,18 @@ final class Simulator
                 $hero['lastRite'] = false;
             }
             unset($hero);
-            if (!$this->fight('pack')) {
-                break;
-            }
-            if (!$this->fight('boss')) {
+            if (!$this->fight($kind, $name)) {
                 break;
             }
             ++$done;
+            $bosses += $kind === 'boss' ? 1 : 0;
         }
 
         $report = [
-            'clearsPlanned' => $clears,
-            'clearsDone' => $done,
+            'dungeon' => self::DUNGEON_NAME,
+            'plan' => array_map(fn ($x) => [$x[0], $x[1]], self::DUNGEON),
+            'encountersDone' => $done,
+            'bossesKilled' => $bosses,
             'wiped' => (bool) $this->wipe,
             'cause' => $this->wipe ? $this->explain() : null,
             'length' => round($this->t, 1),
@@ -162,7 +188,33 @@ final class Simulator
 
     // ------------------------------------------------------------------ phases
 
-    private function fight(string $phase): bool
+    private function snapshot(): void
+    {
+        $t = $this->t;
+        $this->snap[] = [
+                (int) round($t),
+                array_map(fn ($h) => $h['dead'] ? 0 : (int) round(1000 * $h['hp'] / $h['s']['maxHp']), array_values($this->h)),
+                array_map(fn ($h) => $h['s']['resMax'] > 0 ? (int) round(1000 * $h['res'] / $h['s']['resMax']) : 0, array_values($this->h)),
+                array_map(fn ($e) => [$e['id'], max(0, (int) round(1000 * $e['hp'] / $e['max']))], array_values($this->e)),
+                array_map(fn ($h) => $h['absorb'] > 0 ? (int) round(1000 * min(1, $h['absorb'] / $h['s']['maxHp'])) : 0, array_values($this->h)),
+            ];
+    }
+
+    /** The group walks to the next fight: no combat, the playback shows them moving on. */
+    private function walk(): void
+    {
+        $this->e = [];
+        $this->emit('walk', $this->clear, -1, 0, 0, ['to' => self::DUNGEON[$this->clear][1]]);
+        $end = $this->t + self::WALK;
+        while ($this->t < $end) {
+            $this->t = round($this->t + self::DT, 2);
+            if (abs($this->t - round($this->t)) < 0.01) {
+                $this->snapshot();
+            }
+        }
+    }
+
+    private function fight(string $phase, string $name = 'Ember Golem'): bool
     {
         $this->phase = $phase;
         $f = $this->difficulty();
@@ -170,17 +222,28 @@ final class Simulator
         $this->e = [];
         $this->shardsSpawned = false;
         $this->enraged = false;
-        if ($phase === 'pack') {
+        $hitDmg = $ref['hps'] * 0.14 * 2 * $f / (1 - $ref['tankDr']);
+        if ($phase === 'pack' && $name === 'Brute pack') {
+            // Same total health as an imp pack, but one big hitter the tank has to hold.
+            for ($k = 0; $k < 2; ++$k) {
+                $this->spawn('add', 'Ember Imp', $ref['dps'] * 11 * $f / 4, $hitDmg, 2.0);
+            }
+            $this->spawn('brute', 'Ember Brute', $ref['dps'] * 11 * $f / 2, $hitDmg * 1.8, 2.5);
+        } elseif ($phase === 'pack') {
             for ($k = 0; $k < 3; ++$k) {
-                $this->spawn('add', 'Ember Imp', $ref['dps'] * 11 * $f / 3, $ref['hps'] * 0.14 * 2 * $f / (1 - $ref['tankDr']), 2.0);
+                $this->spawn('add', 'Ember Imp', $ref['dps'] * 11 * $f / 3, $hitDmg, 2.0);
             }
         } else {
-            $this->spawn('boss', 'Ember Golem', $ref['dps'] * 46 * $f, $ref['hps'] * 0.46 * 2 * $f / (1 - $ref['tankDr']), 2.0);
-            $this->mech = ['buster' => 12.0, 'rain' => 6.0, 'shock' => 25.0, 'curse' => 18.0];
-            $this->enrageAt = 85.0;
+            [$hpShare, $dmgShare, $mechs, $enrage, $hit] = self::BOSSES[$name];
+            $this->spawn('boss', $name, $ref['dps'] * 46 * $f * $hpShare, $ref['hps'] * 0.46 * 2 * $f * $dmgShare / (1 - $ref['tankDr']), 2.0);
+            $this->e[$this->enemySeq]['hit'] = $hit;
+            $on = fn ($m, $at) => in_array($m, $mechs, true) ? $at : 1e9;
+            $this->mech = ['buster' => $on('buster', 12.0), 'rain' => $on('rain', 6.0), 'shock' => $on('shock', 25.0), 'curse' => $on('curse', 18.0)];
+            $this->shardsSpawned = !in_array('adds', $mechs, true);
+            $this->enrageAt = $enrage;
         }
         $this->phaseStart = $this->t;
-        $this->emit('phase', $this->clear, $phase === 'boss' ? 1 : 0, 0, 0, ['enemies' => array_map(fn ($e) => [$e['id'], $e['kind'], $e['name'], (int) $e['max']], $this->e)]);
+        $this->emit('phase', $this->clear, $phase === 'boss' ? 1 : 0, 0, 0, ['name' => $name, 'wing' => $this->wing, 'enemies' => array_map(fn ($e) => [$e['id'], $e['kind'], $e['name'], (int) $e['max']], $this->e)]);
 
         // Between packs: a short breather.
         foreach ($this->h as &$h) {
@@ -236,12 +299,12 @@ final class Simulator
         }
     }
 
-    /** Each clear is harder than the last; the first dungeons go easy on starter gear. */
+    /** Each wing is harder than the last; the first dungeons go easy on starter gear. */
     private function difficulty(): float
     {
-        $ramp = min(1.0, 0.40 + 0.04 * $this->dungeonLevel);
+        $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel);
 
-        return $ramp * (1 + 0.07 * $this->clear);
+        return $ramp * (1 + 0.15 * $this->wing);
     }
 
     private function spawn(string $kind, string $name, float $hp, float $dmg, float $swing): void
@@ -315,7 +378,7 @@ final class Simulator
                 $target = $this->enemyTarget($id);
                 if ($target !== null) {
                     $mult = $this->enraged && $e['kind'] === 'boss' ? 3.0 : 1.0;
-                    $this->damageHero($target, $e['dmg'] * $mult, ['melee' => true, 'src' => $id, 'what' => $e['kind'] === 'boss' ? 'Golem Fist' : $e['name']]);
+                    $this->damageHero($target, $e['dmg'] * $mult, ['melee' => true, 'src' => $id, 'what' => $e['hit'] ?? $e['name']]);
                 }
                 $e['swing'] = $t + $e['swingEvery'] * (1 + $slow) * ($this->enraged && $e['kind'] === 'boss' ? 0.6 : 1);
             }
@@ -327,13 +390,7 @@ final class Simulator
         }
 
         if ($whole) {
-            $this->snap[] = [
-                (int) round($t),
-                array_map(fn ($h) => $h['dead'] ? 0 : (int) round(1000 * $h['hp'] / $h['s']['maxHp']), array_values($this->h)),
-                array_map(fn ($h) => $h['s']['resMax'] > 0 ? (int) round(1000 * $h['res'] / $h['s']['resMax']) : 0, array_values($this->h)),
-                array_map(fn ($e) => [$e['id'], max(0, (int) round(1000 * $e['hp'] / $e['max']))], array_values($this->e)),
-                array_map(fn ($h) => $h['absorb'] > 0 ? (int) round(1000 * min(1, $h['absorb'] / $h['s']['maxHp'])) : 0, array_values($this->h)),
-            ];
+            $this->snapshot();
         }
     }
 
@@ -1233,17 +1290,18 @@ final class Simulator
     {
         $w = $this->wipe;
         $clock = sprintf('%d:%02d', (int) ($w['t'] / 60), (int) $w['t'] % 60);
-        $at = sprintf('clear %d at %s', $w['clear'] + 1, $clock);
+        $where = fn (int $c) => self::DUNGEON[$c][0] === 'boss' ? 'the '.self::DUNGEON[$c][1] : 'a '.strtolower(self::DUNGEON[$c][1]).' in wing '.(self::DUNGEON[$c][2] + 1);
+        $at = sprintf('%s at %s', $where($w['clear']), $clock);
         $name = fn ($i) => $this->h[$i]['name'];
         if (!empty($w['timeout'])) {
-            return "The fight ran too long on $at: the group couldn't finish it.";
+            return "The fight against $at ran too long: the group couldn't finish it.";
         }
         if ($w['enraged']) {
-            return "The Ember Golem enraged on $at: the group's damage was too low to kill it in time.";
+            return 'The '.self::DUNGEON[$w['clear']][1].' enraged at '.$clock.": the group's damage was too low to kill it in time.";
         }
         foreach ($this->oomAt as $i => $o) {
             if ($this->h[$i]['role'] === 'healer' && $o['clear'] === $w['clear']) {
-                return $name($i).' ran out of mana on '.sprintf('clear %d', $o['clear'] + 1).': more Wisdom or a mana affix would keep the heals going.';
+                return $name($i).' ran out of mana against '.$where($o['clear']).': more Wisdom or a mana affix would keep the heals going.';
             }
         }
         foreach ($this->lastDeath as $d) {
@@ -1251,17 +1309,17 @@ final class Simulator
                 continue;
             }
             if ($d['pulled']) {
-                return $name($d['i']).' pulled threat from the tank and died to '.$d['what'].' on '.$at.'.';
+                return $name($d['i']).' pulled threat from the tank and died to '.$d['what'].' against '.$at.'.';
             }
             if ($d['role'] === 'tank') {
-                return $name($d['i']).' (tank) died to '.$d['what'].' on '.$at.': more Vitality, Guard or a wall before the slam.';
+                return $name($d['i']).' (tank) died to '.$d['what'].' against '.$at.': more Vitality, Guard or a wall before the big hits.';
             }
             if ($d['role'] === 'healer') {
-                return $name($d['i']).' (healer) died to '.$d['what'].' on '.$at.', and nobody could keep the group up after that.';
+                return $name($d['i']).' (healer) died to '.$d['what'].' against '.$at.', and nobody could keep the group up after that.';
             }
         }
         $d = $this->lastDeath[0] ?? null;
 
-        return $d ? $name($d['i']).' died first, to '.$d['what'].", and the group fell apart on $at." : "The group wiped on $at.";
+        return $d ? $name($d['i']).' died first, to '.$d['what'].", and the group fell apart against $at." : "The group wiped against $at.";
     }
 }

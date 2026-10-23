@@ -273,8 +273,9 @@
     let scene = '';
     if (cur) {
       scene = '<div class="scene-wrap"><canvas class="scene" id="scene" width="384" height="168"></canvas><div class="hud"><span id="hud-l"></span><span id="hud-r"></span></div><div class="banner" id="banner"></div></div>' +
+        '<div class="track" id="track">' + S.cfg.dungeon.plan.map(([kind, name], n) => '<span class="' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div>' +
         '<div class="frames" id="frames">' + cur.roster.map((r, i) => '<div class="frame" id="fr' + i + '"><div class="nm">' + esc(r.name) + '</div><div class="muted">' + className(r.cls) + ' ' + r.level + '</div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div>').join('') + '</div>' +
-        '<div class="row between" style="margin-top:8px"><h4>Battle log</h4><span class="muted small">Dungeon level ' + cur.dungeonLevel + ' · ' + S.cfg.clears + ' clears · results land when the battle ends</span></div><div class="log" id="blog"></div>';
+        '<div class="row between" style="margin-top:8px"><h4>Battle log</h4><span class="muted small">' + esc(S.cfg.dungeon.name) + ' · dungeon level ' + cur.dungeonLevel + ' · results land when the run ends</span></div><div class="log" id="blog"></div>';
     } else if (p.members.length === S.cfg.partySize && p.running) {
       scene = '<div class="panel">The next battle is about to start…</div>';
     }
@@ -292,7 +293,7 @@
         const others = Object.entries(e.rolls).map(([id, ch]) => esc(names[id] || '?') + ': ' + ch).join(', ');
         const buttons = mine ? '<div class="small">You chose <b>' + mine + '</b></div>' : '<div class="row" style="margin-top:4px"><button class="small primary" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="need">Need</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="greed">Greed</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="pass">Pass</button></div>';
         return itemCard(e.item, (e.upgrade ? '<div class="up">Upgrade for you</div>' : '') + buttons + (others ? '<div class="muted small">' + others + '</div>' : ''));
-      }).join('') : '<p class="muted">The chest was empty this time. Loot is never guaranteed.</p>';
+      }).join('') : '<p class="muted">No loot this time, only materials. Loot is never guaranteed.</p>';
       return '<div class="panel"><div class="row between"><h3>Group chest</h3><span class="muted small">Closes in ' + clock(c.chestClosesAt - now()) + '. Anyone who has not rolled by then rolls by their loot setting.</span></div><div class="grid3">' + items + '</div></div>';
     }).join('');
   }
@@ -305,12 +306,13 @@
     return '<div class="panel"><h3>Recent battles</h3>' + list.slice(0, 6).map((x) => {
       const r = x.report;
       const won = !r.wiped;
-      const rows = r.heroes.map((h) => '<tr><td>' + esc(h.name) + '</td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + fmt(h.absorbed) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td></tr>').join('');
+      const rows = r.heroes.map((h) => '<tr><td>' + esc(h.name) + '</td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + fmt(h.absorbed) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td></tr>').join('');
+      const fellAt = r.wiped ? r.plan[r.encountersDone] : null;
       const loot = x.chest.filter((e) => e.winner).map((e) => '<span class="r-' + e.item.rarity + '">' + esc(e.item.name) + '</span> → ' + esc((x.roster.find((r) => r.id === e.winner) || {}).name || '?')).join(', ');
-      return '<details' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Won' : 'Fell') + '</b> · ' + r.clearsDone + ' of ' + r.clearsPlanned + ' clears · dungeon level ' + x.dungeonLevel + ' · ' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</summary>' +
+      return '<details' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b> · ' + r.bossesKilled + ' of 3 bosses · dungeon level ' + x.dungeonLevel + ' · ' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</summary>' +
         (r.cause ? '<p class="bad small">' + esc(r.cause) + '</p>' : '') +
-        '<table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Shielded</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th></tr>' + rows + '</table>' +
-        (loot ? '<p class="small">Loot: ' + loot + '</p>' : x.state === 'done' ? '<p class="small muted">No loot this time.</p>' : '') + '</details>';
+        '<table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Shielded</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">⚒</th></tr>' + rows + '</table>' +
+        (loot ? '<p class="small">Loot: ' + loot + '</p>' : x.state === 'done' ? '<p class="small muted">No loot this time, only materials.</p>' : '') + '</details>';
     }).join('') + '</div>';
   }
 
@@ -321,12 +323,12 @@
     t.ev = t.events.map((e) => ({ t: e[0] / 10, type: e[1], src: e[2], dst: e[3], amt: e[4], flags: e[5], x: e[6] }));
     return t;
   }
-  const scn = { floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', bannerUntil: 0, log: [], act: {}, phaseLabel: '' };
+  const scn = { floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', bannerUntil: 0, log: [], act: {}, phaseLabel: '', at: 0, walkFrom: null };
 
   function setupScene() {
     const cur = S.battle && S.battle.current;
     if (!cur || !S.timelines[cur.id]) return;
-    if (scn.battleId !== cur.id) { Object.assign(scn, { battleId: cur.id, floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', log: [], act: {}, phaseLabel: '' }); }
+    if (scn.battleId !== cur.id) { Object.assign(scn, { battleId: cur.id, floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', log: [], act: {}, phaseLabel: '', at: 0, walkFrom: null }); }
     else scn.redrawLog = true;
   }
   function simTime(cur, tl) {
@@ -344,12 +346,18 @@
       const fresh = live && simT - e.t < 1.5;
       switch (e.type) {
         case 'phase': {
-          scn.enemies = {};
-          Object.values(e.x.enemies).forEach(([id, kind, name, max]) => { scn.enemies[id] = { id, kind, name, max, hp: 1000 }; });
-          const label = 'Clear ' + (e.src + 1) + ' of ' + cur.report_planned + ': ' + (e.dst === 0 ? 'imp pack' : 'Ember Golem');
-          if (e.dst !== 2) { scn.phaseLabel = label; if (fresh) banner(e.dst === 0 ? 'Clear ' + (e.src + 1) : 'Boss: Ember Golem'); logLine(e.t, label); }
+          if (e.dst !== 2) scn.enemies = {};
+          scn.walkFrom = null;
+          scn.at = e.src;
+          Object.values(e.x.enemies).forEach(([id, kind, name, max]) => { if (!scn.enemies[id]) scn.enemies[id] = { id, kind, name, max, hp: 1000 }; });
+          if (e.dst !== 2) {
+            scn.phaseLabel = 'Wing ' + (e.x.wing + 1) + ': ' + e.x.name;
+            if (fresh) banner(e.dst === 1 ? 'Boss: ' + e.x.name : e.x.name);
+            logLine(e.t, e.dst === 1 ? '<b>Boss: ' + esc(e.x.name) + '</b>' : esc(e.x.name), e.dst === 1 ? 'gold' : '');
+          }
           break;
         }
+        case 'walk': scn.enemies = {}; scn.walkFrom = e.t; scn.at = e.src; scn.phaseLabel = 'Moving on…'; break;
         case 'spawn': scn.enemies[e.src] = { id: e.src, kind: 'shard', name: 'Ember Shard', max: e.amt, hp: 1000 }; break;
         case 'hit': if (fresh && !(e.flags & 16) && e.amt > 0) floater('enemy', e.dst, fmt(e.amt), e.flags & 2 ? '#ff5cf0' : e.flags & 1 ? '#ffd040' : '#ffffff', e.flags & 3 ? 1.5 : 1); if (e.src >= 0) scn.act[e.src] = e.t; break;
         case 'heal': if (fresh && e.amt > 0) floater('hero', e.dst, '+' + fmt(e.amt), '#7be07f', e.flags & 1 ? 1.4 : 1); break;
@@ -360,7 +368,7 @@
         case 'mech': logLine(e.t, '<b class="bad">' + esc(e.x.name) + '</b>' + (e.dst >= 0 ? ' on ' + esc(names[e.dst]) : ''), e.flags & 1 ? 'good' : ''); if (fresh && e.x.name !== 'Curse resisted') banner(e.x.name); break;
         case 'death': logLine(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); break;
         case 'revive': logLine(e.t, esc(names[e.src]) + ' is back on their feet.', 'good'); break;
-        case 'kill': if (scn.enemies[e.dst]) { scn.enemies[e.dst].hp = 0; if (scn.enemies[e.dst].kind === 'boss') logLine(e.t, 'The Ember Golem is down!', 'good'); } break;
+        case 'kill': if (scn.enemies[e.dst]) { scn.enemies[e.dst].hp = 0; if (scn.enemies[e.dst].kind === 'boss') { logLine(e.t, 'The ' + esc(scn.enemies[e.dst].name) + ' is down!', 'good'); if (fresh) banner(scn.enemies[e.dst].name + ' defeated!'); } } break;
       }
     }
     scn.lastSim = simT;
@@ -377,6 +385,14 @@
 
   const imgCache = new Map();
   function cachedCanvas(key, make) { if (!imgCache.has(key)) imgCache.set(key, make()); return imgCache.get(key); }
+  // Colours a sprite's pixels while keeping its shading, so one piece of art can serve several enemies.
+  function tint(src, color) {
+    if (!color) return src;
+    const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+    g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.45; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+    return c;
+  }
   function imp(color) {
     const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
     const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
@@ -391,9 +407,13 @@
     const W = cv.width, H = cv.height, ground = 140;
     // backdrop: a cave with lava glow
     g.fillStyle = '#1a1222'; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#231a2e'; for (let x = 0; x < W; x += 24) g.fillRect(x, 20 + ((x * 7) % 18), 18, 6);
+    // The cave scrolls while the group walks to the next fight.
+    const walking = scn.walkFrom != null;
+    const scroll = Math.round((walking ? simT - scn.walkFrom : 0) * 40 + scn.at * 160);
+    g.fillStyle = '#231a2e'; for (let x = -(scroll % 24) - 24; x < W; x += 24) { const k = Math.floor((x + scroll) / 24); g.fillRect(x, 20 + ((((k * 7) % 18) + 18) % 18), 18, 6); }
+    g.fillStyle = '#2a2034'; for (let x = -(scroll % 96) - 96; x < W; x += 96) { const k = ((Math.floor((x + scroll) / 96) % 3) + 3) % 3; g.fillRect(x + 30, ground - 50 - k * 8, 14, 50 + k * 8); }
     g.fillStyle = '#2d2238'; g.fillRect(0, ground, W, H - ground);
-    g.fillStyle = '#3a2c48'; for (let x = 0; x < W; x += 16) g.fillRect(x, ground, 10, 2);
+    g.fillStyle = '#3a2c48'; for (let x = -(scroll % 16); x < W; x += 16) g.fillRect(x, ground, 10, 2);
     g.fillStyle = 'rgba(255,120,40,0.10)'; g.fillRect(0, ground - 30, 150, 30);
     const snap = snapAt(tl, simT);
     if (snap) snap[3].forEach(([id, hp]) => { if (scn.enemies[id]) scn.enemies[id].hp = hp; });
@@ -403,10 +423,19 @@
     let ex = 30;
     foes.forEach((e, k) => {
       if (e.kind === 'boss') {
+        // Three bosses share the golem art for now: size and colour tell them apart.
         const swing = Math.floor(performance.now() / 600) % 3;
-        const img = cachedCanvas('golem' + swing, () => ITP.golem(['idle', 'raise', 'slam'][swing]));
-        g.drawImage(img, 40, ground - 104, 120, 112); pos[e.id] = [100, ground - 110];
-        bar(g, 50, ground - 116, 100, e.hp / 1000, '#e05a3a');
+        const look = { 'Cinder Hound': [0.7, '#d0502a'], 'Slag Matron': [0.85, '#4a70d8'] }[e.name] || [1, null];
+        const img = cachedCanvas('golem' + swing + look[1], () => tint(ITP.golem(['idle', 'raise', 'slam'][swing]), look[1]));
+        const w = 120 * look[0], hgt = 112 * look[0];
+        g.drawImage(img, 40, ground - hgt + 8, w, hgt);
+        pos[e.id] = [40 + w / 2, ground - hgt + 2];
+        bar(g, 50, ground - hgt - 4, 100, e.hp / 1000, '#e05a3a');
+      } else if (e.kind === 'brute') {
+        const img = cachedCanvas('brute', () => imp('#a8402a'));
+        const bob = Math.round(Math.sin(performance.now() / 300 + k) * 2);
+        g.drawImage(img, ex, ground - 60 + bob, 60, 60); pos[e.id] = [ex + 30, ground - 64 + bob]; bar(g, ex + 4, ground - 66 + bob, 52, e.hp / 1000, '#e05a3a');
+        ex += 66;
       } else {
         const img = cachedCanvas(e.kind, () => imp(e.kind === 'shard' ? '#ffb340' : '#e0583a'));
         const bob = Math.round(Math.sin(performance.now() / 250 + k) * 2);
@@ -420,7 +449,7 @@
       const hp = snap ? snap[1][i] : 1000;
       const x = 196 + i * 37, y = ground - 76 + (i % 2) * 4;
       const acted = scn.act[i] != null && simT - scn.act[i] < 0.4;
-      const pose = hp <= 0 ? 'stand0' : acted ? (simT - scn.act[i] < 0.2 ? 'atk1' : 'atk2') : (Math.floor(performance.now() / 500 + i) % 2 ? 'stand1' : 'stand0');
+      const pose = hp <= 0 ? 'stand0' : walking ? 'walk' + (Math.floor(performance.now() / 150 + i) % 4) : acted ? (simT - scn.act[i] < 0.2 ? 'atk1' : 'atk2') : (Math.floor(performance.now() / 500 + i) % 2 ? 'stand1' : 'stand0');
       const img = cachedCanvas(JSON.stringify(r.look) + pose, () => ITP.sprite(r.look, pose));
       if (hp <= 0) { g.save(); g.globalAlpha = 0.45; g.translate(x + 24, ground - 6); g.rotate(-Math.PI / 2); g.drawImage(img, -10, -24); g.restore(); }
       else g.drawImage(img, x, y);
@@ -457,12 +486,13 @@
     if (!S.st || !S.st.hero || S.view !== 'battle') return;
     const cur = S.battle && S.battle.current; const tl = cur && S.timelines[cur.id];
     if (!cur || !tl) return;
-    cur.report_planned = S.cfg.clears;
     const simT = simTime(cur, tl);
     processEvents(cur, tl, simT);
     drawScene(cur, tl, simT);
     const l = $('#hud-l'), r = $('#hud-r'), b = $('#banner'), log = $('#blog');
     if (l) l.textContent = scn.phaseLabel;
+    const track = $('#track');
+    if (track && track.dataset.at !== String(scn.at)) { track.dataset.at = scn.at; track.querySelectorAll('span').forEach((el) => { const n = +el.dataset.n; el.classList.toggle('done', n < scn.at); el.classList.toggle('now', n === scn.at); }); }
     if (r) r.textContent = 'Ends in ' + clock(cur.endsAt - now());
     if (b) b.textContent = performance.now() < scn.bannerUntil ? scn.banner : '';
     if (log && (scn.logDirty || scn.redrawLog)) { log.innerHTML = scn.log.slice().reverse().join(''); scn.logDirty = false; scn.redrawLog = false; }
@@ -511,7 +541,7 @@
     return '<div class="stack"><div class="panel row" style="align-items:flex-start;gap:16px">' + spr(h.look, 3) + '<div class="stack" style="flex:1;min-width:220px"><div><h2>' + esc(h.name) + '</h2><div>Level ' + h.level + ' ' + race.name + ' ' + cls.name + (h.path ? ' of the ' + esc(cls.paths[h.path][0]) : '') + ' ' + role(h.role) + '</div><div class="muted small">Origin: ' + esc(origin[0]) + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div></div>' +
       '<div class="small"><b>' + esc(race.passive[1]) + '</b>: ' + esc(race.passive[2]) + '<br><b>' + esc(cls.passive[1]) + '</b>: ' + esc(cls.passive[2]) + '<br><b>' + esc(origin[0]) + '</b>: ' + esc(origin[2]) + '</div>' +
       '<div>' + (marks || '<span class="muted small">No Marks yet. Marks are earned in battle and shown on your card.</span>') + '</div>' +
-      '<div class="small muted">Battles ' + (career.battles || 0) + ' · clears ' + (career.clears || 0) + ' · deaths ' + (career.deaths || 0) + ' · Codex ' + h.codexPowers.length + ' of ' + Object.keys(cfg.powers).length + '</div></div></div>' +
+      '<div class="small muted">Runs ' + (career.battles || 0) + ' · dungeons cleared ' + (career.dungeons || 0) + ' · bosses ' + (career.bossKills || 0) + ' · deaths ' + (career.deaths || 0) + ' · Codex ' + h.codexPowers.length + ' of ' + Object.keys(cfg.powers).length + '</div></div></div>' +
       '<div class="panel"><div class="row between"><h3>Attributes</h3><div class="row"><span><b class="gold">' + h.points.unspent + '</b> unspent of ' + h.points.total + ' (' + cfg.pointsPerLevel + ' per level)</span><button class="small" data-act="autoSpend" ' + (h.points.unspent ? '' : 'disabled') + '>Spend the suggested way</button></div></div>' +
       '<p class="small muted">Everything comes from attributes and gear. Percentage stats follow a curve that gets steep around 50% and never reaches 100%. A single attribute above ' + Math.round(cfg.softCapShare * 100) + '% of all your points counts half past that line. Click an attribute to see where its points come from.</p><div class="attrs">' + attrs + '</div></div>' +
       '<div class="grid2"><div class="panel"><h3>Combat stats</h3><div class="stats">' + stats + '</div></div><div class="panel"><h3>Curves</h3><p class="small muted">Points needed = K × p / (1 − p)², with K = ' + h.k.toFixed(1) + ' at your level. The dot is you.</p><div class="grid3">' + curves + '</div></div></div>' +

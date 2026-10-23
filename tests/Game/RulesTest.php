@@ -35,19 +35,19 @@ class RulesTest extends TestCase
     public function testBattlesAreDeterministic(): void
     {
         $party = $this->party(10);
-        $a = (new Simulator())->run($party, 10, 6, 42);
-        $b = (new Simulator())->run($party, 10, 6, 42);
+        $a = (new Simulator())->run($party, 10, 42);
+        $b = (new Simulator())->run($party, 10, 42);
         $this->assertSame($a['report'], $b['report']);
     }
 
     public function testBalancedGroupClearsAndFiveDpsDoNot(): void
     {
         foreach ([1, 20] as $level) {
-            $won = (new Simulator())->run($this->party($level), $level, 6, 7)['report'];
+            $won = (new Simulator())->run($this->party($level), $level, 7)['report'];
             $this->assertFalse($won['wiped'], "balanced group at $level: ".$won['cause']);
         }
         $dps = $this->party(20, ['ranger', 'mage', 'rogue', 'ranger', 'mage']);
-        $this->assertTrue((new Simulator())->run($dps, 20, 6, 7)['report']['wiped']);
+        $this->assertTrue((new Simulator())->run($dps, 20, 7)['report']['wiped']);
     }
 
     private function party(int $level, array $classes = Reference::COMP): array

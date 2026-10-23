@@ -76,6 +76,11 @@ hr { border: 0; border-top: 2px dashed var(--line); margin: 12px 0; }
 .frame .nm { font-family: var(--px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .log { font-size: 12px; max-height: 160px; overflow: auto; background: #120e19; border: 2px solid var(--line); padding: 6px; }
 .log div { padding: 1px 0; }
+.track { display: flex; gap: 4px; align-items: center; margin-top: 6px; font-size: 11px; font-family: var(--px); }
+.track span { height: 10px; flex: 1; background: #120e19; border: 1px solid var(--line2); }
+.track span.boss { flex: 3; height: auto; padding: 1px 4px; text-align: center; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.track span.done { background: #3f6a3f; border-color: var(--good); color: var(--text); }
+.track span.now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--accent); }
 table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
 table.t th, table.t td { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: left; }
 table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; }

@@ -13,6 +13,7 @@ use App\Entity\TavernPost;
 use App\Game\Combatants;
 use App\Game\Items;
 use App\Game\Rules;
+use App\Game\Simulator;
 use App\Game\Stats;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -38,7 +39,7 @@ class Present
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
-            'clears' => Game::CLEARS, 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
+            'dungeon' => ['name' => Simulator::DUNGEON_NAME, 'plan' => Simulator::DUNGEON], 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
         ];
     }

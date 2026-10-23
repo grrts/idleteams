@@ -24,7 +24,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 class Game
 {
-    public const CLEARS = 6;
+    /** Chance that each boss (first, second, last) drops an item. */
+    private const BOSS_DROP = [0.35, 0.45, 0.6];
     private const MAX_CATCH_UP = 12;
 
     public function __construct(
@@ -145,7 +146,7 @@ class Game
                 $combatants[$k]['stats'] = $scale['stats'];
             }
         }
-        $result = (new Simulator())->run($combatants, $b->dungeonLevel, self::CLEARS, $b->seed);
+        $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed);
         $b->timeline = $result['timeline'];
         $b->report = $result['report'];
         $b->roster = array_map(fn (Hero $h, array $c) => [
@@ -190,24 +191,34 @@ class Game
                 $heroes[] = $h;
             }
         }
-        $clears = $rep['clearsDone'];
-        $xpPerClear = 30 * $dl ** 1.5;
-        $partial = $rep['wiped'] ? 0.5 : 0.0; // half credit for the clear the group died in
+        // Rewards follow how far the group got: packs count 1, bosses 2, 3 and 4. A full run is 15.
+        $plan = Simulator::DUNGEON;
+        $done = $rep['encountersDone'];
+        $units = 0.0;
+        foreach ($plan as $n => [$kind]) {
+            $w = $kind === 'boss' ? 1 + count(array_filter(array_slice($plan, 0, $n + 1), fn ($x) => $x[0] === 'boss')) : 1;
+            if ($n < $done) {
+                $units += $w;
+            } elseif ($n === $done && $rep['wiped']) {
+                $units += $w / 2; // half credit for the fight the group fell in
+            }
+        }
         $keenEye = false;
         foreach ($heroes as $h) {
             $keenEye = $keenEye || $h->cls === 'rogue';
         }
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
-            $xp = (int) round($xpPerClear * ($clears + $partial) * ($h->race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $b->party->battlesTogether)));
-            $gold = (int) round(12 * 1.045 ** (2 * $dl) * ($clears + $partial) * $stats['fortune']);
-            $mats = (int) round(($clears + $partial) * (1 + $dl / 10) * $stats['fortune']);
+            $xp = (int) round(12 * $dl ** 1.5 * $units * ($h->race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $b->party->battlesTogether)));
+            $gold = (int) round(5 * 1.045 ** (2 * $dl) * $units * $stats['fortune']);
+            // Every run pays materials, even one that ends early.
+            $mats = (int) round((3 + 0.5 * $units) * (1 + $dl / 10) * $stats['fortune']);
             $h->gold = (string) ((int) $h->gold + $gold);
             $h->materials += $mats;
-            $c = $h->career + ['battles' => 0, 'clears' => 0, 'bossKills' => 0, 'deaths' => 0];
+            $c = $h->career + ['battles' => 0, 'dungeons' => 0, 'bossKills' => 0, 'deaths' => 0];
             $c['battles']++;
-            $c['clears'] += $clears;
-            $c['bossKills'] += $clears;
+            $c['dungeons'] = ($c['dungeons'] ?? 0) + ($rep['wiped'] ? 0 : 1);
+            $c['bossKills'] += $rep['bossesKilled'];
             $c['deaths'] += $rep['heroes'][$k]['deaths'] ?? 0;
             $h->career = $c;
             $rep['heroes'][$k]['xp'] = $xp;
@@ -216,19 +227,19 @@ class Game
             $this->addXp($h, $xp);
             $this->earnMarks($h, $rep['heroes'][$k] ?? []);
             if ($h->guild) {
-                $h->guild->xp += $clears;
+                $h->guild->xp += (int) round($units);
             }
         }
         $b->party->battlesTogether++;
 
-        // The group chest: each boss kill may add an item, never guaranteed.
+        // The group chest: each boss may drop an item, the later ones more often. Never guaranteed.
         $chest = [];
-        for ($c = 0; $c < $clears; ++$c) {
-            if ($r->getFloat(0, 1) < 0.5) {
-                $chest[] = ['spec' => Items::generate($r, 2 * $dl, Items::rollRarity($r, $keenEye ? 0.08 : 0.0)), 'rolls' => [], 'winner' => null];
+        foreach (array_slice(array_values(array_filter($plan, fn ($x) => $x[0] === 'boss')), 0, $rep['bossesKilled']) as $n => [, $boss]) {
+            if ($r->getFloat(0, 1) < self::BOSS_DROP[$n]) {
+                $chest[] = ['spec' => Items::generate($r, 2 * $dl, Items::rollRarity($r, $keenEye ? 0.08 : 0.0)), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
-            if ($dl >= 15 && $r->getFloat(0, 1) < 0.25) {
-                $chest[] = ['spec' => Items::glyph($r, 2 * $dl), 'rolls' => [], 'winner' => null];
+            if ($dl >= 15 && $r->getFloat(0, 1) < 0.2) {
+                $chest[] = ['spec' => Items::glyph($r, 2 * $dl), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
         }
         $b->chest = $chest;
@@ -237,9 +248,10 @@ class Game
         $b->chestClosesAt = $b->endsAt + $this->chestSeconds;
         $b->timeline = null;
 
+        $loot = $chest ? sprintf(' The chest holds %d item%s.', count($chest), count($chest) === 1 ? '' : 's') : ' No loot this time, only materials.';
         $line = $rep['wiped']
-            ? sprintf('Battle over: %d of %d clears. %s', $clears, $rep['clearsPlanned'], $rep['cause'])
-            : sprintf('Battle won: all %d clears. The chest holds %d item%s.', $clears, count($chest), count($chest) === 1 ? '' : 's');
+            ? sprintf('%s: the group fell after %d of %d bosses. %s', Simulator::DUNGEON_NAME, $rep['bossesKilled'], 3, $rep['cause']).$loot
+            : sprintf('%s cleared!', Simulator::DUNGEON_NAME).$loot;
         $this->post('party:'.$b->party->id, $line, ['type' => 'report', 'battle' => $b->id]);
         foreach ($heroes as $h) {
             if ($h->user->demo) {

@@ -48,13 +48,13 @@ class BalanceCommand extends Command
                         $b['path'] = $level >= 10 ? array_key_first(\App\Game\Rules::CLASSES[$cls]['paths']) : null;
                         $party[] = Combatants::make($b, $n + 1, ucfirst($cls).$n);
                     }
-                    $res = (new Simulator())->run($party, $level, 6, 1000 + $k);
-                    $clears += $res['report']['clearsDone'];
+                    $res = (new Simulator())->run($party, $level, 1000 + $k);
+                    $clears += $res['report']['bossesKilled'];
                     $full += $res['report']['wiped'] ? 0 : 1;
                     $len += $res['report']['length'];
                     if ($res['report']['cause']) {
                         $key = preg_replace('/[A-Z][a-z]+\d.*?(died|pulled|ran)/', 'X $1', $res['report']['cause']);
-                        $key = preg_replace('/clear \d+ at [\d:]+/', 'clear N', $key);
+                        $key = preg_replace('/at [\d:]+/', 'at N', $key);
                         $causes[$key] = ($causes[$key] ?? 0) + 1;
                     }
                 }
@@ -62,7 +62,7 @@ class BalanceCommand extends Command
                 $rows[] = [$level, $label, round(100 * $full / $runs).'%', round($clears / $runs, 1), round($len / $runs), substr((string) array_key_first($causes), 0, 90)];
             }
         }
-        $io->table(['Level', 'Mix', 'Full clear', 'Avg clears', 'Sim s', 'Top wipe cause'], $rows);
+        $io->table(['Level', 'Mix', 'Full clear', 'Avg bosses', 'Sim s', 'Top wipe cause'], $rows);
 
         return Command::SUCCESS;
     }
