@@ -239,7 +239,7 @@ final class Simulator
     /** Each clear is harder than the last; the first dungeons go easy on starter gear. */
     private function difficulty(): float
     {
-        $ramp = min(1.0, 0.55 + 0.05 * $this->dungeonLevel);
+        $ramp = min(1.0, 0.40 + 0.04 * $this->dungeonLevel);
 
         return $ramp * (1 + 0.07 * $this->clear);
     }
@@ -358,7 +358,7 @@ final class Simulator
             $target = $this->enemyTarget($boss['id']);
             if ($target !== null) {
                 $this->emit('mech', -1, $target, 0, 0, ['name' => 'Tank Buster']);
-                $this->damageHero($target, $ref['tankHp'] * 0.34 * $f * $m / (1 - $ref['tankDr']), ['melee' => true, 'src' => $boss['id'], 'what' => 'Tank Buster', 'big' => true]);
+                $this->damageHero($target, $ref['tankHp'] * 0.30 * $f * $m / (1 - $ref['tankDr']), ['melee' => true, 'src' => $boss['id'], 'what' => 'Tank Buster', 'big' => true]);
             }
         }
         if ($t >= $this->mech['rain']) {
@@ -407,6 +407,7 @@ final class Simulator
             for ($k = 0; $k < 2; ++$k) {
                 $this->spawn('shard', 'Ember Shard', $ref['dps'] * 3.5 * $f, $ref['hps'] * 0.10 * 2 * $f / (1 - $ref['tankDr']), 2.0);
                 $id = $this->enemySeq;
+                $this->emit('spawn', $id, -1, (int) $this->e[$id]['max'], 0, ['enemy' => [$id, 'shard', 'Ember Shard', (int) $this->e[$id]['max']]]);
                 foreach ($this->h as $h) {
                     $this->e[$id]['threat'][$h['i']] = $h['role'] === 'healer' ? 5.0 : 0.0;
                 }
@@ -505,7 +506,9 @@ final class Simulator
         if ($busterSoon && ($ids = $this->skillsOfType($i, ['wall', 'shield']))) {
             return [$ids[0], $i];
         }
-        if ($hpPct < 0.65 && ($ids = $this->skillsOfType($i, ['wall']))) {
+        // Rage that would overflow is better spent on a wall.
+        $rageFull = $h['s']['resource'] === 'rage' && $h['res'] >= 0.8 * $h['s']['resMax'] && $this->phase === 'boss';
+        if (($hpPct < 0.65 || $rageFull) && ($ids = $this->skillsOfType($i, ['wall']))) {
             return [$ids[0], $i];
         }
         if ($hpPct < 0.75 && ($ids = $this->skillsOfType($i, ['shield', 'hot']))) {

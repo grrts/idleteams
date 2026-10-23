@@ -190,7 +190,7 @@ final class Stats
         $cls = Rules::CLASSES[$build['cls']];
         $resource = $cls['resource'];
         [$resMax, $resRegen] = match ($resource) {
-            'mana' => [30 * $e['wisdom'], 0.30 * $e['wisdom']],
+            'mana' => [30 * $e['wisdom'], 0.45 * $e['wisdom']],
             'energy' => [12 * $e['stamina'], 0.9 * $e['stamina']],
             default => [10 * $e['fury'], 0.0],
         };
@@ -224,7 +224,7 @@ final class Stats
             'resMax' => $resMax,
             'resRegen' => $resRegen,
             'rageGain' => 3 + 0.3 * $e['fury'],
-            'costScale' => match ($resource) { 'rage' => 1 + 0.02 * ($L - 1), 'energy' => 1 + 0.03 * ($L - 1), default => 1 + 0.12 * ($L - 1) },
+            'costScale' => match ($resource) { 'rage' => 1 + 0.02 * ($L - 1), 'energy' => 1 + 0.03 * ($L - 1), default => 1 + 0.10 * ($L - 1) },
             'powers' => $powers,
             'resonance' => self::resonance($items)['tiers'],
         ];

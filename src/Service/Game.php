@@ -90,7 +90,7 @@ class Game
                 }
                 continue;
             }
-            if (!$running && $this->canStart($party)) {
+            if (!$running && $this->canStart($party) && $this->withinOfflineCap($party, $now)) {
                 $this->start($party, $now);
                 $this->em->flush();
             }

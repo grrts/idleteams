@@ -79,7 +79,7 @@ final class Rules
             'skills' => [
                 'shieldSlam' => ['Shield Slam', 1, 'strike', 1.3, 10, 4, ['threat' => 5]],
                 'taunt' => ['Taunting Shout', 3, 'taunt', 0, 0, 12, []],
-                'shieldWall' => ['Shield Wall', 5, 'wall', 0.30, 30, 30, ['dur' => 8, 'party' => true]],
+                'shieldWall' => ['Shield Wall', 5, 'wall', 0.30, 20, 24, ['dur' => 8, 'party' => true]],
                 'cleave' => ['Cleave', 8, 'aoe', 0.7, 15, 6, ['threat' => 4]],
             ],
             'paths' => [

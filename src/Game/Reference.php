@@ -15,7 +15,11 @@ final class Reference
 
     public const COMP = ['guardian', 'cleric', 'ranger', 'mage', 'rogue'];
 
-    public static function build(string $cls, int $level, string $quality = 'rare'): array
+    /**
+     * What a group at this level is expected to wear. Level 1 is exactly the starter kit; drops (about one item per
+     * hero every two levels, at up to twice the level) fill the other slots and replace the kit over time.
+     */
+    public static function build(string $cls, int $level, ?string $quality = null): array
     {
         $c = Rules::CLASSES[$cls];
         $points = ($level - 1) * Rules::POINTS_PER_LEVEL;
@@ -25,20 +29,23 @@ final class Reference
         foreach ($w as $a => $n) {
             $spent[$a] = (int) floor($points * $n / $sumW);
         }
+        $quality ??= $level < 15 ? 'common' : 'rare';
+        $ilvl = max(1, (int) round(1.5 * $level - 0.5));
         $r = new Randomizer(new Mt19937($level * 31 + crc32($cls)));
         $prefer = array_keys($w);
+        $kit = array_filter($c['kit'], fn ($b) => $b !== 'none');
+        $extra = intdiv($level, 2);
         $items = [];
         foreach (array_keys(Rules::SLOTS) as $slot) {
-            $base = match ($slot) {
-                'weapon' => $c['kit']['weapon'],
-                'offhand' => $c['kit']['offhand'] === 'none' ? null : $c['kit']['offhand'],
-                default => null,
-            };
-            if ($slot === 'offhand' && $base === null) {
-                continue;
+            $base = $kit[$slot] ?? null;
+            if ($base === null) {
+                if ($slot === 'offhand' || $extra <= 0) {
+                    continue;
+                }
+                --$extra;
             }
             $shift = array_merge(array_slice($prefer, count($items) % 3), array_slice($prefer, 0, count($items) % 3));
-            $items[] = Items::generate($r, max(1, 2 * $level), $quality, $slot, $base, $shift);
+            $items[] = Items::generate($r, $ilvl, $base !== null && $level === 1 ? 'common' : $quality, $slot, $base, $shift);
         }
 
         return ['race' => 'human', 'cls' => $cls, 'origin' => 'anvil', 'level' => $level, 'spent' => $spent, 'path' => null, 'keystones' => [], 'items' => $items];
@@ -62,8 +69,9 @@ final class Reference
         }
         $dps = (new Simulator())->measureDps($party);
         $tank = $s['guardian'];
-        $healer = $s['cleric'];
-        $hps = $healer['spirit'] * 1.3 * $healer['haste'];
+        // Healing is the average of both healer classes, so neither one is the only healer that keeps up.
+        $druid = Stats::derive(self::build('druid', $level));
+        $hps = ($s['cleric']['spirit'] * $s['cleric']['haste'] + $druid['spirit'] * $druid['haste']) / 2 * 1.3;
         $hp = array_sum(array_map(fn ($x) => $x['maxHp'], $s)) / 5;
 
         return self::$cache[$level] = [
