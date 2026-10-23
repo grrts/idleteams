@@ -1,0 +1,318 @@
+<?php
+
+namespace App\Game;
+
+/**
+ * Static game data: attributes, races, classes, Origins, skills, Keystones, gear, glyphs and legendary powers.
+ * Numbers are tuning targets for the proof of concept, not final balance.
+ */
+final class Rules
+{
+    public const ATTRIBUTES = [
+        'might' => ['Might', 'offense', 'Physical power: swords, arrows, daggers'],
+        'arcana' => ['Arcana', 'offense', 'Spell power: missiles, frost, holy damage'],
+        'precision' => ['Precision', 'offense', 'Crit chance (curve)'],
+        'swiftness' => ['Swiftness', 'tempo', 'Haste: attack and cast speed'],
+        'ferocity' => ['Ferocity', 'tempo', 'MEGA crit chance (curve) and crit damage'],
+        'focus' => ['Focus', 'tempo', 'Cooldown recovery (curve)'],
+        'vitality' => ['Vitality', 'defense', 'Max health'],
+        'guard' => ['Guard', 'defense', 'Armor and block (curve)'],
+        'agility' => ['Agility', 'defense', 'Dodge (curve)'],
+        'spirit' => ['Spirit', 'sustain', 'Healing power'],
+        'recovery' => ['Recovery', 'sustain', 'Health regen and healing received'],
+        'resolve' => ['Resolve', 'sustain', 'Debuff and knockback resistance (curve)'],
+        'wisdom' => ['Wisdom', 'resources', 'Max mana and mana regen'],
+        'stamina' => ['Stamina', 'resources', 'Max energy and energy regen'],
+        'fury' => ['Fury', 'resources', 'Max rage and rage gained per hit'],
+        'presence' => ['Presence', 'group', 'Threat'],
+        'command' => ['Command', 'group', 'Strength of buffs you give allies'],
+        'fortune' => ['Fortune', 'group', 'Gold and materials (never item drops)'],
+    ];
+
+    public const POINTS_PER_LEVEL = 6;
+    public const SOFT_CAP_SHARE = 0.20;
+    public const OATH_LEVEL = 20;
+    public const PATH_LEVEL = 10;
+    public const KEYSTONE_LEVELS = [15, 25, 35, 45];
+    public const ULTIMATE_LEVEL = 20;
+    public const REFORGE_LEVEL = 50;
+    public const LOADOUT_SIZE = 4;
+
+    public const RACES = [
+        'human' => ['name' => 'Human', 'points' => ['might' => 4, 'vitality' => 4, 'command' => 4], 'passive' => ['versatile', 'Versatile', '5% more XP from every battle']],
+        'elf' => ['name' => 'Elf', 'points' => ['precision' => 8, 'wisdom' => 4], 'passive' => ['keenSenses', 'Keen Senses', 'Crits refund a little mana or energy']],
+        'dwarf' => ['name' => 'Dwarf', 'points' => ['guard' => 8, 'resolve' => 4], 'passive' => ['stoneblood', 'Stoneblood', 'Immune to knockback']],
+        'orc' => ['name' => 'Orc', 'points' => ['fury' => 8, 'vitality' => 4], 'passive' => ['bloodfury', 'Bloodfury', 'Below half health, Might and Arcana count 10% higher']],
+        'felkin' => ['name' => 'Felkin', 'points' => ['agility' => 8, 'swiftness' => 4], 'passive' => ['nineLives', 'Nine Lives', 'Once per battle, survive a killing blow with 1 health']],
+        'draka' => ['name' => 'Draka', 'points' => ['recovery' => 8, 'arcana' => 4], 'passive' => ['emberHeart', 'Ember Heart', 'Half damage from fire, Recovery counts 10% higher']],
+    ];
+
+    public const ORIGINS = [
+        'anvil' => ['Anvil', 'guard', 'Tempering costs 10% less'],
+        'lantern' => ['Lantern', 'spirit', 'Your first heal each battle is a crit'],
+        'comet' => ['Comet', 'ferocity', 'MEGA crits add 2 to the combo counter'],
+        'fox' => ['Fox', 'agility', 'After a dodge, your next hit is a crit'],
+        'oak' => ['Oak', 'vitality', 'Start every pack with a small shield'],
+        'bell' => ['Bell', 'presence', 'Taunts recover 20% faster'],
+        'tide' => ['Tide', 'wisdom', 'Mana regen doubles between packs'],
+        'hare' => ['Hare', 'stamina', 'Energy refills between packs'],
+        'wolf' => ['Wolf', 'fury', "Rage doesn't fade between packs"],
+        'hawk' => ['Hawk', 'precision', 'Your first hit on each boss is a crit'],
+        'ember' => ['Ember', 'arcana', 'Spell crits set the target burning'],
+        'crown' => ['Crown', 'command', 'Buffs you give last 2 seconds longer'],
+    ];
+    public const ORIGIN_POINTS = 6;
+
+    /**
+     * Skill types: strike (one enemy), aoe (all enemies), heal (lowest ally), groupheal, hot, shield, taunt,
+     * wall (damage reduction), buff (own damage), mark (enemy takes more damage), slow (enemy attacks slower),
+     * vanish (drop threat), dot (damage over time), pet (extra attacker for a while).
+     * mult scales from the hero's power for the skill's school; cost is in the class resource.
+     */
+    public const CLASSES = [
+        'guardian' => [
+            'name' => 'Guardian', 'role' => 'tank', 'resource' => 'rage', 'school' => 'might',
+            'points' => ['guard' => 8, 'vitality' => 6, 'fury' => 4, 'presence' => 2],
+            'passive' => ['oathbound', 'Oathbound', 'Guard counts higher while an ally is below half health'],
+            'suggest' => ['guard' => 3, 'vitality' => 3, 'presence' => 2, 'fury' => 1, 'might' => 1, 'resolve' => 1],
+            'kit' => ['weapon' => 'sword', 'offhand' => 'shield', 'top' => 'plate', 'bottom' => 'greaves', 'shoes' => 'sabatons'],
+            'skills' => [
+                'shieldSlam' => ['Shield Slam', 1, 'strike', 1.3, 10, 4, ['threat' => 5]],
+                'taunt' => ['Taunting Shout', 3, 'taunt', 0, 0, 12, []],
+                'shieldWall' => ['Shield Wall', 5, 'wall', 0.30, 30, 30, ['dur' => 8, 'party' => true]],
+                'cleave' => ['Cleave', 8, 'aoe', 0.7, 15, 6, ['threat' => 4]],
+            ],
+            'paths' => [
+                'bulwark' => ['Bulwark', 'Blocks and group damage reduction', ['bastion' => ['Bastion', 10, 'wall', 0.45, 20, 20, ['dur' => 6]]]],
+                'vanguard' => ['Vanguard', 'Holds threat through damage', ['counterstrike' => ['Counterstrike', 10, 'strike', 2.2, 20, 8, ['threat' => 6]]]],
+            ],
+            'ultimate' => ['lastStand', 'Last Stand', 20, 'wall', 0.40, 0, 90, ['dur' => 10, 'party' => true]],
+        ],
+        'warden' => [
+            'name' => 'Warden', 'role' => 'tank', 'resource' => 'rage', 'school' => 'might',
+            'points' => ['vitality' => 8, 'recovery' => 6, 'fury' => 4, 'presence' => 2],
+            'passive' => ['deepRoots', 'Deep Roots', 'Regenerate health while holding position'],
+            'suggest' => ['vitality' => 3, 'recovery' => 2, 'guard' => 2, 'presence' => 2, 'fury' => 1, 'might' => 1],
+            'kit' => ['weapon' => 'hammer', 'offhand' => 'buckler', 'top' => 'leather', 'bottom' => 'kilt', 'shoes' => 'boots'],
+            'skills' => [
+                'rootbreak' => ['Rootbreak', 1, 'aoe', 0.8, 10, 6, ['threat' => 5]],
+                'barkskin' => ['Barkskin', 3, 'shield', 0.35, 20, 15, ['self' => true, 'ofHp' => true]],
+                'thornLash' => ['Thorn Lash', 5, 'strike', 1.4, 10, 4, ['threat' => 5]],
+                'roar' => ['Taunting Roar', 8, 'taunt', 0, 0, 12, []],
+            ],
+            'paths' => [
+                'oakheart' => ['Oakheart', 'Regeneration and self-healing', ['regrowth' => ['Regrowth', 10, 'hot', 0.20, 15, 20, ['self' => true, 'dur' => 10, 'ofHp' => true]]]],
+                'thornguard' => ['Thornguard', 'Reflects damage on big pulls', ['bramble' => ['Bramble Aura', 10, 'aoe', 1.2, 20, 12, ['threat' => 6]]]],
+            ],
+            'ultimate' => ['ancientBark', 'Ancient Bark', 20, 'wall', 0.60, 0, 90, ['dur' => 12]],
+        ],
+        'cleric' => [
+            'name' => 'Cleric', 'role' => 'healer', 'resource' => 'mana', 'school' => 'spirit',
+            'points' => ['spirit' => 8, 'wisdom' => 6, 'vitality' => 3, 'command' => 3],
+            'passive' => ['lastRite', 'Last Rite', 'Once per clear, saves an ally from a killing blow'],
+            'suggest' => ['spirit' => 4, 'wisdom' => 3, 'vitality' => 1, 'focus' => 1, 'precision' => 1],
+            'kit' => ['weapon' => 'wand', 'offhand' => 'book', 'top' => 'robe', 'bottom' => 'pants', 'shoes' => 'boots'],
+            'skills' => [
+                'mendingLight' => ['Mending Light', 1, 'heal', 2.6, 22, 2, []],
+                'smite' => ['Smite', 3, 'strike', 0.9, 8, 3, ['school' => 'arcana']],
+                'sanctuary' => ['Sanctuary', 5, 'groupheal', 1.1, 40, 10, []],
+                'holyWard' => ['Holy Ward', 8, 'shield', 2.2, 28, 8, ['tank' => true]],
+            ],
+            'paths' => [
+                'lightbearer' => ['Lightbearer', 'Big direct heals and critical heals', ['radiance' => ['Radiance', 10, 'heal', 4.6, 45, 12, []]]],
+                'sentinel' => ['Sentinel', 'Shields before damage lands', ['aegis' => ['Aegis', 10, 'shield', 1.6, 55, 20, ['party' => true]]]],
+            ],
+            'ultimate' => ['divineHymn', 'Divine Hymn', 20, 'groupheal', 4.0, 0, 90, []],
+        ],
+        'druid' => [
+            'name' => 'Druid', 'role' => 'healer', 'resource' => 'mana', 'school' => 'spirit',
+            'points' => ['spirit' => 7, 'wisdom' => 5, 'swiftness' => 5, 'recovery' => 3],
+            'passive' => ['seasons', 'Seasons', 'Heals grow stronger the longer a fight lasts'],
+            'suggest' => ['spirit' => 4, 'wisdom' => 3, 'swiftness' => 2, 'vitality' => 1],
+            'kit' => ['weapon' => 'staff', 'offhand' => 'none', 'top' => 'robe', 'bottom' => 'pants', 'shoes' => 'sandals'],
+            'skills' => [
+                'rejuvenate' => ['Rejuvenate', 1, 'hot', 5.0, 18, 1, ['dur' => 12]],
+                'wildGrowth' => ['Wild Growth', 3, 'hot', 2.6, 45, 12, ['dur' => 8, 'party' => true]],
+                'swiftmend' => ['Swiftmend', 5, 'heal', 3.0, 22, 6, []],
+                'moonfire' => ['Moonfire', 8, 'strike', 0.8, 8, 3, ['school' => 'arcana']],
+            ],
+            'paths' => [
+                'grove' => ['Grove', 'Heal-over-time that ramps through long fights', ['tranquilGrove' => ['Tranquil Grove', 10, 'groupheal', 1.8, 55, 20, []]]],
+                'wildcaller' => ['Wildcaller', 'Healing spirits that also bite', ['spiritWolves' => ['Spirit Wolves', 10, 'pet', 0.7, 40, 20, ['dur' => 12, 'school' => 'arcana']]]],
+            ],
+            'ultimate' => ['tranquility', 'Tranquility', 20, 'groupheal', 4.5, 0, 90, []],
+        ],
+        'ranger' => [
+            'name' => 'Ranger', 'role' => 'dps', 'resource' => 'energy', 'school' => 'might',
+            'points' => ['might' => 8, 'stamina' => 5, 'swiftness' => 4, 'command' => 3],
+            'passive' => ['steadyAim', 'Steady Aim', 'Each hit on the same target grows stronger'],
+            'suggest' => ['might' => 4, 'precision' => 2, 'swiftness' => 2, 'stamina' => 1, 'vitality' => 1],
+            'kit' => ['weapon' => 'bow', 'offhand' => 'none', 'top' => 'leather', 'bottom' => 'pants', 'shoes' => 'boots'],
+            'skills' => [
+                'aimedShot' => ['Aimed Shot', 1, 'strike', 1.5, 20, 0, []],
+                'volley' => ['Volley', 3, 'aoe', 0.85, 30, 6, []],
+                'markedPrey' => ['Marked Prey', 5, 'mark', 0.15, 15, 20, ['dur' => 10]],
+                'snareTrap' => ['Snare Trap', 8, 'slow', 0.25, 10, 20, ['dur' => 8]],
+            ],
+            'paths' => [
+                'sharpshooter' => ['Sharpshooter', 'Single target and crits', ['piercingShot' => ['Piercing Shot', 10, 'strike', 3.2, 35, 12, []]]],
+                'beastmaster' => ['Beastmaster', 'A companion that fights beside you', ['callCompanion' => ['Call Companion', 10, 'pet', 0.9, 30, 20, ['dur' => 15]]]],
+            ],
+            'ultimate' => ['rainOfArrows', 'Rain of Arrows', 20, 'aoe', 4.0, 0, 90, []],
+        ],
+        'mage' => [
+            'name' => 'Mage', 'role' => 'dps', 'resource' => 'mana', 'school' => 'arcana',
+            'points' => ['arcana' => 10, 'wisdom' => 5, 'ferocity' => 3, 'precision' => 2],
+            'passive' => ['overcharge', 'Overcharge', 'Crits refund part of their mana cost'],
+            'suggest' => ['arcana' => 4, 'wisdom' => 2, 'ferocity' => 2, 'precision' => 1, 'vitality' => 1],
+            'kit' => ['weapon' => 'staff', 'offhand' => 'book', 'top' => 'robe', 'bottom' => 'pants', 'shoes' => 'curly'],
+            'skills' => [
+                'arcaneBarrage' => ['Arcane Barrage', 5, 'strike', 2.0, 24, 4, []],
+                'frostNova' => ['Frost Nova', 3, 'slow', 0.30, 25, 15, ['dur' => 6, 'aoeMult' => 0.6]],
+                'fireball' => ['Fireball', 1, 'strike', 1.2, 16, 0, ['fire' => true]],
+                'blizzard' => ['Blizzard', 8, 'aoe', 1.0, 38, 10, []],
+            ],
+            'paths' => [
+                'arcanist' => ['Arcanist', 'Burst damage and MEGA crits', ['arcaneSurge' => ['Arcane Surge', 10, 'buff', 0.40, 20, 30, ['dur' => 10]]]],
+                'frostbinder' => ['Frostbinder', 'Freezes that take pressure off the tank', ['deepFreeze' => ['Deep Freeze', 10, 'slow', 0.40, 30, 20, ['dur' => 6, 'aoeMult' => 1.5]]]],
+            ],
+            'ultimate' => ['meteor', 'Meteor', 20, 'aoe', 6.0, 0, 90, ['fire' => true]],
+        ],
+        'rogue' => [
+            'name' => 'Rogue', 'role' => 'dps', 'resource' => 'energy', 'school' => 'might',
+            'points' => ['might' => 8, 'stamina' => 4, 'swiftness' => 4, 'agility' => 4],
+            'passive' => ['keenEye', 'Keen Eye', 'Items in the group chest roll rarity slightly higher'],
+            'suggest' => ['might' => 4, 'swiftness' => 2, 'precision' => 1, 'ferocity' => 1, 'stamina' => 1, 'vitality' => 1],
+            'kit' => ['weapon' => 'daggers', 'offhand' => 'none', 'top' => 'tunic', 'bottom' => 'shorts', 'shoes' => 'boots'],
+            'skills' => [
+                'twinStrike' => ['Twin Strike', 1, 'strike', 1.4, 18, 0, []],
+                'smokeBomb' => ['Smoke Bomb', 3, 'vanish', 0.3, 10, 20, []],
+                'fanOfKnives' => ['Fan of Knives', 5, 'aoe', 0.75, 25, 5, []],
+                'poisonedBlade' => ['Poisoned Blade', 8, 'dot', 2.4, 20, 10, ['dur' => 10]],
+            ],
+            'paths' => [
+                'duelist' => ['Duelist', 'Combo chains on one target', ['eviscerate' => ['Eviscerate', 10, 'strike', 3.4, 35, 10, []]]],
+                'trickster' => ['Trickster', 'Poisons, debuffs and interrupts', ['cripple' => ['Cripple', 10, 'mark', 0.12, 20, 15, ['dur' => 10, 'slow' => 0.15]]]],
+            ],
+            'ultimate' => ['shadowDance', 'Shadow Dance', 20, 'buff', 0.60, 0, 90, ['dur' => 8]],
+        ],
+    ];
+
+    /** Keystones at level 15 per role (more Keystone levels reuse the remaining options). */
+    public const KEYSTONES = [
+        'tank' => [
+            'ironWill' => ['Iron Will', 'Walls and shields are 30% stronger'],
+            'provoker' => ['Provoker', 'All threat you generate is 50% higher'],
+            'rallyingWall' => ['Rallying Wall', 'The whole party takes 5% less damage while you stand'],
+            'spikedGuard' => ['Spiked Guard', 'Blocked hits strike back for 40% of your power'],
+            'secondWind' => ['Second Wind', 'Below 30% health, gain a shield worth 20% of your health once per pack'],
+            'unmovable' => ['Unmovable', 'Immune to knockback and 20% more Resolve'],
+        ],
+        'healer' => [
+            'overflow' => ['Overflow', 'Overhealing turns into a shield worth half of it'],
+            'quickened' => ['Quickened', 'Healing skills recover 30% faster'],
+            'frugal' => ['Frugal', 'Healing skills cost 25% less'],
+            'guardianAngel' => ['Guardian Angel', 'Heals on allies below 30% health are 40% stronger'],
+            'battleCleric' => ['Battle Healer', 'Your damage skills also heal the lowest ally for 50% of the damage'],
+            'deepWell' => ['Deep Well', 'Mana regen is 30% higher'],
+        ],
+        'dps' => [
+            'shrapnel' => ['Shrapnel', 'Area skills deal 40% more, single-target skills 10% less'],
+            'patientHunter' => ['Patient Hunter', 'Your first hit on each pack and boss is a crit'],
+            'teamPlayer' => ['Team Player', 'Your marks and buffs also give the party 5% more damage'],
+            'executioner' => ['Executioner', '+50% damage to enemies below 25% health'],
+            'quietBlade' => ['Quiet Blade', 'You generate 40% less threat'],
+            'bloodthirst' => ['Bloodthirst', 'Crits heal you for 5% of the damage'],
+        ],
+    ];
+
+    /** Visible slots map to the pixel renderer's layers; jewelry slots carry stats only. */
+    public const SLOTS = [
+        'head' => ['Head', 'hat'], 'top' => ['Chest', 'top'], 'bottom' => ['Legs', 'bottom'], 'shoes' => ['Feet', 'shoes'],
+        'gloves' => ['Hands', 'gloves'], 'cape' => ['Back', 'cape'], 'weapon' => ['Main hand', 'weapon'], 'offhand' => ['Off hand', 'offhand'],
+        'ring1' => ['Ring', null], 'ring2' => ['Ring', null], 'amulet' => ['Amulet', null], 'trinket' => ['Trinket', null],
+    ];
+
+    public const BASES = [
+        'head' => ['helm' => 'Iron Helm', 'viking' => 'Horned Helm', 'wizard' => 'Wizard Hat', 'pot' => 'Cooking Pot', 'frog' => 'Frog Hood', 'crown' => 'Little Crown', 'bandana' => 'Bandana', 'hood' => 'Hood'],
+        'top' => ['plate' => 'Breastplate', 'leather' => 'Leather Vest', 'robe' => 'Robe', 'tunic' => 'Tunic', 'sweater' => 'Cozy Sweater'],
+        'bottom' => ['pants' => 'Trousers', 'shorts' => 'Shorts', 'kilt' => 'Kilt', 'greaves' => 'Greaves'],
+        'shoes' => ['boots' => 'Boots', 'sabatons' => 'Sabatons', 'sandals' => 'Sandals', 'curly' => 'Curly Shoes'],
+        'gloves' => ['gauntlets' => 'Gauntlets', 'leather' => 'Leather Gloves'],
+        'cape' => ['cape' => 'Cape', 'scarf' => 'Long Scarf'],
+        'weapon' => ['sword' => 'Sword', 'axe' => 'Axe', 'hammer' => 'Hammer', 'spear' => 'Spear', 'staff' => 'Staff', 'wand' => 'Wand', 'bow' => 'Bow', 'daggers' => 'Daggers', 'pan' => 'Frying Pan', 'fish' => 'Fish'],
+        'offhand' => ['shield' => 'Kite Shield', 'buckler' => 'Buckler', 'book' => 'Spellbook'],
+        'ring1' => ['ring' => 'Ring'], 'ring2' => ['ring' => 'Ring'], 'amulet' => ['amulet' => 'Amulet'], 'trinket' => ['trinket' => 'Trinket'],
+    ];
+
+    /** Affix per attribute: [prefix or suffix, word]. */
+    public const AFFIXES = [
+        'might' => ['pre', 'Brutal'], 'arcana' => ['pre', 'Arcane'], 'precision' => ['suf', 'of the Hawk'],
+        'swiftness' => ['pre', 'Swift'], 'ferocity' => ['pre', 'Savage'], 'focus' => ['suf', 'of Focus'],
+        'vitality' => ['pre', 'Sturdy'], 'guard' => ['pre', 'Stalwart'], 'agility' => ['pre', 'Nimble'],
+        'spirit' => ['pre', 'Blessed'], 'recovery' => ['suf', 'of Mending'], 'resolve' => ['pre', 'Resolute'],
+        'wisdom' => ['suf', 'of the Sage'], 'stamina' => ['pre', 'Tireless'], 'fury' => ['pre', 'Furious'],
+        'presence' => ['pre', 'Imposing'], 'command' => ['suf', 'of Command'], 'fortune' => ['pre', 'Lucky'],
+    ];
+
+    public const RARITIES = [
+        'common' => ['Common', 1, 0, 60.0],
+        'rare' => ['Rare', 2, 1, 30.0],
+        'epic' => ['Epic', 3, 2, 9.4],
+        'legendary' => ['Legendary', 4, 3, 0.6],
+    ];
+
+    /** Glyph themes: attribute they add and the Resonance they build at 3 / 6 / 9. */
+    public const GLYPHS = [
+        'ember' => ['Ember', 'ferocity', '#ff8a3d', 'Crits set the target burning for 20% more damage'],
+        'frost' => ['Frost', 'focus', '#7fd4ff', 'Your hits slow enemy attacks by 3%'],
+        'thorn' => ['Thorn', 'agility', '#6fbf4a', 'Enemies that hit you take 15% of your power back'],
+        'tide' => ['Tide', 'wisdom', '#3fa0c8', 'Overhealing turns into a shield on the lowest ally'],
+        'storm' => ['Storm', 'swiftness', '#c9a8ff', 'Crits chain to a second enemy for 30%'],
+        'shadow' => ['Shadow', 'precision', '#8a6fb0', 'You generate 20% less threat'],
+        'light' => ['Light', 'spirit', '#ffe27a', 'Heals on allies below 30% health are 20% stronger'],
+        'stone' => ['Stone', 'guard', '#a89c8e', 'Blocking a hit gives the lowest ally a small shield'],
+    ];
+
+    public const LEGENDARY_POWERS = [
+        'phoenixRite' => ['Phoenix Rite', 'Once per battle, rise again at half health'],
+        'echo' => ['Echoing Skills', 'Skills have a 20% chance to cast twice'],
+        'everbloom' => ['Everbloom', 'Your heals leave a heal-over-time for 30% more'],
+        'titanGrip' => ["Titan's Grip", 'Your weapon damage counts 25% higher'],
+        'starfall' => ['Starfall', 'MEGA crits hit every enemy'],
+    ];
+
+    public static function xpForLevel(int $level): int
+    {
+        $base = 160 * $level ** 1.5;
+        if ($level >= 50) {
+            $base = 160 * 50 ** 1.5 * 1.08 ** ($level - 50);
+        }
+
+        return (int) round($base);
+    }
+
+    public static function role(string $class): string
+    {
+        return self::CLASSES[$class]['role'];
+    }
+
+    /** Every skill a class can use: [id => [name, level, type, mult, cost, cd, opts, source]]. */
+    public static function classSkills(string $class): array
+    {
+        $c = self::CLASSES[$class];
+        $out = [];
+        foreach ($c['skills'] as $id => $s) {
+            $out[$id] = [...$s, 'core'];
+        }
+        foreach ($c['paths'] as $pathId => $p) {
+            foreach ($p[2] as $id => $s) {
+                $out[$id] = [...$s, $pathId];
+            }
+        }
+        [$uid, $uname, $ulvl, $utype, $umult, $ucost, $ucd, $uopts] = $c['ultimate'];
+        $out[$uid] = [$uname, $ulvl, $utype, $umult, $ucost, $ucd, $uopts, 'ultimate'];
+
+        return $out;
+    }
+}
