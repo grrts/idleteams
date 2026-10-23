@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Tests\Api;
+
+use App\Entity\Battle;
+use App\Service\Game;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\SchemaTool;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Tester\CommandTester;
+
+/** A new player joins the demo group, plays a battle and rolls on the chest. */
+class PlayTest extends WebTestCase
+{
+    private KernelBrowser $client;
+
+    protected function setUp(): void
+    {
+        $this->client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $tool = new SchemaTool($em);
+        $meta = $em->getMetadataFactory()->getAllMetadata();
+        $tool->dropSchema($meta);
+        $tool->createSchema($meta);
+        $app = new Application(self::$kernel);
+        (new CommandTester($app->find('app:demo:seed')))->execute([]);
+    }
+
+    private function api(string $method, string $path, array $body = []): array
+    {
+        $this->client->request($method, '/api'.$path, [], [], ['CONTENT_TYPE' => 'application/json'], $body ? json_encode($body) : null);
+
+        return json_decode($this->client->getResponse()->getContent(), true) ?? [];
+    }
+
+    public function testNewPlayerJoinsTheDemoGroupAndPlaysABattle(): void
+    {
+        $this->assertTrue($this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123'])['ok']);
+        $hero = $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'look' => ['hair' => 'bob']]);
+        $this->assertSame(1, $hero['level']);
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Again', 'race' => 'elf', 'cls' => 'mage', 'origin' => 'oak']), 'one hero per account');
+
+        $tavern = $this->api('GET', '/tavern');
+        $lfm = array_values(array_filter($tavern['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];
+        $this->api('POST', '/party/apply', ['party' => $lfm['party']['id']]);
+        $state = $this->api('GET', '/state');
+        $this->assertCount(5, $state['party']['members'], 'demo leader accepts right away');
+        $this->assertNotNull($state['battle'], 'a full group starts a battle');
+
+        // Fast-forward: settle the battle as if its time had passed.
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $battle = $em->find(Battle::class, $state['battle']['id']);
+        $game = static::getContainer()->get(Game::class);
+        $game->progress($battle->party, $battle->endsAt + 1);
+        $this->assertSame('chest', $battle->state);
+
+        $after = $this->api('GET', '/state');
+        $this->assertGreaterThan(0, $after['hero']['xp'] + ($after['hero']['level'] - 1));
+        $this->assertGreaterThan(0, $after['hero']['gold']);
+        $view = $this->api('GET', '/battle');
+        foreach ($view['chests'][0]['chest'] as $entry) {
+            $this->api('POST', '/battle/'.$battle->id.'/roll', ['idx' => $entry['idx'], 'choice' => 'need']);
+        }
+        $em->clear();
+        $settled = $em->find(Battle::class, $battle->id);
+        $this->assertSame('done', $settled->state, 'everyone has rolled, so the chest is handed out');
+    }
+
+    public function testPointsAndGear(): void
+    {
+        $this->api('POST', '/register', ['username' => 'tester2', 'password' => 'secret123']);
+        $this->api('POST', '/hero', ['name' => 'Gearhead', 'race' => 'human', 'cls' => 'ranger', 'origin' => 'hawk']);
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'spend', 'points' => ['might' => 1]]), 'no points at level 1');
+        $state = $this->api('GET', '/state');
+        $bow = array_values(array_filter($state['inventory'], fn ($i) => $i['slot'] === 'weapon'))[0];
+        $this->assertSame('weapon', $bow['equipped']);
+        $this->api('POST', '/item/'.$bow['id'].'/unequip');
+        $this->api('POST', '/item/'.$bow['id'].'/sell', ['price' => 5]);
+        $market = $this->api('GET', '/market');
+        $this->assertContains($bow['id'], array_column($market, 'id'));
+    }
+}

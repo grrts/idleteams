@@ -191,7 +191,7 @@ class Game
             }
         }
         $clears = $rep['clearsDone'];
-        $xpPerClear = 24 * $dl ** 1.5;
+        $xpPerClear = 30 * $dl ** 1.5;
         $partial = $rep['wiped'] ? 0.5 : 0.0; // half credit for the clear the group died in
         $keenEye = false;
         foreach ($heroes as $h) {

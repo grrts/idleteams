@@ -14,3 +14,8 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+when@test:
+    services:
+        logger:
+            class: Psr\Log\NullLogger
