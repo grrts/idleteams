@@ -108,3 +108,15 @@ a database and cron.
 whole dungeon at levels 1 to 50. Groups without a tank or a healer fail, as intended. Known gaps: a Warden plus
 Druid group falls behind on damage from level 35, and level 80+ needs another pass once gear past 50 is
 designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+
+## Browser build
+
+`browser-build/` runs the whole game inside one page with no server: `data.js`, `engine.js` and `server.js` stand in
+for the Symfony API, and the page saves to the browser. To assemble it, copy `pixel.js`, `art.js`, `arena.js`, `app.js`
+and `app.css` from `public/assets/` next to `browser-build/index.html` and open that page from any static host.
+
+## Art
+
+Everything is drawn in code at runtime, so there are no image files to keep in sync. `pixel.js` draws heroes,
+`art.js` draws item icons, UI and skill icons, monsters and the dungeon scenery, and `arena.js` plays back a
+battle on a canvas with hit numbers, projectiles, mechanics and the boss HUD.

@@ -508,4 +508,6 @@
   }
 
   Object.assign(S, { RACES, OPTIONS, DYES, HAIRS, EYES, METALS, POSES, sprite, golem, icon, toImage, frames, randomHero, mix, SIZE: [SW, SH], FEET: FY });
+  // Drawing helpers shared with art.js (item icons, monsters, scenery), so everything gets the same outline and shading.
+  Object.assign(S, { Buf, ramp, weapon, offhand });
 })();

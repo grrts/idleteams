@@ -1,23 +1,29 @@
 // Idle Teams game client. Plain JavaScript, no build step: the server owns every rule and number,
-// this file only shows state and sends the player's choices to /api.
+// this file only shows state and sends the player's choices to /api. Art comes from pixel.js (heroes),
+// art.js (items, monsters, icons, scenery) and arena.js (the battle scene).
 (function () {
   'use strict';
-  const ITP = window.ITP;
+  const ITP = window.ITP, ITA = window.ITA;
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (n) => (n == null ? '' : Math.round(n).toLocaleString('en-US'));
   const pct = (p, d = 1) => (p * 100).toFixed(d) + '%';
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
   const clock = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  const ico = (k, cls) => ITA.img(k, cls || 'ico');
 
   const S = {
     cfg: null, st: null, view: 'battle', sel: null, timelines: {}, battle: null, chat: { channel: 'tavern', msgs: {}, last: {} },
-    creator: null, skew: 0, tavern: null, guilds: null, market: null, marketFilter: { slot: '', rarity: '' }, attrOpen: null, chatOpen: false,
+    creator: null, creatorStep: 'race', skew: 0, tavern: null, guilds: null, market: null, marketFilter: { slot: '', rarity: '' }, attrOpen: null, chatOpen: false,
   };
 
   // ------------------------------------------------------------------ api
 
   async function api(method, path, body) {
+    // Browser build: the game server runs inside the page (server.js).
+    if (window.IT_SERVER) {
+      try { return window.IT_SERVER.handle(method, path, body ? JSON.parse(JSON.stringify(body)) : null); } catch (e) { const err = new Error(e.message); err.status = e.status || 400; throw err; }
+    }
     const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
     let data = null;
     try { data = await res.json(); } catch (e) { /* empty body */ }
@@ -35,7 +41,7 @@
   async function act(fn, okMsg) {
     try { const r = await fn(); if (okMsg) toast(okMsg, true); await refresh(); return r; } catch (e) { toast(e.message); return null; }
   }
-  function modal(html) { const m = $('#modal'); m.innerHTML = '<div class="panel">' + html + '</div>'; m.hidden = false; hydrate(m); }
+  function modal(html) { const m = $('#modal'); m.innerHTML = '<div class="panel stack">' + html + '</div>'; m.hidden = false; hydrate(m); }
   function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; }
   $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
   function confirmBox(text, yes) {
@@ -53,18 +59,51 @@
     }
     return spriteCache.get(key);
   }
-  const spr = (look, scale = 2, pose = 'stand0') => '<img class="spr" alt="" width="' + ITP.SIZE[0] * scale + '" height="' + ITP.SIZE[1] * scale + '" data-look="' + esc(JSON.stringify(look)) + '" data-pose="' + pose + '">';
+  // anim: "idle" breathes and blinks, "walk" loops the walk cycle.
+  const spr = (look, scale = 2, anim = '') => '<img class="spr" alt="" width="' + ITP.SIZE[0] * scale + '" height="' + ITP.SIZE[1] * scale + '" data-look="' + esc(JSON.stringify(look)) + '"' + (anim ? ' data-anim="' + anim + '"' : '') + '>';
+  // Portrait: a square crop around the head, found from the top of the sprite so short and tall races both fit.
+  function portraitURL(look) {
+    const key = JSON.stringify(look) + '#por';
+    if (!spriteCache.has(key)) {
+      let url = '';
+      try {
+        const src = ITP.sprite(look, 'stand0'), d = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+        let top = 0;
+        find: for (; top < src.height; top++) for (let x = 0; x < src.width; x++) if (d[(top * src.width + x) * 4 + 3] > 0) break find;
+        const N = 34, c = document.createElement('canvas'); c.width = c.height = N;
+        c.getContext('2d').drawImage(src, Math.round(src.width / 2 - N / 2), Math.max(0, top - 1), N, N, 0, 0, N, N);
+        url = c.toDataURL();
+      } catch (e) { /* fall back to an empty portrait */ }
+      spriteCache.set(key, url);
+    }
+    return spriteCache.get(key);
+  }
+  const por = (look, cls = 'por') => '<span class="' + cls + '"><img class="pimg" alt="" src="' + portraitURL(look) + '"></span>';
   function hydrate(root) {
-    root.querySelectorAll('img.spr[data-look]').forEach((img) => { img.src = spriteURL(JSON.parse(img.dataset.look), img.dataset.pose); img.removeAttribute('data-look'); });
+    root.querySelectorAll('img.spr[data-look]').forEach((img) => {
+      img._look = JSON.parse(img.dataset.look);
+      img.src = spriteURL(img._look, 'stand0'); img.removeAttribute('data-look');
+    });
     root.querySelectorAll('canvas.curve[data-curve]').forEach(drawCurve);
   }
+  let animTick = 0;
+  setInterval(() => {
+    animTick++;
+    document.querySelectorAll('img.spr[data-anim]').forEach((img, k) => {
+      if (!img._look) return;
+      const walk = img.dataset.anim === 'walk';
+      const pose = walk ? 'walk' + (animTick % 4) : (animTick + k) % 13 === 0 ? 'blink' : Math.floor((animTick + k) / 3) % 2 ? 'stand1' : 'stand0';
+      const u = spriteURL(img._look, pose); if (img.src !== u) img.src = u;
+    });
+  }, 160);
 
   // ------------------------------------------------------------------ text helpers
 
   const rarityName = (r) => (S.cfg.rarities[r] || [cap(r)])[0];
   const attrName = (a) => (S.cfg.attributes[a] || [cap(a)])[0];
   const className = (c) => S.cfg.classes[c].name;
-  const role = (r) => '<span class="pill ' + r + '">' + r + '</span>';
+  const ROLE = { tank: 'Tank', healer: 'Healer', dps: 'Damage' };
+  const role = (r) => '<span class="chip ' + r + '">' + ico(r) + ROLE[r] + '</span>';
 
   function itemName(it) {
     if (it.name) return it.name;
@@ -79,7 +118,7 @@
   function itemLines(it) {
     if (it.slot === 'glyph') {
       const g = S.cfg.glyphs[it.base];
-      return '<div>+' + (it.value ?? (it.affixes[0] || [])[1]) + ' ' + attrName(g[1]) + '</div><div class="muted">Resonance (3/6/9 of a theme): ' + esc(g[3]) + '</div>';
+      return '<div>+' + (it.value ?? (it.affixes[0] || [])[1]) + ' ' + attrName(g[1]) + '</div><div class="base">Resonance at 3, 6 and 9: ' + esc(g[3]) + '</div>';
     }
     let h = '';
     if (it.base_stats) {
@@ -88,7 +127,7 @@
       if (b.health) parts.push(fmt(b.health) + ' health');
       if (b.armor) parts.push(fmt(b.armor) + ' armor');
       if (b.block) parts.push(fmt(b.block) + ' block');
-      if (parts.length) h += '<div class="muted">' + parts.join(' · ') + '</div>';
+      if (parts.length) h += '<div class="base">' + parts.join(' · ') + '</div>';
     }
     const t = 1 + 0.03 * (it.temper || 0);
     (it.affixes || []).forEach(([a, v]) => { h += '<div>+' + Math.round(v * t) + ' ' + attrName(a) + '</div>'; });
@@ -97,9 +136,14 @@
     if (it.sockets) h += '<div>' + sockets(it) + '</div>';
     return h;
   }
+  const slotName = (it) => (it.slot === 'glyph' ? 'Glyph' : (S.cfg.slots[it.slot] || [cap(it.slot)])[0]);
+  function tile(it, opts = {}) {
+    if (!it) return '<div class="tile empty"><span>' + esc(opts.label || '') + '</span></div>';
+    return '<div class="tile ' + it.rarity + (opts.sel ? ' sel' : '') + (opts.big ? ' big' : '') + '"' + (opts.act === false ? '' : ' data-act="sel" data-id="' + it.id + '"') + ' title="' + esc(itemName(it)) + '"><img alt="" src="' + ITA.icon(it) + '">' + (opts.up ? '<span class="up">▲</span>' : '') + (opts.tag ? '<span class="tag">' + opts.tag + '</span>' : '') + '</div>';
+  }
   function itemCard(it, extra = '', attrs = '') {
-    const slot = it.slot === 'glyph' ? 'Glyph' : (S.cfg.slots[it.slot] || [cap(it.slot)])[0];
-    return '<div class="item b-' + it.rarity + '" ' + attrs + '><div class="nm r-' + it.rarity + '">' + esc(itemName(it)) + '</div><div class="muted small">' + rarityName(it.rarity) + ' ' + slot + ' · item level ' + it.ilvl + (it.price != null ? ' · <span class="gold">' + fmt(it.price) + 'g</span>' : '') + '</div>' + itemLines(it) + extra + '</div>';
+    return '<div class="item ' + it.rarity + '" ' + attrs + '>' + tile(it, { act: false }) + '<div><div class="nm r-' + it.rarity + '">' + esc(itemName(it)) + '</div><div class="sub">' + rarityName(it.rarity) + ' ' + slotName(it) + ' · item level ' + it.ilvl + '</div>' +
+      (it.price != null ? '<div class="price">' + ico('gold') + fmt(it.price) + '</div>' : '') + '</div><div class="lines">' + itemLines(it) + '</div>' + (extra ? '<div class="act">' + extra + '</div>' : '') + '</div>';
   }
 
   function skillText(s) {
@@ -122,11 +166,17 @@
       default: return s.type;
     }
   }
+  const SKILL_COL = { strike: ['#ff8a6b', '#8a2a1a'], aoe: ['#ff9a3a', '#8a3a0a'], heal: ['#7be07f', '#1f6a2a'], groupheal: ['#9ff0a0', '#2a7a3a'], hot: ['#7ad0a0', '#1f5a4a'], shield: ['#b8d8ff', '#2f4f8a'], taunt: ['#ffd25a', '#8a5a0a'], wall: ['#6fb7ff', '#1f4a8a'], buff: ['#ffb340', '#8a4a0a'], mark: ['#ff6a8a', '#7a1a3a'], slow: ['#7fd4ff', '#1a5a7a'], vanish: ['#a090c0', '#3a2a5a'], dot: ['#ff7a2a', '#7a2a0a'], pet: ['#c8a070', '#5a3a1a'] };
+  function skillIcon(s, rank) {
+    const c = SKILL_COL[s.type] || ['#c084ff', '#4a1a7a'];
+    return '<span class="sk" style="background:linear-gradient(145deg,' + c[0] + ',' + c[1] + ')" title="' + esc(s.name) + '"><img alt="" src="' + ITA.skill(s.type) + '">' + (rank ? '<span class="rk">' + rank + '</span>' : '') + '</span>';
+  }
 
   // ------------------------------------------------------------------ boot and polling
 
   async function boot() {
     S.cfg = await get('/config');
+    window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
     window.addEventListener('hashchange', () => { S.view = location.hash.slice(2) || 'battle'; S.sel = null; render(); loadView(); });
     S.view = location.hash.slice(2) || 'battle';
     await refresh();
@@ -157,20 +207,22 @@
     if (S.view === 'group') { S.tavern = await get('/tavern').catch(() => null); render(); }
     if (S.view === 'guild') { S.guilds = await get('/guilds').catch(() => null); render(); }
     if (S.view === 'market') loadMarket();
+    if (S.view === 'gear' && !S.craftCost) { S.craftCost = await get('/craft/cost').catch(() => null); render(); }
     pollChat();
   }
   async function loadBattle() {
-    const have = S.battle && S.battle.current && S.timelines[S.battle.current.id] ? S.battle.current.id : 0;
+    const cur = S.battle && S.battle.current;
+    const have = cur && S.timelines[cur.id] ? cur.id : 0;
     try {
       const b = await get('/battle?have=' + have);
       if (b.current && b.current.timeline) S.timelines[b.current.id] = prepTimeline(b.current.timeline);
       S.battle = b;
-      if (S.view === 'battle') render();
-    } catch (e) { /* shown on the next refresh */ }
+      render();
+    } catch (e) { /* not in a group */ }
   }
   async function loadMarket() {
-    const q = new URLSearchParams(S.marketFilter).toString();
-    S.market = await get('/market?' + q).catch(() => []);
+    const f = S.marketFilter;
+    S.market = await get('/market?slot=' + encodeURIComponent(f.slot) + '&rarity=' + encodeURIComponent(f.rarity)).catch(() => []);
     render();
   }
 
@@ -203,10 +255,10 @@
 
   function authView() {
     const reg = S.authMode === 'register';
-    return '<div class="auth panel stack"><h1 class="center gold">Idle Teams</h1><p class="muted center">Five heroes, one long battle, loot for the group.</p>' +
+    return '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
       '<div class="tabs"><button class="' + (!reg ? 'on' : '') + '" data-act="authMode" data-mode="login">Log in</button><button class="' + (reg ? 'on' : '') + '" data-act="authMode" data-mode="register">Create account</button></div>' +
-      '<form data-form="' + (reg ? 'register' : 'login') + '"><label>Username</label><input name="username" autocomplete="username" required style="width:100%"><label>Password</label><input name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
-      '<div style="margin-top:12px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button></div></form></div>';
+      '<form data-form="' + (reg ? 'register' : 'login') + '"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required style="width:100%"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
+      '<div style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button></div></form></div>';
   }
 
   // ------------------------------------------------------------------ creator
@@ -219,67 +271,89 @@
     return S.creator;
   }
   // The creator shows the hero in plain clothes: gear comes from play, not from the creator.
-  const plain = (c) => ({ ...c.look, race: c.race, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
+  const plain = (c, race) => ({ ...c.look, race: race || c.race, skin: race && race !== c.race ? ITP.RACES[race].skins[1] : c.look.skin, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
+  const STEPS = [['race', 'Race'], ['cls', 'Class'], ['origin', 'Origin'], ['look', 'Look']];
 
   function creatorView() {
-    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race];
+    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep;
     const start = {};
     const add = (a, n) => { start[a] = (start[a] || 0) + n; };
     Object.entries(cfg.races[c.race].points).forEach(([a, n]) => add(a, n));
     Object.entries(cfg.classes[c.cls].points).forEach(([a, n]) => add(a, n));
     add(cfg.origins[c.origin][1], cfg.originPoints);
+    const maxStart = Math.max(...Object.values(start));
+    const pts = (o) => Object.entries(o).map(([a, n]) => '+' + n + ' ' + attrName(a)).join(' · ');
     const choice = (kind, id, title, body, on) => '<div class="choice ' + (on ? 'on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(title) + '</b>' + body + '</div>';
-    const pts = (o) => Object.entries(o).map(([a, n]) => '+' + n + ' ' + attrName(a)).join(', ');
-    const opt = (key, values) => '<label>' + cap(key) + '</label><select data-look="' + key + '">' + Object.entries(values).map(([v, n]) => '<option value="' + v + '"' + (String(c.look[key]) === String(v) ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>';
-    const sw = (key, list) => '<label>' + ({ skin: 'Skin', hairColor: 'Hair colour', eyeColor: 'Eye colour', dye1: 'Main dye', dye2: 'Second dye', metal: 'Metal' }[key]) + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (c.look[key] === v ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '"></span>').join('') + '</div>';
-    return '<div class="main" style="max-width:1200px;margin:0 auto"><h1 class="gold">Create your hero</h1><p class="muted">Race, class and Origin are permanent. Each one comes with points already spent and a passive bonus. The look is yours to keep; everything you wear later comes from playing.</p>' +
-      '<div class="grid2" style="grid-template-columns: 280px 1fr">' +
-      '<div class="stack"><div class="preview">' + spr(plain(c), 4) + '</div>' +
-      '<div class="panel tight"><label>Name</label><input id="cname" value="' + esc(c.name) + '" maxlength="20" style="width:100%" placeholder="3 to 20 letters">' +
-      '<h4 style="margin-top:10px">Starting attributes</h4><div class="small">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => attrName(a) + ' ' + n).join(' · ') + '</div>' +
-      '<div style="margin-top:12px"><button class="primary" data-act="create">Create hero</button></div></div></div>' +
-      '<div class="stack"><div class="panel"><h3>Race</h3><div class="choices">' + Object.entries(cfg.races).map(([id, r]) => choice('race', id, r.name, '<div class="muted">' + pts(r.points) + '</div><div>' + esc(r.passive[1]) + ': ' + esc(r.passive[2]) + '</div>', c.race === id)).join('') + '</div></div>' +
-      '<div class="panel"><h3>Class</h3><div class="choices">' + Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div>' + role(k.role) + ' <span class="pill">' + k.resource + '</span></div><div class="muted">' + pts(k.points) + '</div><div>' + esc(k.passive[1]) + ': ' + esc(k.passive[2]) + '</div>', c.cls === id)).join('') + '</div></div>' +
-      '<div class="panel"><h3>Origin</h3><div class="choices">' + Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div></div>' +
-      '<div class="panel"><div class="row between"><h3>Look</h3><button class="small" data-act="randomLook">Surprise me</button></div><div class="grid3">' +
-      '<div>' + sw('skin', R.skins) + sw('hairColor', ITP.HAIRS) + sw('eyeColor', ITP.EYES) + '</div>' +
-      '<div>' + opt('hair', ITP.OPTIONS.hair) + opt('eyes', ITP.OPTIONS.eyes) + opt('mouth', ITP.OPTIONS.mouth) + opt('beard', ITP.OPTIONS.beard) + opt('acc', ITP.OPTIONS.acc) + '</div>' +
-      '<div>' + opt('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }) + opt('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }) + sw('dye1', ITP.DYES) + sw('dye2', ITP.DYES) + sw('metal', ITP.METALS) + '</div>' +
-      '</div></div></div></div></div>';
+    const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
+    const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
+    let body = '';
+    if (step === 'race') {
+      const r = cfg.races[c.race];
+      body = '<h2>Choose a race</h2><p class="muted">Races come in real sizes, from stout dwarves to towering orcs and draka. Every race can play every role.</p><div class="races" style="margin-top:12px">' +
+        Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
+        '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>';
+    } else if (step === 'cls') {
+      body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
+        Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>';
+    } else if (step === 'origin') {
+      body = '<h2>Choose an Origin</h2><p class="muted">Where your hero comes from: ' + cfg.originPoints + ' points in one attribute and a small edge of its own.</p><div class="choices" style="margin-top:12px">' +
+        Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>';
+    } else {
+      body = '<div class="head"><h2>Make them yours</h2><button class="small" data-act="randomLook">Randomise look</button></div><p class="muted">Build and height change the silhouette only. Your two clothes colours become the dyes on every piece of gear you earn later.</p><div class="lookgrid" style="margin-top:6px">' +
+        sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
+        seg('beard', ITP.OPTIONS.beard, 'Facial hair') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height') +
+        sw('dye1', ITP.DYES, 'Main dye') + sw('dye2', ITP.DYES, 'Second dye') + sw('metal', ITP.METALS, 'Metal') + '</div>';
+    }
+    const idx = STEPS.findIndex(([s]) => s === step);
+    const nav = '<div class="row between" style="margin-top:16px">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">Back</button>' : '<span></span>') + (idx < STEPS.length - 1 ? '<button class="primary" data-act="cstep" data-s="' + STEPS[idx + 1][0] + '">Next</button>' : '<button class="primary" data-act="create">Create hero</button>') + '</div>';
+    const k = cfg.classes[c.cls];
+    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, class and Origin are permanent. The look is yours to keep.</span></div><div class="cols">' +
+      '<div class="stagebox stack"><div class="panel stack"><div class="portrait" style="aspect-ratio:4/4.4">' + spr(plain(c), 4, 'idle') + '</div>' +
+      '<div><label for="cname">Name</label><input id="cname" value="' + esc(c.name) + '" maxlength="20" style="width:100%" placeholder="3 to 20 letters"></div>' +
+      '<div class="row"><b class="num" style="font-size:1.2rem">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</b>' + role(k.role) + '</div>' +
+      '<div><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
+      '<button class="primary" data-act="create">Create hero</button></div></div>' +
+      '<div class="panel"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (i + 1) + '</i>' + n + '</button>').join('') + '</div>' + body + nav + '</div></div></div>';
   }
 
   // ------------------------------------------------------------------ shell
 
+  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market']];
   function shell() {
-    const h = S.st.hero, views = [['battle', 'Battle'], ['hero', 'Hero'], ['skills', 'Skills'], ['gear', 'Gear'], ['group', 'Group'], ['guild', 'Guild'], ['market', 'Market']];
+    const h = S.st.hero;
     const dots = { battle: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= S.cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, group: S.st.invites.length + (S.st.party ? S.st.party.requests.filter((r) => r.kind === 'application').length : 0) };
-    const nav = views.map(([id, n]) => '<a href="#/' + id + '" class="' + (S.view === id ? 'on' : '') + '">' + n + (dots[id] ? '<span class="dot">' + dots[id] + '</span>' : '') + '</a>').join('') + '<a href="#" data-act="toggleChat" class="chat-link">Chat</a>';
-    const views2 = { battle: battleView, hero: heroView, skills: skillsView, gear: gearView, group: groupView, guild: guildView, market: marketView };
-    return '<div class="shell' + (S.chatOpen ? ' chat-open' : '') + '"><div class="top"><span class="logo">Idle Teams</span><span class="who">' + spr(h.look, 0.5) + '<b>' + esc(h.name) + '</b> <span class="muted">Lv ' + h.level + ' ' + className(h.cls) + '</span></span>' +
-      '<span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></span>' +
-      '<span class="cur"><span class="gold" title="Gold">' + fmt(h.gold) + 'g</span><span title="Materials">⚒ ' + fmt(h.materials) + '</span><span title="Essence" class="r-epic">✦ ' + fmt(h.essence) + '</span><button class="small" data-act="logout">Log out</button></span></div>' +
-      '<nav class="nav">' + nav + '</nav><main class="main">' + (views2[S.view] || battleView)() + '</main><aside class="side">' + chatView() + '</aside></div>';
+    const nav = VIEWS.map(([id, n, i]) => '<a href="#/' + id + '" class="' + (S.view === id ? 'on' : '') + '">' + ico(i, '') + '<span>' + n + '</span>' + (dots[id] ? '<span class="badge">' + dots[id] + '</span>' : '') + '</a>').join('') + '<a href="#" data-act="toggleChat" class="chat-link">' + ico('chat', '') + '<span>Chat</span></a>';
+    const views = { battle: battleView, hero: heroView, skills: skillsView, gear: gearView, group: groupView, guild: guildView, market: marketView };
+    return '<div class="shell' + (S.chatOpen ? ' chat-open' : '') + '"><header class="top"><span class="logo">Idle <span>Teams</span></span>' +
+      '<span class="who">' + por(h.look) + '<span><b>' + esc(h.name) + '</b> <span class="muted small">Lv ' + h.level + ' ' + className(h.cls) + '</span></span></span>' +
+      '<span class="xp" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><span class="tiny muted">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</span><span class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></span></span>' +
+      '<span class="cur"><span class="gold" title="Gold">' + ico('gold') + fmt(h.gold) + '</span><span title="Materials">' + ico('materials') + fmt(h.materials) + '</span><span class="r-epic" title="Essence">' + ico('essence') + fmt(h.essence) + '</span><button class="small" data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></span></header>' +
+      '<nav class="nav">' + nav + '</nav><main class="main">' + (views[S.view] || battleView)() + '</main><aside class="side">' + chatView() + '</aside></div>';
   }
 
   // ------------------------------------------------------------------ battle
 
   function battleView() {
     const st = S.st, p = st.party;
-    if (!p) return '<div class="panel stack"><h2>No group yet</h2><p>Battles are fought by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p><a href="#/group"><button class="primary">Go to the tavern</button></a></div>' + reportsView();
-    let head = '';
-    if (p.members.length < S.cfg.partySize) head = '<div class="panel"><b>' + esc(p.name) + '</b> has ' + p.members.length + ' of ' + S.cfg.partySize + ' heroes. The next battle starts as soon as the group is full. <a href="#/group">Invite people</a></div>';
-    else if (!p.running) head = '<div class="panel"><b>' + esc(p.name) + '</b> is resting. The leader can send the group back in from the Group page.</div>';
-    const cur = S.battle && S.battle.current;
-    let scene = '';
-    if (cur) {
-      scene = '<div class="scene-wrap"><canvas class="scene" id="scene" width="384" height="168"></canvas><div class="hud"><span id="hud-l"></span><span id="hud-r"></span></div><div class="banner" id="banner"></div></div>' +
-        '<div class="track" id="track">' + S.cfg.dungeon.plan.map(([kind, name], n) => '<span class="' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div>' +
-        '<div class="frames" id="frames">' + cur.roster.map((r, i) => '<div class="frame" id="fr' + i + '"><div class="nm">' + esc(r.name) + '</div><div class="muted">' + className(r.cls) + ' ' + r.level + '</div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div>').join('') + '</div>' +
-        '<div class="row between" style="margin-top:8px"><h4>Battle log</h4><span class="muted small">' + esc(S.cfg.dungeon.name) + ' · dungeon level ' + cur.dungeonLevel + ' · results land when the run ends</span></div><div class="log" id="blog"></div>';
-    } else if (p.members.length === S.cfg.partySize && p.running) {
-      scene = '<div class="panel">The next battle is about to start…</div>';
+    if (!p) {
+      return '<div class="stack"><div class="camp"><h1>No group yet</h1><p class="muted" style="max-width:56ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
+        '<div class="lineup"><div class="seat">' + spr(st.hero.look, 1.5, 'idle') + '<b>' + esc(st.hero.name) + '</b></div>' + [1, 2, 3, 4].map(() => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div>' +
+        '<div style="margin-top:16px"><a href="#/group"><button class="primary">Go to the tavern</button></a></div></div>' + reportsView() + '</div>';
     }
-    return '<div class="stack">' + head + scene + chestsView() + reportsView() + '</div>';
+    const cur = S.battle && S.battle.current;
+    if (!cur) {
+      const why = p.members.length < S.cfg.partySize ? 'The group needs ' + (S.cfg.partySize - p.members.length) + ' more hero' + (S.cfg.partySize - p.members.length === 1 ? '' : 'es') + '. The next run starts as soon as it is full.' : !p.running ? 'The group is resting. The leader can send it back in from the Group page.' : 'The next run is about to start…';
+      return '<div class="stack"><div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
+        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b>' + role(m.role) + '</div>').join('') + Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div>' +
+        (p.members.length < S.cfg.partySize ? '<div style="margin-top:16px"><a href="#/group"><button class="primary">Find heroes</button></a></div>' : '') + '</div>' + chestsView() + reportsView() + '</div>';
+    }
+    const plan = S.cfg.dungeon.plan;
+    const side = chestsView() + reportsView();
+    const log = '<div class="panel"><div class="head"><h3>Battle log</h3><span class="muted small">' + esc(S.cfg.dungeon.name) + ' · level ' + cur.dungeonLevel + ' · rewards land when the run ends</span></div><div class="log" id="blog"></div></div>';
+    return '<div class="stack"><div><div class="arena"><canvas id="scene" width="960" height="540"></canvas><div class="clock" id="clock"></div></div>' +
+      '<div class="track" id="track">' + plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div>' +
+      '<div class="frames">' + cur.roster.map((r, i) => '<div class="frame" id="fr' + i + '">' + por(r.look) + '<div class="nm">' + esc(r.name) + '</div><div class="cl">' + className(r.cls) + ' · ' + r.level + '</div><div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div></div>').join('') + '</div></div>' +
+      (side ? '<div class="grid2">' + log + '<div class="stack">' + side + '</div></div>' : log) + '</div>';
   }
 
   function chestsView() {
@@ -288,13 +362,13 @@
     const me = S.st.hero.id;
     return b.chests.map((c) => {
       const names = Object.fromEntries(c.roster.map((r) => [r.id, r.name]));
-      const items = c.chest.length ? c.chest.map((e) => {
+      const items = c.chest.length ? '<div class="chest-items">' + c.chest.map((e) => {
         const mine = e.rolls[me];
-        const others = Object.entries(e.rolls).map(([id, ch]) => esc(names[id] || '?') + ': ' + ch).join(', ');
-        const buttons = mine ? '<div class="small">You chose <b>' + mine + '</b></div>' : '<div class="row" style="margin-top:4px"><button class="small primary" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="need">Need</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="greed">Greed</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="pass">Pass</button></div>';
-        return itemCard(e.item, (e.upgrade ? '<div class="up">Upgrade for you</div>' : '') + buttons + (others ? '<div class="muted small">' + others + '</div>' : ''));
-      }).join('') : '<p class="muted">No loot this time, only materials. Loot is never guaranteed.</p>';
-      return '<div class="panel"><div class="row between"><h3>Group chest</h3><span class="muted small">Closes in ' + clock(c.chestClosesAt - now()) + '. Anyone who has not rolled by then rolls by their loot setting.</span></div><div class="grid3">' + items + '</div></div>';
+        const others = Object.entries(e.rolls).map(([id, ch]) => '<span class="chip">' + esc(names[id] || '?') + ': ' + ch + '</span>').join('');
+        const buttons = mine ? '<div class="small">You chose <b>' + mine + '</b></div>' : '<div class="row"><button class="small primary" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="need">Need</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="greed">Greed</button><button class="small" data-act="roll" data-b="' + c.id + '" data-i="' + e.idx + '" data-c="pass">Pass</button></div>';
+        return itemCard(e.item, (e.upgrade ? '<div class="upgrade">▲ Upgrade for you</div>' : '') + buttons + (others ? '<div class="rolls">' + others + '</div>' : ''));
+      }).join('') + '</div>' : '<p class="muted">No loot this time, only materials. Loot is never guaranteed.</p>';
+      return '<div class="panel" style="border-color:rgba(255,210,90,.5)"><div class="head"><h3>' + ico('chest', 'ico lg') + ' Group chest</h3><span class="muted small">Closes in ' + clock(c.chestClosesAt - now()) + '. Anyone who has not rolled by then rolls by their loot setting.</span></div>' + items + '</div>';
     }).join('');
   }
 
@@ -303,198 +377,66 @@
     if (!b) return '';
     const list = [...b.chests, ...b.recent];
     if (!list.length) return '';
-    return '<div class="panel"><h3>Recent battles</h3>' + list.slice(0, 6).map((x) => {
-      const r = x.report;
-      const won = !r.wiped;
-      const rows = r.heroes.map((h) => '<tr><td>' + esc(h.name) + '</td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + fmt(h.absorbed) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td></tr>').join('');
+    return '<div class="panel"><h3>Recent runs</h3>' + list.slice(0, 6).map((x) => {
+      const r = x.report, won = !r.wiped, top = Math.max(1, ...r.heroes.map((h) => h.damage));
+      const rows = r.heroes.map((h) => '<tr><td><b>' + esc(h.name) + '</b><div class="bar meter" style="width:110px"><i style="width:' + (100 * h.damage) / top + '%"></i></div></td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td></tr>').join('');
       const fellAt = r.wiped ? r.plan[r.encountersDone] : null;
-      const loot = x.chest.filter((e) => e.winner).map((e) => '<span class="r-' + e.item.rarity + '">' + esc(e.item.name) + '</span> → ' + esc((x.roster.find((r) => r.id === e.winner) || {}).name || '?')).join(', ');
-      return '<details' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b> · ' + r.bossesKilled + ' of 3 bosses · dungeon level ' + x.dungeonLevel + ' · ' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</summary>' +
-        (r.cause ? '<p class="bad small">' + esc(r.cause) + '</p>' : '') +
-        '<table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Shielded</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">⚒</th></tr>' + rows + '</table>' +
-        (loot ? '<p class="small">Loot: ' + loot + '</p>' : x.state === 'done' ? '<p class="small muted">No loot this time, only materials.</p>' : '') + '</details>';
+      const loot = x.chest.filter((e) => e.winner).map((e) => '<span class="row" style="gap:6px">' + tile(e.item, { act: false }) + '<span><span class="r-' + e.item.rarity + '"><b>' + esc(e.item.name) + '</b></span><br><span class="small muted">won by ' + esc((x.roster.find((q) => q.id === e.winner) || {}).name || '?') + '</span></span></span>').join('');
+      return '<details class="run"' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b><span class="chip">' + r.bossesKilled + '/3 bosses</span><span class="chip">level ' + x.dungeonLevel + '</span><span class="small muted">' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</span></summary>' +
+        (r.cause ? '<p class="bad small" style="margin-top:8px">' + esc(r.cause) + '</p>' : '') +
+        '<div class="scroll-x" style="margin-top:8px"><table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">Mats</th></tr>' + rows + '</table></div>' +
+        (loot ? '<div class="row" style="margin-top:10px;gap:14px">' + loot + '</div>' : x.state === 'done' ? '<p class="small muted" style="margin-top:8px">No loot this time, only materials.</p>' : '') + '</details>';
     }).join('') + '</div>';
   }
 
   // ---------- playback: the battle was simulated on the server; we replay it in step with the clock
 
   function prepTimeline(t) {
-    // Index events by time and remember who the enemies are at each phase.
     t.ev = t.events.map((e) => ({ t: e[0] / 10, type: e[1], src: e[2], dst: e[3], amt: e[4], flags: e[5], x: e[6] }));
     return t;
   }
-  const scn = { floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', bannerUntil: 0, log: [], act: {}, phaseLabel: '', at: 0, walkFrom: null };
-
+  const scn = { log: [], logDirty: false, arena: null };
   function setupScene() {
-    const cur = S.battle && S.battle.current;
-    if (!cur || !S.timelines[cur.id]) return;
-    if (scn.battleId !== cur.id) { Object.assign(scn, { battleId: cur.id, floaters: [], shown: -1, lastSim: -1, enemies: {}, banner: '', log: [], act: {}, phaseLabel: '', at: 0, walkFrom: null }); }
-    else scn.redrawLog = true;
+    const cur = S.battle && S.battle.current, cv = $('#scene');
+    if (!cur || !cv) return;
+    if (!scn.arena) scn.arena = new window.ITArena.Arena(cv, { log: logLine });
+    scn.arena.cv = cv; scn.arena.g = cv.getContext('2d');
+    if (scn.battleId !== cur.id) { scn.battleId = cur.id; scn.log = []; }
+    scn.redrawLog = true;
   }
   function simTime(cur, tl) {
     const span = cur.endsAt - cur.startedAt;
     return Math.min(tl.length, Math.max(0, ((now() - cur.startedAt) / span) * tl.length));
   }
-  function logLine(t, text, cls) { scn.log.push('<div class="' + (cls || '') + '"><span class="muted">' + clock(t) + '</span> ' + text + '</div>'); if (scn.log.length > 80) scn.log.shift(); scn.logDirty = true; }
-
-  function processEvents(cur, tl, simT) {
-    const names = cur.roster.map((r) => r.name);
-    const live = simT - scn.lastSim < 2; // skip floaters when jumping forward
-    for (let i = scn.shown + 1; i < tl.ev.length && tl.ev[i].t <= simT; i++) {
-      const e = tl.ev[i];
-      scn.shown = i;
-      const fresh = live && simT - e.t < 1.5;
-      switch (e.type) {
-        case 'phase': {
-          if (e.dst !== 2) scn.enemies = {};
-          scn.walkFrom = null;
-          scn.at = e.src;
-          Object.values(e.x.enemies).forEach(([id, kind, name, max]) => { if (!scn.enemies[id]) scn.enemies[id] = { id, kind, name, max, hp: 1000 }; });
-          if (e.dst !== 2) {
-            scn.phaseLabel = 'Wing ' + (e.x.wing + 1) + ': ' + e.x.name;
-            if (fresh) banner(e.dst === 1 ? 'Boss: ' + e.x.name : e.x.name);
-            logLine(e.t, e.dst === 1 ? '<b>Boss: ' + esc(e.x.name) + '</b>' : esc(e.x.name), e.dst === 1 ? 'gold' : '');
-          }
-          break;
-        }
-        case 'walk': scn.enemies = {}; scn.walkFrom = e.t; scn.at = e.src; scn.phaseLabel = 'Moving on…'; break;
-        case 'spawn': scn.enemies[e.src] = { id: e.src, kind: 'shard', name: 'Ember Shard', max: e.amt, hp: 1000 }; break;
-        case 'hit': if (fresh && !(e.flags & 16) && e.amt > 0) floater('enemy', e.dst, fmt(e.amt), e.flags & 2 ? '#ff5cf0' : e.flags & 1 ? '#ffd040' : '#ffffff', e.flags & 3 ? 1.5 : 1); if (e.src >= 0) scn.act[e.src] = e.t; break;
-        case 'heal': if (fresh && e.amt > 0) floater('hero', e.dst, '+' + fmt(e.amt), '#7be07f', e.flags & 1 ? 1.4 : 1); break;
-        case 'hurt': if (fresh && e.amt > 0) floater('hero', e.dst, '-' + fmt(e.amt), e.flags & 4 ? '#ff9a3d' : '#ff6b6b', e.flags & 2 ? 1.4 : 1); break;
-        case 'dodge': if (fresh) floater('hero', e.dst, 'dodge', '#a9c4ff', 1); break;
-        case 'shield': if (fresh) floater('hero', e.dst >= 0 ? e.dst : e.src, 'shield', '#e0e8ff', 1); break;
-        case 'cast': scn.act[e.src] = e.t; if (e.flags & 1) { logLine(e.t, '<b>' + esc(names[e.src]) + '</b> used ' + esc(e.x.name) + '!', 'gold'); if (fresh) banner(e.x.name); } break;
-        case 'mech': logLine(e.t, '<b class="bad">' + esc(e.x.name) + '</b>' + (e.dst >= 0 ? ' on ' + esc(names[e.dst]) : ''), e.flags & 1 ? 'good' : ''); if (fresh && e.x.name !== 'Curse resisted') banner(e.x.name); break;
-        case 'death': logLine(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); break;
-        case 'revive': logLine(e.t, esc(names[e.src]) + ' is back on their feet.', 'good'); break;
-        case 'kill': if (scn.enemies[e.dst]) { scn.enemies[e.dst].hp = 0; if (scn.enemies[e.dst].kind === 'boss') { logLine(e.t, 'The ' + esc(scn.enemies[e.dst].name) + ' is down!', 'good'); if (fresh) banner(scn.enemies[e.dst].name + ' defeated!'); } } break;
-      }
-    }
-    scn.lastSim = simT;
-  }
-  function banner(text) { scn.banner = text; scn.bannerUntil = performance.now() + 1800; }
-  function floater(side, who, text, color, size) { scn.floaters.push({ side, who, text, color, size, born: performance.now(), dx: (Math.random() - 0.5) * 18 }); if (scn.floaters.length > 60) scn.floaters.shift(); }
-
+  function logLine(t, text, cls) { scn.log.push('<div class="' + (cls || '') + '"><span class="t">' + clock(t) + '</span>' + text + '</div>'); if (scn.log.length > 100) scn.log.shift(); scn.logDirty = true; }
   function snapAt(tl, simT) {
     const s = tl.snaps; if (!s.length) return null;
     let lo = 0, hi = s.length - 1;
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (s[mid][0] <= simT) lo = mid; else hi = mid - 1; }
     return s[lo];
   }
-
-  const imgCache = new Map();
-  function cachedCanvas(key, make) { if (!imgCache.has(key)) imgCache.set(key, make()); return imgCache.get(key); }
-  // Colours a sprite's pixels while keeping its shading, so one piece of art can serve several enemies.
-  function tint(src, color) {
-    if (!color) return src;
-    const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
-    const g = c.getContext('2d'); g.drawImage(src, 0, 0);
-    g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.45; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
-    return c;
-  }
-  function imp(color) {
-    const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
-    const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
-    px(5, 4, 10, 12, '#2a1418'); px(6, 5, 8, 10, color); px(4, 2, 3, 4, '#2a1418'); px(13, 2, 3, 4, '#2a1418'); px(5, 3, 1, 2, color); px(14, 3, 1, 2, color);
-    px(7, 8, 2, 2, '#fff4c0'); px(11, 8, 2, 2, '#fff4c0'); px(8, 12, 4, 1, '#2a1418'); px(6, 16, 3, 2, '#2a1418'); px(11, 16, 3, 2, '#2a1418');
-    return c;
-  }
-
-  function drawScene(cur, tl, simT) {
-    const cv = $('#scene'); if (!cv) return;
-    const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
-    const W = cv.width, H = cv.height, ground = 140;
-    // backdrop: a cave with lava glow
-    g.fillStyle = '#1a1222'; g.fillRect(0, 0, W, H);
-    // The cave scrolls while the group walks to the next fight.
-    const walking = scn.walkFrom != null;
-    const scroll = Math.round((walking ? simT - scn.walkFrom : 0) * 40 + scn.at * 160);
-    g.fillStyle = '#231a2e'; for (let x = -(scroll % 24) - 24; x < W; x += 24) { const k = Math.floor((x + scroll) / 24); g.fillRect(x, 20 + ((((k * 7) % 18) + 18) % 18), 18, 6); }
-    g.fillStyle = '#2a2034'; for (let x = -(scroll % 96) - 96; x < W; x += 96) { const k = ((Math.floor((x + scroll) / 96) % 3) + 3) % 3; g.fillRect(x + 30, ground - 50 - k * 8, 14, 50 + k * 8); }
-    g.fillStyle = '#2d2238'; g.fillRect(0, ground, W, H - ground);
-    g.fillStyle = '#3a2c48'; for (let x = -(scroll % 16); x < W; x += 16) g.fillRect(x, ground, 10, 2);
-    g.fillStyle = 'rgba(255,120,40,0.10)'; g.fillRect(0, ground - 30, 150, 30);
-    const snap = snapAt(tl, simT);
-    if (snap) snap[3].forEach(([id, hp]) => { if (scn.enemies[id]) scn.enemies[id].hp = hp; });
-    // enemies on the left, facing right
-    const foes = Object.values(scn.enemies).filter((e) => e.hp > 0);
-    const pos = {};
-    let ex = 30;
-    foes.forEach((e, k) => {
-      if (e.kind === 'boss') {
-        // Three bosses share the golem art for now: size and colour tell them apart.
-        const swing = Math.floor(performance.now() / 600) % 3;
-        const look = { 'Cinder Hound': [0.7, '#d0502a'], 'Slag Matron': [0.85, '#4a70d8'] }[e.name] || [1, null];
-        const img = cachedCanvas('golem' + swing + look[1], () => tint(ITP.golem(['idle', 'raise', 'slam'][swing]), look[1]));
-        const w = 120 * look[0], hgt = 112 * look[0];
-        g.drawImage(img, 40, ground - hgt + 8, w, hgt);
-        pos[e.id] = [40 + w / 2, ground - hgt + 2];
-        bar(g, 50, ground - hgt - 4, 100, e.hp / 1000, '#e05a3a');
-      } else if (e.kind === 'brute') {
-        const img = cachedCanvas('brute', () => imp('#a8402a'));
-        const bob = Math.round(Math.sin(performance.now() / 300 + k) * 2);
-        g.drawImage(img, ex, ground - 60 + bob, 60, 60); pos[e.id] = [ex + 30, ground - 64 + bob]; bar(g, ex + 4, ground - 66 + bob, 52, e.hp / 1000, '#e05a3a');
-        ex += 66;
-      } else {
-        const img = cachedCanvas(e.kind, () => imp(e.kind === 'shard' ? '#ffb340' : '#e0583a'));
-        const bob = Math.round(Math.sin(performance.now() / 250 + k) * 2);
-        const x = e.kind === 'shard' ? 160 + k * 4 : ex, y = ground - 40 + bob - (e.kind === 'shard' ? 30 : 0);
-        g.drawImage(img, x, y, 40, 40); pos[e.id] = [x + 20, y - 4]; bar(g, x + 2, y - 6, 36, e.hp / 1000, '#e05a3a');
-        ex += 46;
-      }
-    });
-    // heroes on the right, facing left
-    cur.roster.forEach((r, i) => {
-      const hp = snap ? snap[1][i] : 1000;
-      const x = 196 + i * 37, y = ground - 76 + (i % 2) * 4;
-      const acted = scn.act[i] != null && simT - scn.act[i] < 0.4;
-      const pose = hp <= 0 ? 'stand0' : walking ? 'walk' + (Math.floor(performance.now() / 150 + i) % 4) : acted ? (simT - scn.act[i] < 0.2 ? 'atk1' : 'atk2') : (Math.floor(performance.now() / 500 + i) % 2 ? 'stand1' : 'stand0');
-      const img = cachedCanvas(JSON.stringify(r.look) + pose, () => ITP.sprite(r.look, pose));
-      if (hp <= 0) { g.save(); g.globalAlpha = 0.45; g.translate(x + 24, ground - 6); g.rotate(-Math.PI / 2); g.drawImage(img, -10, -24); g.restore(); }
-      else g.drawImage(img, x, y);
-      if (snap && snap[4][i] > 0) { g.strokeStyle = 'rgba(220,235,255,0.7)'; g.strokeRect(x + 8, y + 10, 32, 64); }
-      pos['h' + i] = [x + 24, y + 6];
-      updateFrame(i, snap, r);
-    });
-    // floating numbers
-    const t = performance.now();
-    g.textAlign = 'center';
-    scn.floaters = scn.floaters.filter((f) => t - f.born < 1100);
-    scn.floaters.forEach((f) => {
-      const p = f.side === 'hero' ? pos['h' + f.who] : pos[f.who];
-      if (!p) return;
-      const age = (t - f.born) / 1100;
-      g.font = Math.round(9 * f.size) + 'px "Pixelify Sans", monospace';
-      g.fillStyle = '#000'; g.fillText(f.text, p[0] + f.dx + 1, p[1] - age * 26 + 1);
-      g.fillStyle = f.color; g.fillText(f.text, p[0] + f.dx, p[1] - age * 26);
-    });
-  }
-  function bar(g, x, y, w, frac, col) { g.fillStyle = '#000'; g.fillRect(x - 1, y - 1, w + 2, 5); g.fillStyle = '#3a1418'; g.fillRect(x, y, w, 3); g.fillStyle = col; g.fillRect(x, y, Math.round(w * frac), 3); }
-  function updateFrame(i, snap, r) {
+  function updateFrame(i, snap) {
     const el = document.getElementById('fr' + i); if (!el || !snap) return;
     const hp = snap[1][i], res = snap[2][i], ab = snap[4][i];
-    const bars = el.querySelectorAll('i');
+    const bars = el.querySelectorAll('.bar i');
     bars[0].style.width = hp / 10 + '%'; bars[0].className = 'hp' + (hp < 350 ? ' low' : '');
     bars[1].style.width = Math.min(100, ab / 10) + '%';
     bars[2].style.width = res / 10 + '%';
     el.classList.toggle('dead', hp <= 0);
   }
-
   function frame() {
     requestAnimationFrame(frame);
     if (!S.st || !S.st.hero || S.view !== 'battle') return;
     const cur = S.battle && S.battle.current; const tl = cur && S.timelines[cur.id];
-    if (!cur || !tl) return;
-    const simT = simTime(cur, tl);
-    processEvents(cur, tl, simT);
-    drawScene(cur, tl, simT);
-    const l = $('#hud-l'), r = $('#hud-r'), b = $('#banner'), log = $('#blog');
-    if (l) l.textContent = scn.phaseLabel;
-    const track = $('#track');
-    if (track && track.dataset.at !== String(scn.at)) { track.dataset.at = scn.at; track.querySelectorAll('span').forEach((el) => { const n = +el.dataset.n; el.classList.toggle('done', n < scn.at); el.classList.toggle('now', n === scn.at); }); }
-    if (r) r.textContent = 'Ends in ' + clock(cur.endsAt - now());
-    if (b) b.textContent = performance.now() < scn.bannerUntil ? scn.banner : '';
+    if (!cur || !tl || !scn.arena) return;
+    const simT = simTime(cur, tl), snap = snapAt(tl, simT);
+    scn.arena.update(cur, tl, simT);
+    scn.arena.draw(cur, tl, simT, snap);
+    cur.roster.forEach((r, i) => updateFrame(i, snap));
+    const c = $('#clock'); if (c) c.textContent = 'Run ends in ' + clock(cur.endsAt - now());
+    const track = $('#track'), at = scn.arena.at;
+    if (track && track.dataset.at !== String(at)) { track.dataset.at = at; track.querySelectorAll('.node').forEach((el) => { const n = +el.dataset.n; el.classList.toggle('done', n < at); el.classList.toggle('now', n === at); }); }
+    const log = $('#blog');
     if (log && (scn.logDirty || scn.redrawLog)) { log.innerHTML = scn.log.slice().reverse().join(''); scn.logDirty = false; scn.redrawLog = false; }
     if (now() > cur.endsAt + 2 && !scn.reloading) { scn.reloading = true; setTimeout(async () => { await refresh(); await loadBattle(); scn.reloading = false; }, 1500); }
   }
@@ -506,48 +448,55 @@
     const groups = {};
     Object.entries(cfg.attributes).forEach(([a, d]) => { (groups[d[1]] = groups[d[1]] || []).push(a); });
     const carved = h.points.carved || {}, spent = h.points.spent || {};
+    const maxA = Math.max(1, ...Object.values(h.attributes));
     let attrs = '';
     Object.entries(groups).forEach(([g, list]) => {
       attrs += '<div class="grp">' + g + '</div>';
       list.forEach((a) => {
-        const mine = spent[a] || 0, lock = carved[a] || 0;
-        attrs += '<div class="attr"><span data-act="attrOpen" data-a="' + a + '" style="cursor:pointer"><b>' + attrName(a) + '</b>' + (mine ? ' <span class="muted small">(' + mine + ' yours' + (lock ? ', ' + lock + ' carved' : '') + ')</span>' : '') + '</span>' +
-          '<span class="v">' + fmt(h.attributes[a]) + '</span><span class="row" style="gap:2px"><button class="small" data-act="spend" data-a="' + a + '" data-n="-1" ' + (mine > lock ? '' : 'disabled') + '>−</button><button class="small" data-act="spend" data-a="' + a + '" data-n="1" ' + (h.points.unspent > 0 ? '' : 'disabled') + '>+</button><button class="small" data-act="spend" data-a="' + a + '" data-n="5" ' + (h.points.unspent >= 5 ? '' : 'disabled') + '>+5</button></span>' +
-          '<span class="d">' + esc(cfg.attributes[a][2]) + (S.attrOpen === a ? '<br>' + (h.sources[a] || []).map(([f, n]) => esc(f) + ' +' + n).join(' · ') + (Math.abs(h.effective[a] - h.attributes[a]) > 0.5 ? '<br><span class="bad">Past the soft cap: counts as ' + fmt(h.effective[a]) + '</span>' : '') : '') + '</span></div>';
+        const mine = spent[a] || 0, lock = carved[a] || 0, over = Math.abs(h.effective[a] - h.attributes[a]) > 0.5;
+        attrs += '<div class="attr"><span class="n" data-act="attrOpen" data-a="' + a + '">' + attrName(a) + (mine ? ' <small>(' + mine + ' yours' + (lock ? ', ' + lock + ' carved' : '') + ')</small>' : '') + '</span>' +
+          '<span class="v' + (over ? ' bad' : '') + '">' + fmt(h.attributes[a]) + '</span><span class="btns"><button class="small" data-act="spend" data-a="' + a + '" data-n="-1" ' + (mine > lock ? '' : 'disabled') + ' aria-label="Take a point back">−</button><button class="small" data-act="spend" data-a="' + a + '" data-n="1" ' + (h.points.unspent > 0 ? '' : 'disabled') + ' aria-label="Spend a point">+</button><button class="small" data-act="spend" data-a="' + a + '" data-n="5" ' + (h.points.unspent >= 5 ? '' : 'disabled') + '>+5</button></span>' +
+          '<span class="bar"><i style="width:' + (100 * h.attributes[a]) / maxA + '%;background:linear-gradient(90deg,var(--ember2),var(--ember))"></i></span>' +
+          '<span class="d">' + esc(cfg.attributes[a][2]) + (S.attrOpen === a ? '<br>' + (h.sources[a] || []).map(([f, n]) => esc(f) + ' +' + n).join(' · ') + (over ? '<br><span class="bad">Past the soft cap: counts as ' + fmt(h.effective[a]) + '</span>' : '') : '') + '</span></div>';
       });
     });
     const res = { mana: 'Mana', energy: 'Energy', rage: 'Rage' }[st.resource];
-    const stat = (n, v, tip) => '<div title="' + esc(tip || '') + '"><span class="muted">' + n + '</span><b>' + v + '</b></div>';
+    const stat = (n, v, tip) => '<div class="stat" title="' + esc(tip || '') + '"><div class="k">' + n + '</div><div class="v">' + v + '</div></div>';
+    const key = stat('Health', fmt(st.maxHp)) + stat(h.role === 'healer' ? 'Healing power' : st.arcana > st.might ? 'Spell power' : 'Power', fmt(h.role === 'healer' ? st.spirit : Math.max(st.might, st.arcana))) + stat('Crit', pct(st.crit)) + stat('Haste', '+' + pct(st.haste - 1)) + stat(h.role === 'tank' ? 'Damage cut' : 'Dodge', pct(h.role === 'tank' ? st.dr : st.dodge)) + stat(res, fmt(st.resMax));
     const stats = stat('Max health', fmt(st.maxHp)) + stat('Weapon damage', fmt(st.weaponDamage)) + stat('Physical power', fmt(st.might)) + stat('Spell power', fmt(st.arcana)) + stat('Healing power', fmt(st.spirit)) +
       stat('Crit chance', pct(st.crit), 'Precision, curve') + stat('MEGA crit', pct(st.mega), 'Ferocity, curve') + stat('Crit damage', '×' + st.critMult.toFixed(2)) + stat('Haste', '+' + pct(st.haste - 1), 'Swiftness, curve') +
-      stat('Cooldowns', '−' + pct(st.cdr), 'Focus, curve') + stat('Dodge', pct(st.dodge), 'Agility, curve') + stat('Damage reduction', pct(st.dr), 'Guard and armor, curve') + stat('Block', pct(st.block)) + stat('Resist', pct(st.resist), 'Resolve, curve') +
-      stat('Regen', fmt(st.regen) + '/s') + stat('Healing received', '+' + pct(st.healRecv - 1)) + stat('Threat', '×' + st.threat.toFixed(2)) + stat('Buff strength', '×' + st.command.toFixed(2)) + stat('Fortune', '×' + st.fortune.toFixed(2)) +
-      stat(res, fmt(st.resMax) + (st.resRegen ? ' (+' + st.resRegen.toFixed(1) + '/s)' : ' (+' + st.rageGain.toFixed(1) + ' per hit)'));
-    const curves = Object.entries(h.curves).map(([k, c]) => '<div><div class="small">' + ({ crit: 'Crit', haste: 'Haste', cdr: 'Cooldowns', dodge: 'Dodge', resist: 'Resist', mega: 'MEGA crit' })[k] + ' from ' + attrName(c.attr) + ': <b>' + fmt(c.points) + '</b> points</div><canvas class="curve" width="220" height="90" data-curve=\'' + JSON.stringify({ k: h.k, p: c.points, cap: cfg.caps[k] || 0.95, half: k === 'mega' }) + '\'></canvas></div>').join('');
+      stat('Cooldowns', '−' + pct(st.cdr), 'Focus, curve') + stat('Dodge', pct(st.dodge), 'Agility, curve') + stat('Damage cut', pct(st.dr), 'Guard and armor, curve') + stat('Block', pct(st.block)) + stat('Resist', pct(st.resist), 'Resolve, curve') +
+      stat('Regen', fmt(st.regen) + '/s') + stat('Healing taken', '+' + pct(st.healRecv - 1)) + stat('Threat', '×' + st.threat.toFixed(2)) + stat('Buff strength', '×' + st.command.toFixed(2)) + stat('Fortune', '×' + st.fortune.toFixed(2)) +
+      stat(res, fmt(st.resMax) + (st.resRegen ? ' +' + st.resRegen.toFixed(1) + '/s' : ''));
+    const curves = Object.entries(h.curves).map(([k, c]) => '<div><div class="small"><b>' + ({ crit: 'Crit', haste: 'Haste', cdr: 'Cooldowns', dodge: 'Dodge', resist: 'Resist', mega: 'MEGA crit' })[k] + '</b> <span class="muted">from ' + attrName(c.attr) + ' ' + fmt(c.points) + '</span></div><canvas class="curve" width="260" height="110" data-curve=\'' + JSON.stringify({ k: h.k, p: c.points, cap: cfg.caps[k] || 0.95, half: k === 'mega' }) + '\'></canvas></div>').join('');
 
-    // Path and Keystones: the locked-in choices
     const cls = cfg.classes[h.cls];
     let path = '';
-    if (h.level < cfg.pathLevel) path = '<p class="muted">Your Path opens at level ' + cfg.pathLevel + '. Until the Oath at level ' + cfg.oathLevel + ' you can change it; the Oath seals it with every point spent so far.</p>';
-    else path = '<div class="choices">' + Object.entries(cls.paths).map(([id, p]) => '<div class="choice ' + (h.path === id ? 'on' : '') + '" ' + (h.oathTaken ? '' : 'data-act="path" data-id="' + id + '"') + '><b>' + esc(p[0]) + '</b>' + esc(p[1]) + '<div class="muted">Skill: ' + Object.values(p[2]).map((s) => esc(s[0])).join(', ') + '</div></div>').join('') + '</div>' +
-      (h.oathTaken ? '<p class="small gold">Oathsworn: your Path and the points spent before level ' + cfg.oathLevel + ' are carved in.</p>' : '<p class="small muted">The Oath at level ' + cfg.oathLevel + ' seals your Path and carves in the points you have spent by then.</p>');
+    if (h.level < cfg.pathLevel) path = '<p class="muted">Your Path opens at level ' + cfg.pathLevel + '. You can change it until the Oath at level ' + cfg.oathLevel + ', which seals it with every point spent so far.</p>';
+    else path = '<div class="choices">' + Object.entries(cls.paths).map(([id, p]) => '<div class="choice ' + (h.path === id ? 'on' : '') + (h.oathTaken ? ' locked' : '') + '" ' + (h.oathTaken ? '' : 'data-act="path" data-id="' + id + '"') + '><b>' + esc(p[0]) + '</b>' + esc(p[1]) + '<div class="muted small">Skills: ' + Object.values(p[2]).map((s) => esc(s[0])).join(', ') + '</div></div>').join('') + '</div>' +
+      (h.oathTaken ? '<p class="small gold" style="margin-top:8px">' + ico('lock') + ' Oathsworn: your Path and the points spent before level ' + cfg.oathLevel + ' are carved in.</p>' : '<p class="small muted" style="margin-top:8px">The Oath at level ' + cfg.oathLevel + ' seals your Path and carves in the points you have spent by then.</p>');
     const ks = cfg.keystones[h.role];
-    const chosen = Object.entries(h.keystones).map(([lvl, id]) => '<div class="choice on"><b>' + esc(ks[id][0]) + '</b><span class="muted">Level ' + lvl + '</span><div>' + esc(ks[id][1]) + '</div></div>').join('');
-    const open = h.openKeystones.length ? '<h4 style="margin-top:8px">Choose your level ' + h.openKeystones[0] + ' Keystone (permanent)</h4><div class="choices">' + Object.entries(ks).filter(([id]) => !Object.values(h.keystones).includes(id)).map(([id, k]) => '<div class="choice" data-act="keystone" data-l="' + h.openKeystones[0] + '" data-id="' + id + '"><b>' + esc(k[0]) + '</b>' + esc(k[1]) + '</div>').join('') + '</div>' : '';
+    const chosen = Object.entries(h.keystones).map(([lvl, id]) => '<div class="choice on locked"><span class="eyebrow">' + ico('lock') + ' Level ' + lvl + '</span><b>' + esc(ks[id][0]) + '</b><div>' + esc(ks[id][1]) + '</div></div>').join('');
+    const open = h.openKeystones.length ? '<h4 style="margin-top:12px">Choose your level ' + h.openKeystones[0] + ' Keystone. This is permanent.</h4><div class="choices" style="margin-top:8px">' + Object.entries(ks).filter(([id]) => !Object.values(h.keystones).includes(id)).map(([id, k]) => '<div class="choice" data-act="keystone" data-l="' + h.openKeystones[0] + '" data-id="' + id + '"><b>' + esc(k[0]) + '</b>' + esc(k[1]) + '</div>').join('') + '</div>' : '';
     const race = cfg.races[h.race], origin = cfg.origins[h.origin];
-    const marks = h.marks.map((m) => '<span class="pill" title="' + esc((cfg.marks[m] || ['', ''])[1]) + '">' + esc((cfg.marks[m] || [m])[0]) + '</span>').join(' ');
+    const marks = h.marks.map((m) => '<span class="chip gold" title="' + esc((cfg.marks[m] || ['', ''])[1]) + '">' + ico('star') + esc((cfg.marks[m] || [m])[0]) + '</span>').join(' ');
     const career = h.career || {};
 
-    return '<div class="stack"><div class="panel row" style="align-items:flex-start;gap:16px">' + spr(h.look, 3) + '<div class="stack" style="flex:1;min-width:220px"><div><h2>' + esc(h.name) + '</h2><div>Level ' + h.level + ' ' + race.name + ' ' + cls.name + (h.path ? ' of the ' + esc(cls.paths[h.path][0]) : '') + ' ' + role(h.role) + '</div><div class="muted small">Origin: ' + esc(origin[0]) + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div></div>' +
-      '<div class="small"><b>' + esc(race.passive[1]) + '</b>: ' + esc(race.passive[2]) + '<br><b>' + esc(cls.passive[1]) + '</b>: ' + esc(cls.passive[2]) + '<br><b>' + esc(origin[0]) + '</b>: ' + esc(origin[2]) + '</div>' +
-      '<div>' + (marks || '<span class="muted small">No Marks yet. Marks are earned in battle and shown on your card.</span>') + '</div>' +
-      '<div class="small muted">Runs ' + (career.battles || 0) + ' · dungeons cleared ' + (career.dungeons || 0) + ' · bosses ' + (career.bossKills || 0) + ' · deaths ' + (career.deaths || 0) + ' · Codex ' + h.codexPowers.length + ' of ' + Object.keys(cfg.powers).length + '</div></div></div>' +
-      '<div class="panel"><div class="row between"><h3>Attributes</h3><div class="row"><span><b class="gold">' + h.points.unspent + '</b> unspent of ' + h.points.total + ' (' + cfg.pointsPerLevel + ' per level)</span><button class="small" data-act="autoSpend" ' + (h.points.unspent ? '' : 'disabled') + '>Spend the suggested way</button></div></div>' +
-      '<p class="small muted">Everything comes from attributes and gear. Percentage stats follow a curve that gets steep around 50% and never reaches 100%. A single attribute above ' + Math.round(cfg.softCapShare * 100) + '% of all your points counts half past that line. Click an attribute to see where its points come from.</p><div class="attrs">' + attrs + '</div></div>' +
-      '<div class="grid2"><div class="panel"><h3>Combat stats</h3><div class="stats">' + stats + '</div></div><div class="panel"><h3>Curves</h3><p class="small muted">Points needed = K × p / (1 − p)², with K = ' + h.k.toFixed(1) + ' at your level. The dot is you.</p><div class="grid3">' + curves + '</div></div></div>' +
-      '<div class="panel"><h3>Path</h3>' + path + '</div>' +
-      '<div class="panel"><h3>Keystones</h3><p class="small muted">Keystones open at levels ' + cfg.keystoneLevels.join(', ') + ', then every 25 levels after 50. Each choice is permanent.</p>' + (chosen ? '<div class="choices">' + chosen + '</div>' : '') + open + (!chosen && !open ? '<p class="muted">Your first Keystone opens at level ' + cfg.keystoneLevels[0] + '.</p>' : '') + '</div>' +
-      '<div class="panel"><h3>Loot setting</h3><p class="small muted">When you are away, the server rolls for you this way when a chest closes.</p><select data-act-change="lootPolicy">' + [['upgrades', 'Need on upgrades, greed on the rest'], ['greed', 'Greed on everything'], ['pass', 'Pass on everything']].map(([v, n]) => '<option value="' + v + '"' + (h.lootPolicy === v ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></div></div>';
+    return '<div class="stack"><div class="hero-top"><div class="portrait"><span class="lvl">Level ' + h.level + '</span>' + spr(h.look, 4, 'idle') + '</div>' +
+      '<div class="stack tight"><div><div class="eyebrow">' + esc(race.name) + ' · Origin: ' + esc(origin[0]) + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div><h1>' + esc(h.name) + '</h1>' +
+      '<div class="row title-line">' + esc(cls.name) + (h.path ? ' of the ' + esc(cls.paths[h.path][0]) : '') + role(h.role) + (h.oathTaken ? '<span class="chip gold">' + ico('lock') + 'Oathsworn</span>' : '') + '</div></div>' +
+      '<div><div class="small muted" style="margin-bottom:4px">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP to level ' + (h.level + 1) + '</div><div class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></div></div>' +
+      '<div class="statstrip">' + key + '</div>' +
+      '<div class="passives"><div class="passive"><b>' + esc(race.passive[1]) + '</b> · ' + esc(race.passive[2]) + '</div><div class="passive"><b>' + esc(cls.passive[1]) + '</b> · ' + esc(cls.passive[2]) + '</div><div class="passive"><b>' + esc(origin[0]) + '</b> · ' + esc(origin[2]) + '</div></div>' +
+      '<div class="row">' + (marks || '<span class="muted small">No Marks yet. Marks are earned in battle and shown on your card.</span>') + '</div>' +
+      '<div class="small muted">' + (career.battles || 0) + ' runs · ' + (career.dungeons || 0) + ' clears · ' + (career.bossKills || 0) + ' bosses · ' + (career.deaths || 0) + ' deaths · Codex ' + h.codexPowers.length + ' of ' + Object.keys(cfg.powers).length + '</div></div></div>' +
+      '<div class="panel"><div class="head"><h2>Attributes</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.points.unspent + '</span> <span class="muted small">unspent of ' + h.points.total + '</span></span><button class="small' + (h.points.unspent ? ' primary' : '') + '" data-act="autoSpend" ' + (h.points.unspent ? '' : 'disabled') + '>Spend the suggested way</button></div></div>' +
+      '<p class="small muted">Everything comes from attributes and gear, ' + cfg.pointsPerLevel + ' points per level. Percentage stats follow a curve that gets steep around 50% and never reaches 100%. One attribute above ' + Math.round(cfg.softCapShare * 100) + '% of all your points counts half past that line. Tap an attribute to see where its points come from.</p><div class="attrs">' + attrs + '</div></div>' +
+      '<div class="panel"><h2>Combat stats</h2><div class="statstrip">' + stats + '</div></div>' +
+      '<div class="panel"><div class="head"><h2>Curves</h2><span class="small muted">Points needed = K × p / (1 − p)², K = ' + h.k.toFixed(1) + ' at your level. The green dot is you.</span></div><div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' + curves + '</div></div>' +
+      '<div class="panel"><h2>Path</h2>' + path + '</div>' +
+      '<div class="panel"><div class="head"><h2>Keystones</h2><span class="small muted">Levels ' + cfg.keystoneLevels.join(', ') + ', then every 25 after 50. Each choice is permanent.</span></div>' + (chosen ? '<div class="choices">' + chosen + '</div>' : '') + open + (!chosen && !open ? '<p class="muted">Your first Keystone opens at level ' + cfg.keystoneLevels[0] + '.</p>' : '') + '</div>' +
+      '<div class="panel"><h2>Loot setting</h2><p class="small muted">When you are away, the game rolls for you this way when a chest closes.</p><div class="seg" style="margin-top:8px">' + [['upgrades', 'Need on upgrades, greed on the rest'], ['greed', 'Greed on everything'], ['pass', 'Pass on everything']].map(([v, n]) => '<button class="' + (h.lootPolicy === v ? 'on' : '') + '" data-act="lootPolicy" data-v="' + v + '">' + n + '</button>').join('') + '</div></div></div>';
   }
 
   function drawCurve(cv) {
@@ -555,32 +504,39 @@
     const g = cv.getContext('2d'), W = cv.width, H = cv.height;
     const pts = (p) => (d.k * p) / ((1 - p) ** 2);
     const curve = (x) => { if (x <= 0) return 0; const b = 2 * x + d.k; return (b - Math.sqrt(b * b - 4 * x * x)) / (2 * x); };
-    const maxX = Math.max(pts(0.75), d.p * 1.3);
-    g.fillStyle = '#120e19'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = '#4a3d63'; g.beginPath(); g.moveTo(0, H - 0.5 * H * 0.9 - 4); g.lineTo(W, H - 0.5 * H * 0.9 - 4); g.stroke();
-    g.fillStyle = '#ffc94a';
-    for (let x = 0; x < W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); g.fillRect(x, Math.round(H - 4 - p * H * 0.9), 1, 2); }
-    const me = Math.min(d.cap, curve(d.p)) * (d.half ? 0.5 : 1), mx = Math.min(W - 3, (d.p / maxX) * W);
-    g.fillStyle = '#6fd97a'; g.fillRect(Math.round(mx) - 2, Math.round(H - 4 - me * H * 0.9) - 2, 5, 5);
-    g.fillStyle = '#a99cc2'; g.font = '10px monospace'; g.fillText(pct(me), Math.min(W - 40, mx + 6), Math.max(12, H - 8 - me * H * 0.9)); g.fillText('50%', 2, H - 0.5 * H * 0.9 - 7);
+    const maxX = Math.max(pts(0.75), d.p * 1.3), Y = (p) => H - 8 - p * (H - 16);
+    g.fillStyle = '#120812'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#3e2b4d'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(0.5)); g.lineTo(W, Y(0.5)); g.stroke(); g.setLineDash([]);
+    g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
+    g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fillStyle = 'rgba(255,138,42,0.15)'; g.fill();
+    g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
+    g.strokeStyle = '#ff8a2a'; g.lineWidth = 2; g.stroke();
+    const me = Math.min(d.cap, curve(d.p)) * (d.half ? 0.5 : 1), mx = Math.min(W - 4, (d.p / maxX) * W);
+    g.fillStyle = '#7be07f'; g.beginPath(); g.arc(mx, Y(me), 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#120812'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#f4ead8'; g.font = '13px "Lilita One", sans-serif'; g.fillText(pct(me), Math.min(W - 44, mx + 8), Math.max(14, Y(me) - 6));
+    g.fillStyle = '#8a7a98'; g.font = '11px Nunito, sans-serif'; g.fillText('50%', 4, Y(0.5) - 4);
   }
 
   // ------------------------------------------------------------------ skills
 
   function skillsView() {
     const h = S.st.hero, cfg = S.cfg;
-    const inLoadout = new Set(h.loadout);
+    const inLoadout = new Set(h.loadout), byId = Object.fromEntries(h.skills.map((s) => [s.id, s]));
+    const ult = h.skills.find((s) => s.source === 'ultimate');
+    const bar = h.loadout.map((id) => byId[id]).filter(Boolean).map((s) => '<div class="aslot">' + skillIcon(s, s.rank) + esc(s.name) + '</div>').join('') +
+      Array.from({ length: Math.max(0, cfg.loadoutSize - h.loadout.length) }, () => '<div class="aslot"><span class="sk empty">+</span>Empty</div>').join('') +
+      (ult ? '<div class="aslot">' + (ult.unlocked ? skillIcon(ult, ult.rank) : '<span class="sk empty">' + ico('lock') + '</span>') + '<span class="gold">' + esc(ult.name) + '</span></div>' : '');
     const card = (s) => {
       const locked = !s.unlocked, isUlt = s.source === 'ultimate';
-      const src = s.source === 'core' ? '' : isUlt ? '<span class="pill gold">ultimate</span> ' : '<span class="pill">' + esc(cfg.classes[h.cls].paths[s.source][0]) + ' path</span> ';
-      return '<div class="panel tight' + (locked ? ' muted' : '') + '"><div class="row between"><b class="' + (inLoadout.has(s.id) ? 'gold' : '') + '">' + esc(s.name) + '</b><span class="small">Rank ' + s.rank + '/' + cfg.maxSkillRank + '</span></div>' +
-        '<div class="small">' + src + (locked ? 'Unlocks at level ' + s.level + (s.source !== 'core' && !isUlt ? ' on this Path' : '') : s.type) + (s.cost ? ' · costs ' + s.cost + ' ' + cfg.classes[h.cls].resource : '') + (s.cd ? ' · ' + s.cd + 's cooldown' : '') + '</div>' +
-        '<div class="small" style="margin:4px 0">' + esc(skillText(s)) + ' Each rank adds strength.</div>' +
-        (locked ? '' : '<div class="row">' + (isUlt ? '<span class="small muted">Always slotted</span>' : '<button class="small ' + (inLoadout.has(s.id) ? 'on' : '') + '" data-act="slot" data-id="' + s.id + '">' + (inLoadout.has(s.id) ? 'In loadout' : 'Add to loadout') + '</button>') + '<button class="small" data-act="rankUp" data-id="' + s.id + '" ' + (h.skillPoints > 0 && s.rank < cfg.maxSkillRank ? '' : 'disabled') + '>Rank up</button></div>') + '</div>';
+      const src = s.source === 'core' ? '' : isUlt ? '<span class="chip gold">Ultimate</span>' : '<span class="chip">' + esc(cfg.classes[h.cls].paths[s.source][0]) + ' path</span>';
+      return '<div class="panel tight skill' + (locked ? ' locked' : '') + '">' + skillIcon(s) + '<div class="info"><div class="row between"><b class="' + (inLoadout.has(s.id) ? 'gold' : '') + '">' + esc(s.name) + '</b>' + src + '</div>' +
+        '<div class="small muted">' + (locked ? ico('lock') + ' Unlocks at level ' + s.level + (s.source !== 'core' && !isUlt ? ' on this Path' : '') : cap(s.type)) + (s.cost ? ' · ' + s.cost + ' ' + cfg.classes[h.cls].resource : '') + (s.cd ? ' · ' + s.cd + 's cooldown' : '') + '</div>' +
+        '<div class="small">' + esc(skillText(s)) + ' Each rank adds strength.</div><div class="row"><span class="pips">' + Array.from({ length: cfg.maxSkillRank }, (_, k) => '<i class="' + (k < s.rank ? 'on' : '') + '"></i>').join('') + '</span><span class="tiny muted">Rank ' + s.rank + '/' + cfg.maxSkillRank + '</span></div></div>' +
+        (locked ? '' : '<div class="row act">' + (isUlt ? '<span class="small muted">Always slotted</span>' : '<button class="small ' + (inLoadout.has(s.id) ? 'on' : '') + '" data-act="slot" data-id="' + s.id + '">' + (inLoadout.has(s.id) ? 'In loadout' : 'Add to loadout') + '</button>') + '<button class="small" data-act="rankUp" data-id="' + s.id + '" ' + (h.skillPoints > 0 && s.rank < cfg.maxSkillRank ? '' : 'disabled') + '>Rank up</button></div>') + '</div>';
     };
-    return '<div class="stack"><div class="panel row between"><div><h3>Skills</h3><span class="small muted">One skill point per level. Your loadout holds ' + cfg.loadoutSize + ' skills; your ultimate joins it at level ' + cfg.ultimateLevel + '.</span></div><div class="row"><span><b class="gold">' + h.skillPoints + '</b> skill points</span><button class="small" data-act="resetRanks">Reset ranks (' + 10 * h.level + 'g)</button></div></div>' +
-      '<div class="panel"><h4>Loadout</h4><div class="row">' + h.loadout.map((id) => { const s = h.skills.find((x) => x.id === id); return '<span class="pill gold">' + esc(s ? s.name : id) + '</span>'; }).join('') + '</div></div>' +
-      '<div class="grid2">' + h.skills.map(card).join('') + '</div></div>';
+    return '<div class="stack"><div class="panel"><div class="head"><h2>Loadout</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.skillPoints + '</span> <span class="muted small">skill points</span></span><button class="small" data-act="resetRanks">Reset ranks (' + 10 * h.level + 'g)</button></div></div>' +
+      '<p class="small muted" style="margin-bottom:12px">One skill point per level. Your loadout holds ' + cfg.loadoutSize + ' skills, and your ultimate joins it at level ' + cfg.ultimateLevel + '.</p><div class="actionbar">' + bar + '</div></div>' +
+      '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">' + h.skills.map(card).join('') + '</div></div>';
   }
 
   // ------------------------------------------------------------------ gear
@@ -588,18 +544,20 @@
   function gearView() {
     const h = S.st.hero, inv = S.st.inventory, cfg = S.cfg;
     const worn = {}; inv.forEach((i) => { if (i.equipped) worn[i.equipped] = i; });
-    const slots = Object.keys(cfg.slots);
-    const doll = slots.map((s) => { const i = worn[s]; return '<div class="slot ' + (i ? 'filled' : '') + (i && S.sel === i.id ? ' sel' : '') + '" ' + (i ? 'data-act="sel" data-id="' + i.id + '"' : '') + '><div class="muted small">' + cfg.slots[s][0] + '</div>' + (i ? '<div class="r-' + i.rarity + '">' + esc(i.name) + '</div><div class="small muted">ilvl ' + i.ilvl + ' ' + sockets(i) + '</div>' : '<div class="muted small">Empty</div>') + '</div>'; }).join('');
+    const slotTile = (s) => tile(worn[s], { label: cfg.slots[s][0], sel: worn[s] && S.sel === worn[s].id });
+    const doll = '<div class="doll"><div class="col">' + ['head', 'top', 'bottom', 'shoes', 'cape'].map(slotTile).join('') + '</div>' +
+      '<div class="mid"><div class="stage">' + spr(h.look, 3, 'idle') + '</div><div class="bottomrow">' + ['weapon', 'offhand'].map(slotTile).join('') + '</div></div>' +
+      '<div class="col">' + ['gloves', 'ring1', 'ring2', 'amulet', 'trinket'].map(slotTile).join('') + '</div></div>';
     const bag = inv.filter((i) => !i.equipped && i.price == null);
     const res = h.resonance;
-    const resTxt = Object.entries(res.counts).map(([t, n]) => '<div class="small"><span class="sock" style="background:' + cfg.glyphs[t][2] + '"></span>' + cfg.glyphs[t][0] + ' ' + n + '/9' + (res.tiers[t] ? ' · <b class="gold">tier ' + res.tiers[t] + '</b>: ' + esc(cfg.glyphs[t][3]) : '') + '</div>').join('') || '<p class="small muted">Socket 3, 6 or 9 glyphs of one theme to wake its Resonance.</p>';
+    const resTxt = Object.entries(res.counts).map(([t, n]) => '<div class="row small"><span class="sock" style="background:' + cfg.glyphs[t][2] + '"></span><b>' + cfg.glyphs[t][0] + '</b> ' + n + '/9' + (res.tiers[t] ? '<span class="chip gold">tier ' + res.tiers[t] + '</span><span>' + esc(cfg.glyphs[t][3]) + '</span>' : '') + '</div>').join('') || '<p class="small muted">Socket 3, 6 or 9 glyphs of one theme to wake its Resonance.</p>';
     const sel = inv.find((i) => i.id === S.sel);
     const cost = S.craftCost;
-    return '<div class="grid2" style="grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr)"><div class="stack"><div class="panel"><div class="row" style="align-items:flex-start">' + spr(h.look, 2) + '<div style="flex:1"><h3>Worn</h3><p class="small muted">Nothing binds and nothing has requirements: wear, trade or sell anything.</p></div></div><div class="doll">' + doll + '</div></div>' +
+    return '<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))"><div class="stack"><div class="panel"><div class="head"><h2>Worn</h2><span class="small muted">Nothing binds. Wear, trade or sell anything.</span></div>' + doll + '</div>' +
       '<div class="panel"><h3>Resonance</h3>' + resTxt + '</div>' +
-      '<div class="panel"><h3>Craft</h3><p class="small muted">A fresh item at item level ' + 2 * h.level + '. Usually common, sometimes rare, rarely epic.</p><div class="row"><select id="craftSlot">' + slots.filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '">' + cfg.slots[s][0] + '</option>').join('') + '</select><button data-act="craft">Craft' + (cost ? ' (' + fmt(cost.gold) + 'g, ' + cost.materials + ' ⚒)' : '') + '</button></div></div></div>' +
+      '<div class="panel"><div class="head"><h3>Craft</h3><span class="small muted">Item level ' + 2 * h.level + '. Usually common, sometimes rare, rarely epic.</span></div><div class="row"><select id="craftSlot" aria-label="Slot">' + Object.keys(cfg.slots).filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '">' + cfg.slots[s][0] + '</option>').join('') + '</select><button class="primary" data-act="craft">Craft' + (cost ? ' · ' + fmt(cost.gold) + 'g · ' + cost.materials + ' mats' : '') + '</button></div></div></div>' +
       '<div class="stack">' + (sel ? itemDetail(sel, worn) : '<div class="panel muted">Pick an item to see what you can do with it.</div>') +
-      '<div class="panel"><h3>Bag (' + bag.length + ')</h3><div class="grid3">' + bag.map((i) => itemCard(i, i.score != null && betterThanWorn(i, worn) ? '<div class="up">▲ Upgrade</div>' : '', 'data-act="sel" data-id="' + i.id + '"' + (S.sel === i.id ? ' style="border-color:var(--accent)"' : ''))).join('') + '</div>' + (bag.length ? '' : '<p class="muted">Empty. Loot comes from the group chest, crafting and the market.</p>') + '</div></div></div>';
+      '<div class="panel"><div class="head"><h2>Bag</h2><span class="muted small">' + bag.length + ' items</span></div><div class="bag">' + bag.map((i) => tile(i, { sel: S.sel === i.id, up: i.score != null && betterThanWorn(i, worn) })).join('') + '</div>' + (bag.length ? '' : '<p class="muted">Empty. Loot comes from the group chest, crafting and the market.</p>') + '</div></div></div>';
   }
   function betterThanWorn(i, worn) {
     if (i.slot === 'glyph') return false;
@@ -618,44 +576,49 @@
     if (i.slot === 'glyph') actions += '<p class="small muted">Pick a worn item with an empty socket, then use Socket there.</p>';
     else {
       actions += i.equipped ? '<button data-act="item" data-a="unequip" data-id="' + i.id + '">Take off</button>' : '<button class="primary" data-act="item" data-a="equip" data-id="' + i.id + '">Wear</button>';
-      actions += '<button data-act="item" data-a="temper" data-id="' + i.id + '" title="+3% to everything on the item per step">Temper +' + (i.temper + 1) + '</button>';
-      if (h.codexPowers.length) actions += '<select id="imprintPower">' + h.codexPowers.map((p) => '<option value="' + p + '">' + esc(cfg.powers[p][0]) + '</option>').join('') + '</select><button data-act="imprint" data-id="' + i.id + '">Imprint (20 ✦)</button>';
-      if (h.level >= cfg.reforgeLevel && i.affixes.length) actions += '<select id="reforgeAffix">' + i.affixes.map(([a], k) => '<option value="' + k + '">' + attrName(a) + '</option>').join('') + '</select>→<select id="reforgeAttr">' + Object.keys(cfg.attributes).map((a) => '<option value="' + a + '">' + attrName(a) + '</option>').join('') + '</select><button data-act="reforge" data-id="' + i.id + '">Reforge</button>';
+      actions += '<button data-act="item" data-a="temper" data-id="' + i.id + '" title="+3% to everything on the item per step">Temper to +' + (i.temper + 1) + '</button>';
+      if (h.codexPowers.length) actions += '<select id="imprintPower" aria-label="Codex power">' + h.codexPowers.map((p) => '<option value="' + p + '">' + esc(cfg.powers[p][0]) + '</option>').join('') + '</select><button data-act="imprint" data-id="' + i.id + '">Imprint (20 essence)</button>';
+      if (h.level >= cfg.reforgeLevel && i.affixes.length) actions += '<select id="reforgeAffix" aria-label="Affix">' + i.affixes.map(([a], k) => '<option value="' + k + '">' + attrName(a) + '</option>').join('') + '</select>→<select id="reforgeAttr" aria-label="New attribute">' + Object.keys(cfg.attributes).map((a) => '<option value="' + a + '">' + attrName(a) + '</option>').join('') + '</select><button data-act="reforge" data-id="' + i.id + '">Reforge</button>';
     }
     let sock = '';
     if (i.sockets) {
-      sock = '<h4 style="margin-top:8px">Sockets</h4>' + i.glyphs.map((g, k) => g ? '<div class="row small"><span class="sock" style="background:' + cfg.glyphs[g[0]][2] + '"></span>' + cfg.glyphs[g[0]][0] + ' +' + g[1] + ' <button class="small" data-act="item" data-a="unsocket" data-id="' + i.id + '" data-socket="' + k + '">Take out</button></div>' : '<div class="row small"><span class="sock"></span>Empty ' + (bagGlyphs.length ? '<select id="glyph' + k + '">' + bagGlyphs.map((x) => '<option value="' + x.id + '">' + esc(x.name) + ' +' + x.value + '</option>').join('') + '</select><button class="small" data-act="socket" data-id="' + i.id + '" data-socket="' + k + '">Socket</button>' : '<span class="muted">(no glyphs in your bag)</span>') + '</div>').join('');
+      sock = '<div><h4>Sockets</h4>' + i.glyphs.map((g, k) => g ? '<div class="row small"><span class="sock" style="background:' + cfg.glyphs[g[0]][2] + '"></span>' + cfg.glyphs[g[0]][0] + ' +' + g[1] + ' <button class="small" data-act="item" data-a="unsocket" data-id="' + i.id + '" data-socket="' + k + '">Take out</button></div>' : '<div class="row small"><span class="sock"></span>Empty ' + (bagGlyphs.length ? '<select id="glyph' + k + '" aria-label="Glyph">' + bagGlyphs.map((x) => '<option value="' + x.id + '">' + esc(x.name) + ' +' + x.value + '</option>').join('') + '</select><button class="small" data-act="socket" data-id="' + i.id + '" data-socket="' + k + '">Socket</button>' : '<span class="muted">(no glyphs in your bag)</span>') + '</div>').join('') + '</div>';
     }
-    const trade = i.equipped ? '' : '<hr><div class="row"><input id="giveTo" placeholder="Hero name" style="width:130px"><button data-act="give" data-id="' + i.id + '">Give</button></div><div class="row" style="margin-top:6px"><input id="sellPrice" type="number" min="1" placeholder="Price" style="width:100px"><button data-act="sell" data-id="' + i.id + '">Sell on market</button><button class="danger" data-act="salvage" data-id="' + i.id + '">Salvage</button></div>';
-    return '<div class="panel stack">' + itemCard(i) + compare + '<div class="row">' + actions + '</div>' + sock + trade + '</div>';
+    const trade = i.equipped ? '' : '<hr><div class="row"><input id="giveTo" placeholder="Hero name" style="width:140px" aria-label="Give to"><button data-act="give" data-id="' + i.id + '">Give</button></div><div class="row" style="margin-top:8px"><input id="sellPrice" type="number" min="1" placeholder="Price" style="width:110px" aria-label="Price"><button data-act="sell" data-id="' + i.id + '">Sell on market</button><button class="danger" data-act="salvage" data-id="' + i.id + '">Salvage</button></div>';
+    return '<div class="panel stack tight">' + itemCard(i) + compare + '<div class="row">' + actions + '</div>' + sock + trade + '</div>';
   }
 
   // ------------------------------------------------------------------ group and tavern
 
+  function memberCard(m, extra) {
+    return '<div class="panel tight member">' + por(m.look) + '<div style="flex:1;min-width:0"><b>' + esc(m.name) + '</b><div class="row" style="gap:6px"><span class="small muted">Lv ' + m.level + ' ' + className(m.cls) + '</span>' + role(m.role) + '</div>' + (extra || '') + '</div></div>';
+  }
   function groupView() {
     const st = S.st, h = st.hero, p = st.party, tv = S.tavern;
     let mine = '';
     if (p) {
       const lead = p.leader === h.id;
-      const members = p.members.map((m) => '<div class="panel tight row" style="gap:10px">' + spr(m.look, 1) + '<div style="flex:1"><b>' + esc(m.name) + '</b>' + (m.id === p.leader ? ' <span class="pill gold">leader</span>' : '') + '<div class="small">Lv ' + m.level + ' ' + className(m.cls) + ' ' + role(m.role) + '</div>' + (m.demo ? '<div class="small muted">demo hero</div>' : '') + '</div>' + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('');
       const reqs = p.requests.map((r) => '<div class="row small">' + (r.kind === 'application' ? '<b>' + esc(r.hero.name) + '</b> (Lv ' + r.hero.level + ' ' + className(r.hero.cls) + ') wants to join' + (r.message ? ': “' + esc(r.message) + '”' : '') + (lead ? ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Accept</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Decline</button>' : '') : 'Invited <b>' + esc(r.hero.name) + '</b>, waiting for an answer') + '</div>').join('');
-      mine = '<div class="panel stack"><div class="row between"><h2>' + esc(p.name) + '</h2><span class="muted small">' + p.battlesTogether + ' battles together · bond +' + Math.min(10, p.battlesTogether) + '% XP</span></div><div class="grid3">' + members + '</div>' + (reqs ? '<div>' + reqs + '</div>' : '') +
-        (lead ? '<div class="row"><label style="margin:0">Dungeon level</label><select data-act-change="offset">' + [-3, -2, -1, 0, 1, 2, 3, 4, 5].map((o) => '<option value="' + o + '"' + (o === p.dungeonOffset ? ' selected' : '') + '>' + (o > 0 ? '+' : '') + o + (o === 0 ? ' (median level)' : '') + '</option>').join('') + '</select><span class="small muted">Now level ' + p.dungeonLevel + '. Higher is harder, with better XP and item levels.</span></div>' +
-          '<div class="row"><button data-act="running">' + (p.running ? 'Rest after this battle' : 'Send the group back in') + '</button>' + (p.members.length < S.cfg.partySize ? '<input id="inviteName" placeholder="Invite hero by name" style="width:170px"><button data-act="invite">Invite</button><button data-act="postLfm">Post on the tavern board</button>' : '') + '</div>' : '<p class="small muted">The leader picks the dungeon level and when to rest.</p>') +
+      mine = '<div class="camp" style="text-align:left"><div class="head"><div><div class="eyebrow">Your group</div><h1>' + esc(p.name) + '</h1></div><span class="chip gold">' + p.battlesTogether + ' runs together · bond +' + Math.min(10, p.battlesTogether) + '% XP</span></div>' +
+        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
+        Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div></div>' +
+        '<div class="panel stack tight">' + (reqs ? '<div>' + reqs + '</div>' : '') +
+        (lead ? '<div class="row"><label style="margin:0" for="offset">Dungeon level</label><select id="offset" data-act-change="offset">' + [-3, -2, -1, 0, 1, 2, 3, 4, 5].map((o) => '<option value="' + o + '"' + (o === p.dungeonOffset ? ' selected' : '') + '>' + (o > 0 ? '+' : '') + o + (o === 0 ? ' (median level)' : '') + '</option>').join('') + '</select><span class="small muted">Now level ' + p.dungeonLevel + '. Higher is harder, with more XP and better item levels.</span></div>' +
+          '<div class="row"><button data-act="running">' + (p.running ? 'Rest after this run' : 'Send the group back in') + '</button>' + (p.members.length < S.cfg.partySize ? '<input id="inviteName" placeholder="Invite hero by name" style="width:180px" aria-label="Hero name"><button data-act="invite">Invite</button><button data-act="postLfm">Post on the tavern board</button>' : '') + '</div>' : '<p class="small muted">The leader picks the dungeon level and when to rest.</p>') +
         '<div><button class="danger small" data-act="leaveParty">Leave group</button></div></div>';
     } else {
-      mine = '<div class="panel stack"><h2>You are not in a group</h2><p class="small">A group is five real heroes who picked each other. Battles run while you are away, up to the offline limit, and the loot is shared through the group chest.</p><div class="row"><input id="partyName" placeholder="Group name" style="width:200px"><button class="primary" data-act="createParty">Start a group</button></div>' +
-        '<div class="row"><input id="lfgText" placeholder="Say what you bring, e.g. steady healer, EU evenings" style="flex:1;min-width:200px"><button data-act="postLfg">Post that I am looking</button></div></div>' +
-        (st.invites.length ? '<div class="panel"><h3>Invites</h3>' + st.invites.map((r) => '<div class="row">' + (r.kind === 'invite' ? '<b>' + esc(r.party.name) + '</b> (' + r.party.size + '/5) invited you' + (r.message ? ': “' + esc(r.message) + '”' : '') + ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Join</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">No thanks</button>' : 'You applied to <b>' + esc(r.party.name) + '</b>, waiting for the leader <button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Withdraw</button>') + '</div>').join('') + '</div>' : '');
+      mine = '<div class="panel stack tight"><h2>You are not in a group</h2><p class="small">A group is five real heroes who picked each other. Runs continue while you are away, up to the offline limit, and loot is shared through the group chest.</p><div class="row"><input id="partyName" placeholder="Group name" style="width:220px" aria-label="Group name"><button class="primary" data-act="createParty">Start a group</button></div>' +
+        '<div class="row"><input id="lfgText" placeholder="Say what you bring, e.g. steady healer, evenings" style="flex:1;min-width:200px" aria-label="Your post"><button data-act="postLfg">Post that I am looking</button></div></div>' +
+        (st.invites.length ? '<div class="panel"><h3>Invites</h3>' + st.invites.map((r) => '<div class="row">' + (r.kind === 'invite' ? '<b>' + esc(r.party.name) + '</b> (' + r.party.size + '/5) invited you' + (r.message ? ': “' + esc(r.message) + '”' : '') + ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Join</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">No thanks</button>' : 'You asked to join <b>' + esc(r.party.name) + '</b>, waiting for the leader <button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Withdraw</button>') + '</div>').join('') + '</div>' : '');
     }
     const lead = p && p.leader === h.id;
-    let board = '<div class="panel"><h3>Tavern board</h3><p class="muted">Loading…</p></div>';
+    let board = '<div class="panel"><h2>Tavern board</h2><p class="muted">Loading…</p></div>';
     if (tv) {
       const lfm = tv.posts.filter((x) => x.kind === 'lfm'), lfg = tv.posts.filter((x) => x.kind === 'lfg');
-      board = '<div class="panel stack"><div class="row between"><h3>Tavern board</h3><button class="small" data-act="reloadTavern">Refresh</button></div>' +
-        '<h4>Groups looking for heroes</h4>' + (lfm.map((x) => '<div class="panel tight"><div class="row between"><b>' + esc(x.party ? x.party.name : '') + '</b><span class="small">wants ' + x.roles.map(role).join(' ') + '</span></div><div class="small">“' + esc(x.text) + '”</div><div class="row" style="margin-top:4px">' + (x.party ? x.party.members.map((m) => spr(m.look, 0.75)).join('') : '') + '<span class="small muted">' + (x.party ? x.party.members.length : 0) + '/5</span>' + (!p ? '<button class="small primary" data-act="apply" data-id="' + x.party.id + '">Ask to join</button>' : '') + (x.author.id === h.id ? '<button class="small" data-act="unpost" data-id="' + x.id + '">Remove</button>' : '') + '</div></div>').join('') || '<p class="small muted">No groups posted right now.</p>') +
-        '<h4>Heroes looking for a group</h4>' + (lfg.map((x) => '<div class="panel tight row">' + spr(x.author.look, 0.75) + '<div style="flex:1"><b>' + esc(x.author.name) + '</b> <span class="small">Lv ' + x.author.level + ' ' + className(x.author.cls) + ' ' + role(x.author.role) + '</span><div class="small">“' + esc(x.text) + '”</div></div>' + (lead ? '<button class="small primary" data-act="inviteId" data-id="' + x.author.id + '">Invite</button>' : '') + (x.author.id === h.id ? '<button class="small" data-act="unpost" data-id="' + x.id + '">Remove</button>' : '') + '</div>').join('') || '<p class="small muted">Nobody posted.</p>') +
-        (lead && tv.freeHeroes.length ? '<h4>Other heroes without a group</h4><div class="row">' + tv.freeHeroes.map((x) => '<span class="pill">' + esc(x.name) + ' · ' + x.level + ' ' + className(x.cls) + ' <a href="#" data-act="inviteId" data-id="' + x.id + '">invite</a></span>').join(' ') + '</div>' : '') + '</div>';
+      board = '<div class="panel stack"><div class="head"><h2>Tavern board</h2><button class="small" data-act="reloadTavern">Refresh</button></div>' +
+        '<h4>Groups looking for heroes</h4><div class="cards">' + (lfm.map((x) => '<div class="panel tight post"><div class="head"><b class="num" style="font-size:1.1rem">' + esc(x.party ? x.party.name : '') + '</b><span class="small muted">' + (x.party ? x.party.members.length : 0) + '/5</span></div><div class="minis">' + (x.party ? x.party.members.map((m) => spr(m.look, 0.75)).join('') : '') + '</div><q>' + esc(x.text) + '</q><div class="row">wants ' + x.roles.map(role).join('') + '</div><div class="row">' + (!p ? '<button class="small primary" data-act="apply" data-id="' + x.party.id + '">Ask to join</button>' : '') + (x.author.id === h.id ? '<button class="small" data-act="unpost" data-id="' + x.id + '">Remove</button>' : '') + '</div></div>').join('') || '<p class="small muted">No groups posted right now.</p>') + '</div>' +
+        '<h4>Heroes looking for a group</h4><div class="cards">' + (lfg.map((x) => memberCard(x.author, '<q class="small">' + esc(x.text) + '</q>' + (lead ? '<div style="margin-top:6px"><button class="small primary" data-act="inviteId" data-id="' + x.author.id + '">Invite</button></div>' : '') + (x.author.id === h.id ? '<div style="margin-top:6px"><button class="small" data-act="unpost" data-id="' + x.id + '">Remove</button></div>' : ''))).join('') || '<p class="small muted">Nobody posted.</p>') + '</div>' +
+        (lead && tv.freeHeroes.length ? '<h4>Other heroes without a group</h4><div class="cards">' + tv.freeHeroes.map((x) => memberCard(x, '<div style="margin-top:6px"><button class="small" data-act="inviteId" data-id="' + x.id + '">Invite</button></div>')).join('') + '</div>' : '') + '</div>';
     }
     return '<div class="stack">' + mine + board + '</div>';
   }
@@ -667,12 +630,12 @@
     if (!g) return '<div class="panel muted">Loading…</div>';
     if (g.mine) {
       const m = g.mine;
-      return '<div class="stack"><div class="panel"><div class="row between"><h2>[' + esc(m.tag) + '] ' + esc(m.name) + '</h2><span>Guild level <b class="gold">' + m.level + '</b> · ' + m.size + '/' + m.max + ' members</span></div><p class="muted">' + esc(m.motto) + '</p><p class="small muted">Guild XP comes from every clear by every member. Guild levels unlock looks, never combat power.</p><button class="small danger" data-act="leaveGuild">Leave guild</button></div>' +
-        '<div class="panel"><h3>Members</h3><div class="grid3">' + m.members.map((x) => '<div class="panel tight row">' + spr(x.look, 0.75) + '<div><b>' + esc(x.name) + '</b>' + (x.rank === 'leader' ? ' <span class="pill gold">leader</span>' : '') + '<div class="small">Lv ' + x.level + ' ' + className(x.cls) + ' ' + role(x.role) + '</div><div class="small muted">' + (x.party ? 'in a group' : 'looking for a group') + '</div></div></div>').join('') + '</div></div></div>';
+      return '<div class="stack"><div class="panel banner-head"><div class="crest">' + esc(m.tag) + '</div><div class="stack tight"><div class="eyebrow">Guild level ' + m.level + ' · ' + m.size + '/' + m.max + ' members</div><h1>' + esc(m.name) + '</h1><p class="muted"><q>' + esc(m.motto) + '</q></p><p class="small muted">Guild XP comes from every run by every member. Guild levels unlock looks, never combat power.</p><div><button class="small danger" data-act="leaveGuild">Leave guild</button></div></div></div>' +
+        '<div class="panel"><h2>Members</h2><div class="cards">' + m.members.map((x) => memberCard(x, '<div class="row" style="gap:6px;margin-top:4px">' + (x.rank === 'leader' ? '<span class="chip gold">Leader</span>' : '') + '<span class="tiny muted">' + (x.party ? 'In a group' : 'Looking for a group') + '</span></div>')).join('') + '</div></div></div>';
     }
-    return '<div class="stack"><div class="panel"><h2>Guilds</h2><p class="small">Guilds are where people meet, chat and form groups. Join one, or found your own for 100 gold.</p>' +
-      g.all.map((x) => '<div class="row between panel tight"><div><b>[' + esc(x.tag) + '] ' + esc(x.name) + '</b> <span class="small muted">level ' + x.level + ' · ' + x.size + '/' + x.max + '</span><div class="small">' + esc(x.motto) + '</div></div><button class="small primary" data-act="joinGuild" data-id="' + x.id + '">Join</button></div>').join('') + '</div>' +
-      '<div class="panel"><h3>Found a guild</h3><div class="row"><input id="gName" placeholder="Name" style="width:180px"><input id="gTag" placeholder="Tag" maxlength="4" style="width:70px"><input id="gMotto" placeholder="Motto" style="flex:1;min-width:150px"><button data-act="createGuild">Found (100g)</button></div></div></div>';
+    return '<div class="stack"><div class="panel"><h2>Guilds</h2><p class="small" style="margin-bottom:10px">Guilds are where people meet, chat and form groups. Join one, or found your own for 100 gold.</p><div class="cards">' +
+      g.all.map((x) => '<div class="panel tight banner-head" style="grid-template-columns:auto minmax(0,1fr)"><div class="crest" style="width:52px;height:64px;font-size:1rem">' + esc(x.tag) + '</div><div class="stack tight"><b class="num" style="font-size:1.1rem">' + esc(x.name) + '</b><span class="small muted">Level ' + x.level + ' · ' + x.size + '/' + x.max + '</span><span class="small">' + esc(x.motto) + '</span><div><button class="small primary" data-act="joinGuild" data-id="' + x.id + '">Join</button></div></div></div>').join('') + '</div></div>' +
+      '<div class="panel"><h3>Found a guild</h3><div class="row"><input id="gName" placeholder="Name" style="width:200px" aria-label="Guild name"><input id="gTag" placeholder="Tag" maxlength="4" style="width:80px" aria-label="Tag"><input id="gMotto" placeholder="Motto" style="flex:1;min-width:160px" aria-label="Motto"><button class="primary" data-act="createGuild">Found (100g)</button></div></div></div>';
   }
 
   // ------------------------------------------------------------------ market
@@ -680,9 +643,9 @@
   function marketView() {
     const cfg = S.cfg, f = S.marketFilter, h = S.st.hero;
     const mine = S.st.inventory.filter((i) => i.price != null);
-    const list = S.market == null ? '<p class="muted">Loading…</p>' : S.market.filter((i) => i.owner && i.owner.id !== h.id).map((i) => itemCard(i, '<div class="row" style="margin-top:4px"><span class="small muted">from ' + esc(i.owner.name) + '</span><button class="small primary" data-act="buy" data-id="' + i.id + '" ' + (h.gold >= i.price ? '' : 'disabled') + '>Buy</button></div>')).join('') || '<p class="muted">Nothing listed.</p>';
-    return '<div class="stack"><div class="panel"><div class="row between"><h2>Market</h2><div class="row"><select data-act-change="mSlot"><option value="">All slots</option>' + Object.keys(cfg.slots).filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '"' + (f.slot === s ? ' selected' : '') + '>' + cfg.slots[s][0] + '</option>').join('') + '<option value="glyph"' + (f.slot === 'glyph' ? ' selected' : '') + '>Glyphs</option></select><select data-act-change="mRarity"><option value="">Any rarity</option>' + Object.keys(cfg.rarities).map((r) => '<option value="' + r + '"' + (f.rarity === r ? ' selected' : '') + '>' + rarityName(r) + '</option>').join('') + '</select></div></div><p class="small muted">Every item can be traded, legendaries included. Sell from the Gear page.</p><div class="grid3">' + list + '</div></div>' +
-      (mine.length ? '<div class="panel"><h3>Your listings</h3><div class="grid3">' + mine.map((i) => itemCard(i, '<button class="small" data-act="item" data-a="unlist" data-id="' + i.id + '">Take back</button>')).join('') + '</div></div>' : '') + '</div>';
+    const list = S.market == null ? '<p class="muted">Loading…</p>' : S.market.filter((i) => i.owner && i.owner.id !== h.id).map((i) => itemCard(i, '<div class="row between"><span class="small muted">Sold by ' + esc(i.owner.name) + '</span><button class="small primary" data-act="buy" data-id="' + i.id + '" ' + (h.gold >= i.price ? '' : 'disabled') + '>Buy</button></div>')).join('') || '<p class="muted">Nothing listed.</p>';
+    return '<div class="stack"><div class="panel"><div class="head"><h2>Market</h2><div class="row"><select data-act-change="mSlot" aria-label="Slot"><option value="">All slots</option>' + Object.keys(cfg.slots).filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '"' + (f.slot === s ? ' selected' : '') + '>' + cfg.slots[s][0] + '</option>').join('') + '<option value="glyph"' + (f.slot === 'glyph' ? ' selected' : '') + '>Glyphs</option></select><select data-act-change="mRarity" aria-label="Rarity"><option value="">Any rarity</option>' + Object.keys(cfg.rarities).map((r) => '<option value="' + r + '"' + (f.rarity === r ? ' selected' : '') + '>' + rarityName(r) + '</option>').join('') + '</select></div></div><p class="small muted" style="margin-bottom:12px">Every item can be traded, legendaries included. Sell from the Gear page.</p><div class="market">' + list + '</div></div>' +
+      (mine.length ? '<div class="panel"><h3>Your listings</h3><div class="market">' + mine.map((i) => itemCard(i, '<button class="small" data-act="item" data-a="unlist" data-id="' + i.id + '">Take back</button>')).join('') + '</div></div>' : '') + '</div>';
   }
 
   // ------------------------------------------------------------------ chat
@@ -691,10 +654,10 @@
     const chans = S.st.channels, ch = chans[S.chat.channel] ? S.chat.channel : 'tavern';
     S.chat.channel = ch;
     const msgs = (S.chat.msgs[ch] || []).map((m) => {
-      const card = m.card && m.card.type === 'item' && m.card.spec ? ' <span class="card r-' + m.card.spec.rarity + '">' + esc(itemName(m.card.spec)) + '</span>' : '';
-      return m.author ? '<div class="msg"><span class="a">' + esc(m.author.name) + '</span> ' + esc(m.body) + card + '</div>' : '<div class="msg sys">' + esc(m.body) + card + '</div>';
+      const card = m.card && m.card.type === 'item' && m.card.spec ? ' <span class="card r-' + m.card.spec.rarity + '"><img class="ico" alt="" src="' + ITA.icon(m.card.spec) + '">' + esc(itemName(m.card.spec)) + '</span>' : '';
+      return m.author ? '<div class="msg"><span class="a">' + esc(m.author.name) + '</span>' + esc(m.body) + card + '</div>' : '<div class="msg sys">' + esc(m.body) + card + '</div>';
     }).join('');
-    return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" title="Close">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div><form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off"><button type="submit">Send</button></form>';
+    return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div><form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off" aria-label="Message"><button type="submit">Send</button></form>';
   }
   async function pollChat() {
     const ch = S.chat.channel;
@@ -716,11 +679,18 @@
 
   const handlers = {
     authMode: (d) => { S.authMode = d.mode; render(); },
+    cstep: (d) => { const c = creatorState(); c.name = $('#cname').value; S.creatorStep = d.s; render(); },
     pick: (d) => { const c = creatorState(); c[d.kind] = d.id; if (d.kind === 'race') c.look.skin = ITP.RACES[d.id].skins[1]; c.name = $('#cname').value; render(); },
-    look: (d) => { const c = creatorState(); c.look[d.key] = d.v; c.name = $('#cname').value; render(); },
+    look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; c.name = $('#cname').value; render(); },
     randomLook: () => { const c = creatorState(), r = ITP.randomHero(); c.name = $('#cname').value; Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
-    create: async () => { const c = creatorState(); c.name = $('#cname').value.trim(); try { await post('/hero', c); S.creator = null; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); } },
-    logout: async () => { await post('/logout').catch(() => null); S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render(); },
+    create: async () => { const c = creatorState(); c.name = $('#cname').value.trim(); if (!c.name) { toast('Give your hero a name first.'); $('#cname').focus(); return; } try { await post('/hero', c); S.creator = null; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); } },
+    logout: async () => {
+      if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }
+      S.sureNew = false;
+      await post('/logout').catch(() => null);
+      if (window.IT_SERVER) { location.hash = ''; location.reload(); return; }
+      S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render();
+    },
     toggleChat: () => { S.chatOpen = !S.chatOpen; render(); },
     chan: (d) => { S.chat.channel = d.id; S.chatJump = true; render(); pollChat(); },
     modalYes: () => { const f = S.modalYes; closeModal(); if (f) f(); },
@@ -729,13 +699,14 @@
     spend: (d) => act(() => post('/hero/act', { action: 'spend', points: { [d.a]: +d.n } })),
     autoSpend: () => act(() => post('/hero/act', { action: 'autoSpend' })),
     attrOpen: (d) => { S.attrOpen = S.attrOpen === d.a ? null : d.a; render(); },
+    lootPolicy: (d) => act(() => post('/hero/act', { action: 'lootPolicy', policy: d.v }), 'Saved.'),
     path: (d) => act(() => post('/hero/act', { action: 'path', path: d.id }), 'Path chosen. You can still change it until the Oath.'),
     keystone: (d) => confirmBox('Take <b>' + esc(S.cfg.keystones[S.st.hero.role][d.id][0]) + '</b> as your level ' + d.l + ' Keystone? This is permanent.', () => act(() => post('/hero/act', { action: 'keystone', level: +d.l, keystone: d.id }), 'Keystone chosen.')),
     rankUp: (d) => act(() => post('/hero/act', { action: 'rankUp', skill: d.id })),
     resetRanks: () => confirmBox('Reset all skill ranks for ' + 10 * S.st.hero.level + ' gold?', () => act(() => post('/hero/act', { action: 'resetRanks' }))),
     slot: (d) => { let l = S.st.hero.loadout.slice(); l = l.includes(d.id) ? l.filter((x) => x !== d.id) : [...l, d.id]; if (l.length > S.cfg.loadoutSize) { toast('Your loadout holds ' + S.cfg.loadoutSize + ' skills. Take one out first.'); return; } act(() => post('/hero/act', { action: 'loadout', skills: l })); },
     // gear
-    sel: async (d) => { S.sel = +d.id; if (!S.craftCost) S.craftCost = await get('/craft/cost').catch(() => null); render(); },
+    sel: async (d) => { S.sel = +d.id; if (S.view !== 'gear') location.hash = '#/gear'; if (!S.craftCost) S.craftCost = await get('/craft/cost').catch(() => null); render(); },
     item: (d) => act(() => post('/item/' + d.id + '/' + d.a, { socket: d.socket != null ? +d.socket : undefined })),
     socket: (d) => act(() => post('/item/' + d.id + '/socket', { socket: +d.socket, glyph: +$('#glyph' + d.socket).value }), 'Glyph socketed.'),
     imprint: (d) => act(() => post('/item/' + d.id + '/imprint', { power: $('#imprintPower').value }), 'Imprinted.'),
@@ -754,7 +725,7 @@
     inviteId: (d) => act(() => post('/party/invite', { hero: +d.id }), 'Invite sent.').then(reloadTavern),
     apply: (d) => act(() => post('/party/apply', { party: +d.id }), 'Request sent.').then(reloadTavern),
     answer: (d) => act(() => post('/request/' + d.id + '/' + d.a)).then(reloadTavern),
-    postLfm: () => modal('<h3>Post on the tavern board</h3><label>What are you looking for?</label><input id="lfmText" style="width:100%" placeholder="e.g. healer for evening runs"><label>Roles</label><div class="row">' + ['tank', 'healer', 'dps'].map((r) => '<label style="margin:0"><input type="checkbox" class="lfmRole" value="' + r + '" checked> ' + r + '</label>').join('') + '</div><div class="row" style="margin-top:10px"><button class="primary" data-act="postLfmGo">Post</button><button data-act="closeModal">Cancel</button></div>'),
+    postLfm: () => modal('<h3>Post on the tavern board</h3><label for="lfmText">What are you looking for?</label><input id="lfmText" style="width:100%" placeholder="e.g. healer for evening runs"><label>Roles</label><div class="row">' + ['tank', 'healer', 'dps'].map((r) => '<label style="margin:0;text-transform:none;letter-spacing:0"><input type="checkbox" class="lfmRole" value="' + r + '" checked> ' + ROLE[r] + '</label>').join('') + '</div><div class="row"><button class="primary" data-act="postLfmGo">Post</button><button data-act="closeModal">Cancel</button></div>'),
     postLfmGo: () => { const roles = [...document.querySelectorAll('.lfmRole:checked')].map((x) => x.value); const text = $('#lfmText').value; closeModal(); act(() => post('/tavern', { kind: 'lfm', text, roles }), 'Posted.').then(reloadTavern); },
     postLfg: () => act(() => post('/tavern', { kind: 'lfg', text: $('#lfgText').value }), 'Posted on the tavern board.').then(reloadTavern),
     unpost: (d) => act(() => api('DELETE', '/tavern/' + d.id)).then(reloadTavern),
@@ -777,10 +748,8 @@
   });
   document.addEventListener('change', (e) => {
     const el = e.target;
-    if (el.dataset.look) { const c = creatorState(); c.look[el.dataset.look] = isNaN(+el.value) ? el.value : +el.value; c.name = $('#cname').value; render(); return; }
     const a = el.dataset.actChange;
-    if (a === 'lootPolicy') act(() => post('/hero/act', { action: 'lootPolicy', policy: el.value }), 'Saved.');
-    if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next battle uses the new level.');
+    if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next run uses the new level.');
     if (a === 'mSlot') { S.marketFilter.slot = el.value; loadMarket(); }
     if (a === 'mRarity') { S.marketFilter.rarity = el.value; loadMarket(); }
   });
