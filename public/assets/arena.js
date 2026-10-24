@@ -1,5 +1,5 @@
 // The battle arena: replays a run the server simulated, in step with the clock, as a full scene. Heroes on the
-// right, the dungeon's monsters on the left, a scrolling cave between fights, and every hit, heal and boss
+// left, the dungeon's monsters on the right, a scrolling cave between fights, and every hit, heal and boss
 // mechanic drawn as an effect. The art comes from pixel.js (heroes) and art.js (monsters and scenery).
 (function () {
   'use strict';
@@ -9,7 +9,7 @@
   const CLASS_COL = { guardian: '#6fb7ff', warden: '#7ad0c0', cleric: '#ffe27a', druid: '#7be07f', ranger: '#c8e070', mage: '#c084ff', rogue: '#ff8a6b' };
   const RANGED = { ranger: 'arrow', mage: 'orb', cleric: 'spark', druid: 'leaf' };
   // Where each hero stands: tank in front, healer at the back, damage between. [x, feet y]
-  const SPOTS = [[585, 492], [865, 498], [690, 462], [752, 512], [815, 458]];
+  const SPOTS = [[375, 492], [95, 498], [270, 462], [208, 512], [145, 458]];
   const rand = (a, b) => a + Math.random() * (b - a);
   const fmt = (n) => (n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n)));
   const ease = (t) => 1 - (1 - t) * (1 - t);
@@ -64,7 +64,7 @@
             break;
           }
           case 'walk': this.enemies = {}; this.walkFrom = e.t; this.at = e.src; this.label = 'On to the ' + (e.x.to || 'next fight'); break;
-          case 'spawn': this.enemies[e.src] = { id: e.src, kind: 'shard', name: 'Ember Shard', max: e.amt, hp: 1000, slot: Object.keys(this.enemies).length, born: t, dead: 0 }; if (fresh) this.burst(300, 300, '#ffb340', 18, 220); break;
+          case 'spawn': this.enemies[e.src] = { id: e.src, kind: 'shard', name: 'Ember Shard', max: e.amt, hp: 1000, slot: Object.keys(this.enemies).length, born: t, dead: 0 }; if (fresh) this.burst(660, 300, '#ffb340', 18, 220); break;
           case 'hit': {
             if (e.src >= 0) this.act[e.src] = t;
             if (e.amt > 0) { this.dmgLog.push([e.t, e.amt]); if (t - this.comboAt < 2.5) this.combo++; else this.combo = 1; this.comboAt = t; }
@@ -101,9 +101,9 @@
             if (!fresh) break;
             this.mechText = n; this.mechUntil = t + 2;
             if (e.flags & 1) { const p = this.heroPos(e.dst); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 0.9, w: 40, pillar: true }); this.callout(e.dst, n, '#fff2a0'); break; }
-            if (n === 'Magma Rain') { for (let k = 0; k < 9; k++) this.meteors.push({ x: rand(520, 920), t: t + k * 0.12, life: 0.55 }); this.flash = { col: '#ff5a1a', t, life: 0.25 }; }
+            if (n === 'Magma Rain') { for (let k = 0; k < 9; k++) this.meteors.push({ x: rand(40, 440), t: t + k * 0.12, life: 0.55 }); this.flash = { col: '#ff5a1a', t, life: 0.25 }; }
             else if (n === 'Tank Buster') { const p = this.heroPos(e.dst); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff2a2a', t, life: 1.2, r: 70, w: 5, target: true }); this.banner('Tank Buster', 'on ' + names[e.dst], '#ff5a5a', 1.2); }
-            else if (n === 'Shockwave') { this.rings.push({ x: 250, y: FLOOR + 20, col: '#ffb340', t, life: 0.8, r: 760, w: 10, flat: true }); this.shake = Math.max(this.shake, 18); }
+            else if (n === 'Shockwave') { this.rings.push({ x: 710, y: FLOOR + 20, col: '#ffb340', t, life: 0.8, r: 760, w: 10, flat: true }); this.shake = Math.max(this.shake, 18); }
             else if (n === 'Enrage') { this.enraged = true; this.banner('Enrage!', 'The boss hits three times as hard', '#ff3a3a', 2); this.flash = { col: '#ff0000', t, life: 0.5 }; }
             else if (n === 'Smouldering Curse') { const p = this.heroPos(e.dst); this.callout(e.dst, 'Cursed', '#c084ff'); this.burst(p[0], p[1] - 120, '#a060ff', 14, 90, -30); }
             else if (n === 'Ember Shards') this.banner('Ember Shards', 'Kill them before they reach the healer', '#ffb340', 1.4);
@@ -118,7 +118,7 @@
             if (fresh) { const p = this.enemyPos(en); this.burst(p[0], p[1] - 30, '#ffb340', en.kind === 'boss' ? 60 : 16, en.kind === 'boss' ? 420 : 200); }
             if (en.kind === 'boss') {
               log(e.t, 'The ' + esc(en.name) + ' is down!', 'good');
-              if (fresh) { this.banner(en.name + ' defeated!', 'The chest may hold something', '#ffd25a', 2.4); this.shake = 20; for (let k = 0; k < 30; k++) this.parts.push({ x: 250, y: 380, vx: rand(-200, 260), vy: rand(-520, -220), col: '#f0c23a', t, life: 1.6, size: 6, grav: 900, coin: true }); }
+              if (fresh) { this.banner(en.name + ' defeated!', 'The chest may hold something', '#ffd25a', 2.4); this.shake = 20; for (let k = 0; k < 30; k++) this.parts.push({ x: 710, y: 380, vx: rand(-260, 200), vy: rand(-520, -220), col: '#f0c23a', t, life: 1.6, size: 6, grav: 900, coin: true }); }
             }
             break;
           }
@@ -137,7 +137,7 @@
       const hero = cur.roster[e.src], kind = pet ? 'paw' : hero ? RANGED[hero.cls] : null;
       if (kind && kind !== 'paw') {
         const from = this.heroPos(e.src);
-        this.projs.push({ kind, x0: from[0] - 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
+        this.projs.push({ kind, x0: from[0] + 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
       } else {
         this.rings.push({ x: tx, y: ty, col: pet ? '#c89a6a' : '#ffffff', t, life: 0.18, r: crit ? 46 : 32, w: 4, slash: true, a: rand(-0.6, 0.6) });
         this.num(tx, ty, text, col, size); this.impact(tx, ty, '#ffffff', crit || mega); if (mega) this.megaHit(tx, ty);
@@ -152,10 +152,10 @@
     heroPos(i) { return SPOTS[i] || SPOTS[0]; }
     // Feet position of an enemy: bosses in the middle, packs in a loose formation, adds and shards beside the boss.
     enemyFeet(en) {
-      if (en.kind === 'boss') return [235, 492];
-      if (en.kind === 'shard') return [410 + (en.slot % 3) * 46, 330 - (en.slot % 2) * 44];
+      if (en.kind === 'boss') return [725, 492];
+      if (en.kind === 'shard') return [550 - (en.slot % 3) * 46, 330 - (en.slot % 2) * 44];
       const withBoss = Object.values(this.enemies).some((e) => e.kind === 'boss');
-      const spots = withBoss ? [[430, 498], [405, 452], [470, 470], [380, 500]] : [[330, 494], [240, 456], [170, 506], [100, 462], [400, 452]];
+      const spots = withBoss ? [[530, 498], [555, 452], [490, 470], [580, 500]] : [[630, 494], [720, 456], [790, 506], [860, 462], [560, 452]];
       return spots[en.slot % spots.length];
     }
     enemyPos(en) {
@@ -219,7 +219,7 @@
       const attacking = this.enemyAct[en.id] != null && t - this.enemyAct[en.id] < 0.35;
       const frame = attacking ? 'atk' : Math.floor(t * 2 + en.slot) % 2 ? 'idle1' : 'idle0';
       const img = ART.monster(en.kind, en.name, frame), w = img.width * sc, h = img.height * sc;
-      const enter = Math.min(1, (t - en.born) / 0.6), dx = (1 - ease(enter)) * -260;
+      const enter = Math.min(1, (t - en.born) / 0.6), dx = (1 - ease(enter)) * 260;
       const dying = en.dead ? Math.min(1, (t - en.dead) / 0.6) : 0;
       const fy = en.kind === 'shard' ? y + Math.sin(t * 4 + en.slot) * 8 : y;
       // shadow
@@ -227,7 +227,7 @@
       g.save();
       g.globalAlpha = 1 - dying;
       if (en.kind === 'boss' && this.enraged) g.filter = 'saturate(1.6) hue-rotate(-15deg) brightness(1.15)';
-      g.drawImage(img, Math.round(x + dx - w / 2), Math.round(fy - h + dying * 30), w, h);
+      flipped(g, img, Math.round(x + dx), Math.round(fy - h + dying * 30), w, h);
       g.restore();
       if (en.kind !== 'boss' && !en.dead) bar(g, x + dx - 40, fy - h - 14, 80, en.hp / 1000, '#ff5a3a');
     }
@@ -239,11 +239,11 @@
       const tier = r.level >= 40 ? '#ff7ad8' : r.level >= 30 ? '#ffa040' : r.level >= 20 ? '#5ae0ff' : null;
       g.fillStyle = 'rgba(0,0,0,0.38)'; g.beginPath(); g.ellipse(x, y, 30, 8, 0, 0, Math.PI * 2); g.fill();
       if (tier && !dead) { const p = 0.5 + 0.2 * Math.sin(t * 3 + i); const gr = g.createRadialGradient(x, y - 4, 4, x, y - 4, 46); gr.addColorStop(0, hexA(tier, 0.55 * p)); gr.addColorStop(1, hexA(tier, 0)); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y - 4, 48, 16, 0, 0, Math.PI * 2); g.fill(); }
-      const lunge = !dead && !walking && since < 0.25 && !RANGED[r.cls] ? -10 * Math.sin((since / 0.25) * Math.PI) : 0;
+      const lunge = !dead && !walking && since < 0.25 && !RANGED[r.cls] ? 10 * Math.sin((since / 0.25) * Math.PI) : 0;
       const hurt = this.hurtAt[i] != null && t - this.hurtAt[i] < 0.12;
       g.save();
-      if (dead) { g.globalAlpha = 0.55; g.translate(x, y - 12); g.rotate(-Math.PI / 2); g.drawImage(img, -feet + 10, -w / 2 - 10, w, h); }
-      else { if (hurt) g.filter = 'brightness(1.8) saturate(0.4)'; g.drawImage(img, Math.round(x - w / 2 + lunge), Math.round(y - feet), w, h); }
+      if (dead) { g.globalAlpha = 0.55; g.translate(x, y - 12); g.scale(-1, 1); g.rotate(-Math.PI / 2); g.drawImage(img, -feet + 10, -w / 2 - 10, w, h); }
+      else { if (hurt) g.filter = 'brightness(1.8) saturate(0.4)'; flipped(g, img, Math.round(x + lunge), Math.round(y - feet), w, h); }
       g.restore();
       if (snap && snap[4][i] > 0 && !dead) { g.strokeStyle = 'rgba(200,225,255,0.75)'; g.lineWidth = 3; g.beginPath(); g.ellipse(x, y - 70, 40, 82, 0, 0, Math.PI * 2); g.stroke(); g.fillStyle = 'rgba(160,200,255,0.10)'; g.fill(); }
       const head = y - feet + (this.sprite(r.look, 'stand0')._top || 0) * S;
@@ -257,7 +257,7 @@
       this.meteors = this.meteors.filter((m) => t < m.t + m.life + 0.4);
       this.meteors.forEach((m) => {
         const k = (t - m.t) / m.life; if (k < 0) return;
-        if (k < 1) { const x = m.x - 120 * (1 - k), y = -40 + (FLOOR + 10) * k; g.fillStyle = '#ff7a1a'; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffe080'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(255,140,40,0.5)'; g.lineWidth = 8; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 50, y - 160); g.stroke(); }
+        if (k < 1) { const x = m.x + 120 * (1 - k), y = -40 + (FLOOR + 10) * k; g.fillStyle = '#ff7a1a'; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffe080'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(255,140,40,0.5)'; g.lineWidth = 8; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 50, y - 160); g.stroke(); }
         else if (!m.boom) { m.boom = true; this.burst(m.x, FLOOR, '#ff8a2a', 14, 260, -120); this.shake = Math.max(this.shake, 6); }
       });
       // projectiles
@@ -359,6 +359,8 @@
     }
   }
 
+  // Art is drawn with heroes facing left and monsters facing right; the arena puts the party on the left, so both flip.
+  function flipped(g, img, cx, top, w, h) { g.save(); g.translate(cx, 0); g.scale(-1, 1); g.drawImage(img, -w / 2, top, w, h); g.restore(); }
   function bar(g, x, y, w, f, col) {
     g.fillStyle = '#120812'; g.fillRect(x - 2, y - 2, w + 4, 10);
     g.fillStyle = '#3a1418'; g.fillRect(x, y, w, 6);
