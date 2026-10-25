@@ -108,6 +108,15 @@ class Social
         }
     }
 
+    /** Any member can send a resting group back into the dungeon, for example after a wipe. */
+    public function resume(Hero $h): void
+    {
+        if (!$h->party) {
+            throw new GameError('You are not in a group.');
+        }
+        $h->party->running = true;
+    }
+
     private function leading(Hero $h): Party
     {
         if (!$h->party || $h->party->leader !== $h) {

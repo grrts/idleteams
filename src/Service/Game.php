@@ -252,6 +252,11 @@ class Game
         $line = $rep['wiped']
             ? sprintf('%s: the group fell after %d of %d bosses. %s', Simulator::DUNGEON_NAME, $rep['bossesKilled'], 3, $rep['cause']).$loot
             : sprintf('%s cleared!', Simulator::DUNGEON_NAME).$loot;
+        if ($rep['wiped']) {
+            // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
+            $b->party->running = false;
+            $line .= ' The group rests until someone sends it back in.';
+        }
         $this->post('party:'.$b->party->id, $line, ['type' => 'report', 'battle' => $b->id]);
         foreach ($heroes as $h) {
             if ($h->user->demo) {

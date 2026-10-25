@@ -61,7 +61,7 @@ a database and cron.
    # or: postgresql://idleteams:secret@127.0.0.1:5432/idleteams?serverVersion=16&charset=utf8
    GAME_BATTLE_SECONDS=10800      # 3 hour battles
    GAME_CHEST_SECONDS=3600        # chest stays open 1 hour
-   GAME_OFFLINE_CAP_SECONDS=43200 # battles keep chaining 12 hours after the last member was seen
+   GAME_OFFLINE_CAP_SECONDS=43200 # battles keep chaining 12 hours after the last member was seen; a wipe stops the chain until a member sends the group back in
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:schema:create` the first time. After you change entities, use

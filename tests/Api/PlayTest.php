@@ -68,6 +68,33 @@ class PlayTest extends WebTestCase
         $this->assertSame('done', $settled->state, 'everyone has rolled, so the chest is handed out');
     }
 
+    public function testAWipeStopsTheChainUntilSomeoneSendsTheGroupBackIn(): void
+    {
+        $this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123']);
+        $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak']);
+        $lfm = array_values(array_filter($this->api('GET', '/tavern')['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];
+        $this->api('POST', '/party/apply', ['party' => $lfm['party']['id']]);
+        $state = $this->api('GET', '/state');
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $game = static::getContainer()->get(Game::class);
+        $battle = $em->find(Battle::class, $state['battle']['id']);
+        $party = $battle->party;
+        $party->dungeonOffset = 40; // far beyond what level 1 heroes can survive
+        $game->progress($party, $battle->endsAt + 1);
+        $next = $em->getRepository(Battle::class)->findOneBy(['party' => $party, 'state' => 'running']);
+        $this->assertNotNull($next, 'the first run chains into the next one');
+        $game->progress($party, $next->endsAt + 1);
+
+        $this->assertTrue($next->report['wiped']);
+        $this->assertFalse($party->running, 'a wipe stops the chain');
+        $this->assertNull($em->getRepository(Battle::class)->findOneBy(['party' => $party, 'state' => 'running']));
+
+        $this->api('POST', '/party/resume');
+        $em->clear();
+        $this->assertNotNull($this->api('GET', '/state')['battle'], 'any member can send the group back in');
+    }
+
     public function testPointsAndGear(): void
     {
         $this->api('POST', '/register', ['username' => 'tester2', 'password' => 'secret123']);

@@ -146,7 +146,9 @@
     });
     b.chest = chest; b.report = rep; b.state = 'chest'; b.chestClosesAt = b.endsAt + CHEST_SECONDS; b.timeline = null;
     const loot = chest.length ? ' The chest holds ' + chest.length + ' item' + (chest.length === 1 ? '' : 's') + '.' : ' No loot this time, only materials.';
-    const line = rep.wiped ? D.DUNGEON_NAME + ': the group fell after ' + rep.bossesKilled + ' of 3 bosses. ' + rep.cause + loot : D.DUNGEON_NAME + ' cleared!' + loot;
+    let line = rep.wiped ? D.DUNGEON_NAME + ': the group fell after ' + rep.bossesKilled + ' of 3 bosses. ' + rep.cause + loot : D.DUNGEON_NAME + ' cleared!' + loot;
+    // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
+    if (rep.wiped) { p.running = false; line += ' The group rests until someone sends it back in.'; }
     post('party:' + p.id, line, { type: 'report', battle: b.id });
     for (const h of heroes) if (isDemo(h)) chest.forEach((_, idx) => autoRoll(b, h, idx));
   }
@@ -749,7 +751,7 @@
   function partyAct(action, input) {
     const h = hero();
     const acts = {
-      create: () => createParty(h, input.name || ''), leave: () => leave(h), kick: () => kick(h, must('heroes', input.hero)), settings: () => settings(h, input),
+      create: () => createParty(h, input.name || ''), leave: () => leave(h), kick: () => kick(h, must('heroes', input.hero)), settings: () => settings(h, input), resume: () => { if (!h.party) fail('You are not in a group.'); find('parties', h.party).running = true; },
       invite: () => invite(h, input.hero !== undefined ? must('heroes', input.hero) : heroByName(input.name || ''), input.message || ''),
       apply: () => apply(h, must('parties', input.party), input.message || ''),
     };
@@ -774,7 +776,7 @@
       return db.items.filter((i) => i.price !== null && (!slot || i.slot === slot) && (!rarity || i.rarity === rarity)).sort((a, c) => c.id - a.id).slice(0, 80).map((i) => presentItem(i, h));
     }],
     ['POST', /^\/market\/(\d+)\/buy$/, (m) => { const h = hero(); return presentItem(buy(h, +m[1]), h); }],
-    ['POST', /^\/party\/(create|leave|kick|settings|invite|apply)$/, (m, b) => partyAct(m[1], b)],
+    ['POST', /^\/party\/(create|leave|kick|settings|resume|invite|apply)$/, (m, b) => partyAct(m[1], b)],
     ['POST', /^\/request\/(\d+)\/(accept|decline)$/, (m) => { const h = hero(), r = find('requests', m[1]) || fail('That request is gone.'); m[2] === 'accept' ? accept(h, r) : decline(h, r); return { ok: true }; }],
     ['GET', /^\/tavern$/, () => {
       const h = hero();

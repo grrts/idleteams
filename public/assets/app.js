@@ -342,6 +342,15 @@
     }
     const cur = S.battle && S.battle.current;
     if (!cur) {
+      const last = S.battle ? [...S.battle.chests, ...S.battle.recent].sort((a, c) => c.endsAt - a.endsAt)[0] : null;
+      const wiped = !p.running && p.members.length === S.cfg.partySize && last && last.report.wiped;
+      if (wiped) {
+        const r = last.report;
+        return '<div class="stack"><div class="camp wipe"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + ' · level ' + last.dungeonLevel + '</div><h1>' + ico('skull', 'ico lg') + ' The group fell</h1>' +
+          '<p style="margin-top:6px">' + esc(r.cause || 'The group wiped.') + '</p><p class="muted small">Battles stop after a wipe. Change gear, skills or attributes, ask in group chat, and send everyone back in when you are ready.</p>' +
+          '<div class="lineup">' + p.members.map((m) => '<div class="seat down">' + spr(m.look, 1.5) + '<b>' + esc(m.name) + '</b>' + role(m.role) + '</div>').join('') + '</div>' +
+          '<div class="row" style="margin-top:16px;justify-content:center"><button class="primary" data-act="resume">Back into the dungeon</button><a href="#/gear"><button>Gear</button></a><a href="#/skills"><button>Skills</button></a><a href="#/hero"><button>Attributes</button></a>' + (p.leader === st.hero.id ? '<a href="#/group"><button>Change difficulty</button></a>' : '') + '</div></div>' + chestsView() + reportsView() + '</div>';
+      }
       const why = p.members.length < S.cfg.partySize ? 'The group needs ' + (S.cfg.partySize - p.members.length) + ' more hero' + (S.cfg.partySize - p.members.length === 1 ? '' : 'es') + '. The next run starts as soon as it is full.' : !p.running ? 'The group is resting. The leader can send it back in from the Group page.' : 'The next run is about to start…';
       return '<div class="stack"><div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
         '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b>' + role(m.role) + '</div>').join('') + Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div>' +
@@ -607,7 +616,7 @@
           '<div class="row"><button data-act="running">' + (p.running ? 'Rest after this run' : 'Send the group back in') + '</button>' + (p.members.length < S.cfg.partySize ? '<input id="inviteName" placeholder="Invite hero by name" style="width:180px" aria-label="Hero name"><button data-act="invite">Invite</button><button data-act="postLfm">Post on the tavern board</button>' : '') + '</div>' : '<p class="small muted">The leader picks the dungeon level and when to rest.</p>') +
         '<div><button class="danger small" data-act="leaveParty">Leave group</button></div></div>';
     } else {
-      mine = '<div class="panel stack tight"><h2>You are not in a group</h2><p class="small">A group is five real heroes who picked each other. Runs continue while you are away, up to the offline limit, and loot is shared through the group chest.</p><div class="row"><input id="partyName" placeholder="Group name" style="width:220px" aria-label="Group name"><button class="primary" data-act="createParty">Start a group</button></div>' +
+      mine = '<div class="panel stack tight"><h2>You are not in a group</h2><p class="small">A group is five real heroes who picked each other. Runs continue while you are away, up to the offline limit, until the group wipes. Loot is shared through the group chest.</p><div class="row"><input id="partyName" placeholder="Group name" style="width:220px" aria-label="Group name"><button class="primary" data-act="createParty">Start a group</button></div>' +
         '<div class="row"><input id="lfgText" placeholder="Say what you bring, e.g. steady healer, evenings" style="flex:1;min-width:200px" aria-label="Your post"><button data-act="postLfg">Post that I am looking</button></div></div>' +
         (st.invites.length ? '<div class="panel"><h3>Invites</h3>' + st.invites.map((r) => '<div class="row">' + (r.kind === 'invite' ? '<b>' + esc(r.party.name) + '</b> (' + r.party.size + '/5) invited you' + (r.message ? ': “' + esc(r.message) + '”' : '') + ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Join</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">No thanks</button>' : 'You asked to join <b>' + esc(r.party.name) + '</b>, waiting for the leader <button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Withdraw</button>') + '</div>').join('') + '</div>' : '');
     }
@@ -721,6 +730,7 @@
     leaveParty: () => confirmBox('Leave your group?', () => act(() => post('/party/leave')).then(reloadTavern)),
     kick: (d) => confirmBox('Remove this hero from the group?', () => act(() => post('/party/kick', { hero: +d.id }))),
     running: () => act(() => post('/party/settings', { running: !S.st.party.running })),
+    resume: () => act(() => post('/party/resume', {}), 'The group heads back in.'),
     invite: () => act(() => post('/party/invite', { name: $('#inviteName').value }), 'Invite sent.').then(reloadTavern),
     inviteId: (d) => act(() => post('/party/invite', { hero: +d.id }), 'Invite sent.').then(reloadTavern),
     apply: (d) => act(() => post('/party/apply', { party: +d.id }), 'Request sent.').then(reloadTavern),

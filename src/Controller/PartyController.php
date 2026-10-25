@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class PartyController extends ApiController
 {
-    #[Route('/api/party/{action}', methods: ['POST'], requirements: ['action' => 'create|leave|kick|settings|invite|apply'])]
+    #[Route('/api/party/{action}', methods: ['POST'], requirements: ['action' => 'create|leave|kick|settings|resume|invite|apply'])]
     public function act(string $action, Request $r, Social $social): JsonResponse
     {
         $h = $this->hero();
@@ -25,6 +25,7 @@ class PartyController extends ApiController
             'leave' => $social->leave($h),
             'kick' => $social->kick($h, $this->find(Hero::class, $in['hero'] ?? 0)),
             'settings' => $social->settings($h, $in),
+            'resume' => $social->resume($h),
             'invite' => $social->invite($h, isset($in['hero']) ? $this->find(Hero::class, $in['hero']) : $this->heroByName((string) ($in['name'] ?? '')), (string) ($in['message'] ?? '')),
             'apply' => $social->apply($h, $this->find(Party::class, $in['party'] ?? 0), (string) ($in['message'] ?? '')),
         };
