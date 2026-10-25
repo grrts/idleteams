@@ -14,7 +14,14 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 - Hero sheet: 18 attributes with a breakdown of where every point comes from, the soft cap, combat stats and
   the percentage curves. Path at level 10, the Oath at 20 (seals the Path and carves in spent points),
   permanent Keystones at 15, 25, 35, 45 and every 25 levels after 50. Levels are uncapped.
-- Skills: ranks (one point per level), a loadout of four, ultimate at 20.
+- Skills: ranks (one point per level), a loadout of five, ultimate at 20, two more class skills at 12 and 16.
+- Talents: one talent point per level from 2. Every class has a tree that starts from one root and branches out
+  into ten directions of four nodes each (minor, minor, a notable that needs 6 points in the tree, a capstone that
+  needs 15). Many notables and capstones teach a new skill. Resetting costs gold.
+- Heritage: every race has a tree with a shared trunk and three cultures (for example Ironhold, Brewhall and
+  Runedeep for dwarves). Follow one culture to open its branch. Heritage ranks come from Renown, which runs pay
+  mostly for kin: every other hero of your race adds Renown, more if they follow your culture. Kin in the group
+  also give a combat bonus through Kinship nodes. Changing culture costs gold and refunds its points.
 - Gear: wear anything (nothing binds), temper, socket glyphs for Resonance at 3/6/9, imprint Codex powers,
   reforge from level 50, salvage, craft, give to another player, sell on the market.
 - Group: start a group or join one from the tavern board, invite heroes, set the dungeon level, rest.
@@ -32,7 +39,7 @@ Requirements: PHP 8.2+ (8.3 recommended) with `pdo_sqlite`, `intl` is optional, 
 
 ```bash
 composer install
-php bin/console doctrine:schema:create
+php bin/console doctrine:schema:create   # on an existing database: doctrine:schema:update --force
 php bin/console app:demo:seed          # optional: demo heroes so you can fill a group alone
 php -S 127.0.0.1:8000 -t public        # or: symfony serve
 ```
@@ -91,6 +98,7 @@ a database and cron.
 | Where | What |
 | --- | --- |
 | `src/Game/Rules.php` | All static game data: attributes, races, classes, Origins, skills, Keystones, slots, glyphs, powers |
+| `src/Game/Talents.php`, `Heritage.php` | The class talent trees and the race and culture Heritage trees, with Renown |
 | `src/Game/Stats.php` | Build → attributes (with sources) → combat stats; the percentage curve and soft cap |
 | `src/Game/Items.php` | Item and glyph generation, names, tempering and salvage values |
 | `src/Game/Simulator.php` | The deterministic battle simulation (packs, the Ember Golem, mechanics, AI, timeline for playback) |
@@ -99,20 +107,21 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes
 
 `app:balance` shows where tuning stands. A balanced group (guardian, cleric, ranger, mage, rogue) clears the
 whole dungeon at levels 1 to 50. Groups without a tank or a healer fail, as intended. Known gaps: a Warden plus
-Druid group falls behind on damage from level 35, and level 80+ needs another pass once gear past 50 is
+Druid group falls behind on damage at level 50, and level 80+ needs another pass once gear past 50 is
 designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Browser build
 
 `browser-build/` runs the whole game inside one page with no server: `data.js`, `engine.js` and `server.js` stand in
-for the Symfony API, and the page saves to the browser. To assemble it, copy `pixel.js`, `art.js`, `arena.js`, `app.js`
+for the Symfony API, and the page saves to the browser. `php bin/console app:browser-data` rewrites `data.js` from the
+PHP rules; `engine.js` and `server.js` are hand ports and change with the PHP. To assemble it, copy `pixel.js`, `art.js`, `arena.js`, `app.js`
 and `app.css` from `public/assets/` next to `browser-build/index.html` and open that page from any static host.
 
 ## Art

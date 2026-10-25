@@ -30,7 +30,81 @@
       for (const [pid, p] of Object.entries(c.paths)) for (const [id, s] of Object.entries(p[2])) out[id] = [...s, pid];
       const [uid, uname, ulvl, utype, umult, ucost, ucd, uopts] = c.ultimate;
       out[uid] = [uname, ulvl, utype, umult, ucost, ucd, uopts, 'ultimate'];
+      for (const [id, s] of Object.entries(D.TALENT_SKILLS[cls] || {})) out[id] = [...s, 'talent'];
       return out;
+    },
+  });
+
+  // ---------- Talents and Heritage (src/Game/Talents.php, Heritage.php); trees come prebuilt in data.js
+  const T = (E.Talents = {
+    points: (level) => Math.max(0, level - 1),
+    tree: (cls) => D.TALENT_TREES[cls],
+    grants(cls, talents) {
+      const out = {};
+      for (const [id, n] of Object.entries(T.tree(cls).nodes)) if ((talents[id] || 0) > 0 && n.effect.grant) out[n.effect.grant] = id;
+      return out;
+    },
+    check(tree, have, id, free, culture = null) {
+      const n = tree.nodes[id];
+      if (!n) return 'Unknown talent.';
+      if ((have[id] || 0) >= n.max) return 'That talent is at its highest rank.';
+      if (n.req && (have[n.req] || 0) < 1) return 'Learn ' + tree.nodes[n.req].name + ' first.';
+      if (n.culture !== null && n.culture !== culture) return 'That belongs to another culture. Choose it first.';
+      if (sum(Object.values(have)) < n.need) return 'Spend ' + n.need + ' points in this tree first.';
+      if (free < 1) return 'No points left.';
+      return null;
+    },
+    auto(cls, points, offset = 0) {
+      const tree = T.tree(cls), have = {};
+      let order = tree.branches.map((b) => b[4]);
+      if (offset) { const k = offset % 3; order = [...order.slice(k, k + 1), ...order.slice(0, k), ...order.slice(k + 1)]; }
+      while (points > 0) {
+        if (!keys(have).length) { have.root = 1; --points; continue; }
+        let learned = false;
+        for (const ids of order) {
+          for (const id of ids) {
+            if ((have[id] || 0) >= tree.nodes[id].max) continue;
+            if (T.check(tree, have, id, points) === null) { have[id] = (have[id] || 0) + 1; --points; learned = true; }
+            break;
+          }
+          if (learned) break;
+        }
+        if (!learned) break;
+      }
+      return have;
+    },
+    mods(build) {
+      const m = { attrs: [], stat: {}, type: {}, skill: {}, cost: 0, kin: 0, renown: 0 }, sets = [];
+      if (build.talents && keys(build.talents).length && D.TALENT_TREES[build.cls]) sets.push([T.tree(build.cls), build.talents, 'Talent']);
+      if (build.heritage && keys(build.heritage).length && D.HERITAGE_TREES[build.race]) sets.push([D.HERITAGE_TREES[build.race], build.heritage, 'Heritage']);
+      for (const [tree, have, label] of sets) {
+        for (const [id, r] of Object.entries(have)) {
+          const n = tree.nodes[id];
+          if (!n || r < 1) continue;
+          const rank = Math.min(r, n.max), e = n.effect;
+          for (const [a, v] of Object.entries(e.attr || {})) m.attrs.push([a, v * rank, label + ': ' + n.name]);
+          for (const k of ['stat', 'type', 'skill']) for (const [x, v] of Object.entries(e[k] || {})) m[k][x] = (m[k][x] || 0) + v * rank;
+          for (const k of ['cost', 'kin', 'renown']) m[k] += (e[k] || 0) * rank;
+        }
+      }
+      return m;
+    },
+  });
+  const H = (E.Heritage = {
+    tree: (race) => D.HERITAGE_TREES[race],
+    renownFor: (rank) => 50 * (rank - 1) * rank,
+    rank(renown) { let r = 1; while (renown >= H.renownFor(r + 1)) ++r; return r; },
+    kin(race, culture, others) { let n = 0; for (const [r, c] of others) if (r === race) n += culture !== null && c === culture ? 2 : 1; return n; },
+    renownGain: (units, kin, bonus) => Math.round(units * (D.HERITAGE.RENOWN_ALONE + D.HERITAGE.RENOWN_PER_KIN * kin) * (1 + bonus)),
+    auto(race, culture, points) {
+      const tree = H.tree(race), have = {}, order = ['root', ...tree.cultures[culture][3], ...tree.trunk, ...tree.trunk, ...tree.trunk];
+      let guard = 0;
+      while (points > 0 && guard++ < 100) {
+        const id = order.find((x) => T.check(tree, have, x, points, culture) === null);
+        if (!id) break;
+        have[id] = (have[id] || 0) + 1; --points;
+      }
+      return have;
     },
   });
 
@@ -105,6 +179,7 @@
         for (const [a, v] of item.affixes) add(a, v * t, I.name(item));
         for (const gl of item.glyphs || []) if (gl) add(D.GLYPHS[gl[0]][1], gl[1], D.GLYPHS[gl[0]][0] + ' glyph');
       }
+      for (const [a, n, from] of T.mods(build).attrs) add(a, n, from);
       if (Object.values(build.keystones || {}).includes('unmovable')) add('resolve', tot.resolve * 0.2, 'Keystone: Unmovable');
       if (build.race === 'draka') add('recovery', tot.recovery * 0.1, 'Ember Heart');
       return { total: tot, sources: src };
@@ -123,14 +198,18 @@
       damage = Math.max(3, damage); if (powers.includes('titanGrip')) damage *= 1.25; health += 30;
       const resource = D.CLASSES[build.cls].resource;
       const [resMax, resRegen] = resource === 'mana' ? [30 * e.wisdom, 0.45 * e.wisdom] : resource === 'energy' ? [12 * e.stamina, 0.9 * e.stamina] : [10 * e.fury, 0];
-      const haste = 1 + S.curve(tot.swiftness, L), crit = Math.min(S.CAPS.crit, S.curve(tot.precision, L)), maxHp = health * (1 + e.vitality / 20) + 20 * e.vitality;
+      // Talents and Heritage: percentage bonuses on top of what attributes give.
+      const m = T.mods(build), t = (k) => m.stat[k] || 0;
+      const haste = 1 + S.curve(tot.swiftness, L) + t('haste'), crit = Math.min(S.CAPS.crit, S.curve(tot.precision, L) + t('crit'));
+      const maxHp = (health * (1 + e.vitality / 20) + 20 * e.vitality) * (1 + t('hp')), dmg = 1 + t('dmg');
       return {
-        level: L, maxHp, weaponDamage: damage, might: damage * (1 + e.might / 10), arcana: damage * (1 + e.arcana / 10), spirit: damage * (1 + e.spirit / 10),
-        crit, mega: Math.min(S.CAPS.mega, S.curve(tot.ferocity, L) * 0.5), critMult: 2 + e.ferocity / (10 + 4 * L), haste,
-        cdr: Math.min(S.CAPS.cdr, S.curve(tot.focus, L)), dodge: Math.min(S.CAPS.dodge, S.curve(tot.agility, L)), dr: Math.min(S.CAPS.dr, S.curve(tot.guard + armor, L)),
-        block: Math.min(S.CAPS.block, S.curve(0.4 * tot.guard + block, L)), resist: Math.min(S.CAPS.resist, S.curve(tot.resolve, L)),
-        regen: maxHp * 0.0004 * e.recovery, healRecv: 1 + (0.5 * e.recovery) / (e.recovery + 10 + 2 * L), threat: 1 + e.presence / (2 + 0.8 * L),
-        command: 1 + e.command / (10 + 4 * L), fortune: 1 + e.fortune / (5 + 2 * L), resource, resMax, resRegen, rageGain: 3 + 0.3 * e.fury,
+        level: L, maxHp, weaponDamage: damage, might: damage * (1 + e.might / 10) * dmg, arcana: damage * (1 + e.arcana / 10) * dmg, spirit: damage * (1 + e.spirit / 10) * (1 + t('heal')),
+        crit, mega: Math.min(S.CAPS.mega, S.curve(tot.ferocity, L) * 0.5), critMult: (2 + e.ferocity / (10 + 4 * L)) * (1 + t('critDmg')), haste,
+        cdr: Math.min(S.CAPS.cdr, S.curve(tot.focus, L) + t('cdr')), dodge: Math.min(S.CAPS.dodge, S.curve(tot.agility, L) + t('dodge')), dr: Math.min(S.CAPS.dr, S.curve(tot.guard + armor, L)),
+        block: Math.min(S.CAPS.block, S.curve(0.4 * tot.guard + block, L) + t('block')), resist: Math.min(S.CAPS.resist, S.curve(tot.resolve, L)),
+        regen: maxHp * 0.0004 * e.recovery * (1 + t('regen')), healRecv: (1 + (0.5 * e.recovery) / (e.recovery + 10 + 2 * L)) * (1 + t('healRecv')), threat: (1 + e.presence / (2 + 0.8 * L)) * Math.max(0.2, 1 + t('threat')),
+        command: 1 + e.command / (10 + 4 * L), fortune: (1 + e.fortune / (5 + 2 * L)) * (1 + t('fortune')), resource, resMax, resRegen: resRegen * (1 + t('resRegen')), rageGain: (3 + 0.3 * e.fury) * (1 + t('rageGain')),
+        taken: Math.max(0.5, 1 - t('taken')), costMult: Math.max(0.5, 1 - m.cost), xpBonus: t('xp'), renownBonus: m.renown, kin: m.kin, typeMult: m.type, skillMult: m.skill,
         costScale: resource === 'rage' ? 1 + 0.02 * (L - 1) : resource === 'energy' ? 1 + 0.03 * (L - 1) : 1 + 0.1 * (L - 1),
         powers, resonance: S.resonance(items).tiers,
       };
@@ -150,11 +229,24 @@
 
   // ---------- Combatants
   const Cb = (E.Combatants = {
-    available(cls, level, path) { const out = {}; for (const [id, sk] of Object.entries(R.classSkills(cls))) { if (sk[7] === 'ultimate' || sk[1] > level) continue; if (sk[7] !== 'core' && sk[7] !== path) continue; out[id] = sk; } return out; },
-    defaultLoadout(cls, level, path) { const all = R.classSkills(cls), ids = keys(Cb.available(cls, level, path)); ids.sort((a, b) => (all[a][7] === 'core') - (all[b][7] === 'core')); return ids.slice(0, C.LOADOUT_SIZE); },
+    available(cls, level, path, talents = {}) {
+      const out = {}, taught = keys(talents).length ? T.grants(cls, talents) : {};
+      for (const [id, sk] of Object.entries(R.classSkills(cls))) {
+        if (sk[7] === 'ultimate' || sk[1] > level) continue;
+        if (sk[7] === 'talent' ? !taught[id] : sk[7] !== 'core' && sk[7] !== path) continue;
+        out[id] = sk;
+      }
+      return out;
+    },
+    defaultLoadout(cls, level, path, talents = {}) {
+      // Path skill first so a new Path is felt right away, then core skills, then skills talents teach.
+      const all = R.classSkills(cls), ids = keys(Cb.available(cls, level, path, talents)), rank = (id) => ({ core: 1, talent: 2 })[all[id][7]] || 0;
+      ids.sort((a, b) => rank(a) - rank(b));
+      return ids.slice(0, C.LOADOUT_SIZE);
+    },
     make(build, id, name, loadout = null, ranks = {}) {
-      loadout = loadout || Cb.defaultLoadout(build.cls, build.level, build.path || null);
-      return { id, name, cls: build.cls, race: build.race, origin: build.origin, level: build.level, path: build.path || null, keystones: Object.values(build.keystones || {}), loadout, ranks, stats: S.derive(build) };
+      loadout = loadout || Cb.defaultLoadout(build.cls, build.level, build.path || null, build.talents || {});
+      return { id, name, cls: build.cls, race: build.race, culture: build.culture || null, origin: build.origin, level: build.level, path: build.path || null, keystones: Object.values(build.keystones || {}), loadout, ranks, stats: S.derive(build) };
     },
   });
 
@@ -175,7 +267,7 @@
         const k = items.length % 3, shift = [...prefer.slice(k), ...prefer.slice(0, k)];
         items.push(I.generate(r, ilvl, base !== null && level === 1 ? 'common' : quality, slot, base, shift));
       }
-      return { race: 'human', cls, origin: 'anvil', level, spent, path: null, keystones: {}, items };
+      return { race: 'human', cls, origin: 'anvil', level, spent, path: null, keystones: {}, items, talents: T.auto(cls, T.points(level)) };
     },
     forLevel(level) {
       if (refCache[level]) return refCache[level];
@@ -199,6 +291,7 @@
       this.r = new Rng(12345);
       this.ref = { dps: 1, hps: 0, tankHp: 1, tankDr: 0, avgHp: 1, avgDr: 0 };
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
+      this.applyKin();
       this.phase = 'boss'; this.mech = { buster: 1e9, rain: 1e9, shock: 1e9, curse: 1e9 }; this.enrageAt = 1e9; this.shardsSpawned = true;
       this.spawn('boss', 'Target Dummy', 1e15, 0, 2);
       for (const h of this.h) this.e[this.enemySeq].threat[h.i] = h.role === 'tank' ? 10 : 0;
@@ -210,6 +303,7 @@
       this.dungeonLevel = Math.max(1, dungeonLevel);
       this.ref = Ref.forLevel(this.dungeonLevel);
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
+      this.applyKin();
       let done = 0, bosses = 0;
       for (let c = 0; c < D.DUNGEON.length; c++) {
         const [kind, name, wing] = D.DUNGEON[c];
@@ -226,13 +320,21 @@
       });
       return { report, timeline: { events: this.ev, snaps: this.snap, length: round(this.t, 1) } };
     }
+    /** Heritage: heroes fight harder beside their own race, twice as much beside their own culture. */
+    applyKin() {
+      for (const h of this.h) {
+        if (!(h.s.kin > 0)) continue;
+        const f = 1 + h.s.kin * H.kin(h.race, h.culture, this.h.filter((x) => x !== h).map((x) => [x.race, x.culture]));
+        h.s = Object.assign({}, h.s, { might: h.s.might * f, arcana: h.s.arcana * f, spirit: h.s.spirit * f });
+      }
+    }
     initHero(i, x) {
       const s = x.stats, all = R.classSkills(x.cls), skills = {};
       for (const id of x.loadout) if (all[id]) skills[id] = all[id];
       const ult = D.CLASSES[x.cls].ultimate[0];
       if (x.level >= C.ULTIMATE_LEVEL) skills[ult] = all[ult];
       return {
-        i, id: x.id, name: x.name, cls: x.cls, role: R.role(x.cls), race: x.race, origin: x.origin, level: x.level, ks: Object.values(x.keystones || []), s,
+        i, id: x.id, name: x.name, cls: x.cls, role: R.role(x.cls), race: x.race, culture: x.culture || null, origin: x.origin, level: x.level, ks: Object.values(x.keystones || []), s,
         school: D.CLASSES[x.cls].school, passive: D.CLASSES[x.cls].passive[0], skills, ult, ranks: x.ranks || {},
         hp: s.maxHp, res: s.resource === 'rage' ? 0 : s.resMax, absorb: 0, cd: {}, gcd: 0, swing: 0, dead: false, knock: 0,
         walls: [], buffs: [], hots: [], pets: [], curse: null, nineLives: false, phoenix: false, lastRite: false, secondWind: false,
@@ -390,7 +492,7 @@
     cost(i, id) {
       const h = this.h[i], sk = h.skills[id];
       if (sk[7] === 'ultimate') return 0;
-      let c = sk[4] * h.s.costScale * Math.max(0.5, 1 - 0.02 * Math.max(0, this.rank(i, id) - 5));
+      let c = sk[4] * h.s.costScale * Math.max(0.5, 1 - 0.02 * Math.max(0, this.rank(i, id) - 5)) * (h.s.costMult ?? 1);
       if (h.role === 'healer' && this.ks(h, 'frugal') && ['heal', 'groupheal', 'hot', 'shield'].includes(sk[2])) c *= 0.75;
       return c;
     }
@@ -470,7 +572,7 @@
         this.report[i].casts++;
       }
       const rankMult = 1 + 0.1 * (Math.min(5, this.rank(i, id)) - 1);
-      mult *= rankMult;
+      mult *= rankMult * (1 + ((h.s.typeMult || {})[type] || 0) + ((h.s.skillMult || {})[id] || 0));
       const school = opts.school || (['heal', 'groupheal', 'hot', 'shield'].includes(type) ? 'spirit' : h.school);
       const cmd = h.s.command, dur = (opts.dur ?? 8) + (h.origin === 'crown' ? 2 : 0);
       if (sk[7] === 'ultimate' || type === 'taunt' || type === 'wall') this.emit('cast', i, Number.isInteger(target) ? target : -1, 0, sk[7] === 'ultimate' ? 1 : 0, { name });
@@ -609,7 +711,7 @@
       if (o.melee && this.r.getFloat(0, 1) < s.dodge) { this.emit('dodge', -1, i, 0, 0); if (h.origin === 'fox') h.forceCrit = true; if (o.big) mech('busterDodged'); return; }
       let dmg = raw, blocked = false;
       if (o.melee && this.r.getFloat(0, 1) < s.block) { dmg *= 0.5; blocked = true; if (o.big) mech('busterBlocked'); }
-      dmg *= 1 - s.dr * (o.magic ? 0.5 : 1);
+      dmg *= (1 - s.dr * (o.magic ? 0.5 : 1)) * (s.taken ?? 1);
       h.walls = h.walls.filter((w) => w[1] > this.t);
       let wall = 0; for (const w of h.walls) wall = Math.max(wall, w[0]);
       dmg *= 1 - wall;

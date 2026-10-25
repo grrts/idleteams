@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const D = window.IT_DATA, C = D.C, E = window.IT_ENGINE;
-  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Simulator, Rng } = E;
+  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, Simulator, Rng } = E;
   const BATTLE_SECONDS = 150, CHEST_SECONDS = 90, OFFLINE_CAP = 43200, MAX_CATCH_UP = 12, PARTY_SIZE = 5, GUILD_MAX = 100, MAX_TEMPER = 15;
   const BOSS_DROP = [0.35, 0.45, 0.6];
   const KEY = 'idleteams-play-v1';
@@ -22,8 +22,12 @@
   let db = null;
   const fresh = () => ({ seq: {}, users: [], heroes: [], items: [], parties: [], requests: [], posts: [], guilds: [], battles: [], chat: [], me: null });
   function load() {
-    try { const raw = localStorage.getItem(KEY); if (raw) { db = JSON.parse(raw); return; } } catch (e) { /* storage blocked: play in memory */ }
+    try { const raw = localStorage.getItem(KEY); if (raw) { db = JSON.parse(raw); migrate(); return; } } catch (e) { /* storage blocked: play in memory */ }
     db = fresh(); seed(); save();
+  }
+  /** Saves from before talents and Heritage get the new fields. */
+  function migrate() {
+    for (const h of db.heroes) { h.talents = h.talents || {}; h.heritage = h.heritage || {}; h.culture = h.culture || null; h.renown = h.renown || 0; }
   }
   function save() {
     // Keep the save small: recent chat and finished battles only.
@@ -44,6 +48,10 @@
   const role = (h) => R.role(h.cls);
   const totalPoints = (h) => (h.level - 1) * C.POINTS_PER_LEVEL;
   const unspent = (h) => totalPoints(h) - sum(Object.values(h.spent));
+  const talentPoints = (h) => T.points(h.level) - sum(Object.values(h.talents));
+  const heritageRank = (h) => H.rank(h.renown);
+  const heritagePoints = (h) => heritageRank(h) - sum(Object.values(h.heritage));
+  const talentResetCost = (h) => 25 * h.level;
   const skillPoints = (h) => h.level - 1 - sum(Object.values(h.skillRanks).map((r) => Math.max(0, r - 1)));
   const heroChannel = (h) => (h.guild ? 'guild:' + h.guild : 'tavern');
   const itemRecord = (spec) => Object.assign(clone(I.fromSpec(spec)), { createdAt: time() });
@@ -51,11 +59,11 @@
   // ------------------------------------------------------------------ Game
 
   const equipped = (h) => db.items.filter((i) => i.owner === h.id && i.equipped);
-  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, keystones: h.keystones, items: equipped(h).map(I.spec) });
+  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, keystones: h.keystones, talents: h.talents, heritage: h.heritage, culture: h.culture, items: equipped(h).map(I.spec) });
   function loadout(h) {
-    const avail = Cb.available(h.cls, h.level, h.path);
+    const avail = Cb.available(h.cls, h.level, h.path, h.talents);
     const ids = h.loadout.filter((id) => avail[id]);
-    return ids.length ? ids : Cb.defaultLoadout(h.cls, h.level, h.path);
+    return ids.length ? ids : Cb.defaultLoadout(h.cls, h.level, h.path, h.talents);
   }
   const combatant = (h) => Cb.make(build(h), h.id, h.name, loadout(h), h.skillRanks);
 
@@ -124,7 +132,13 @@
     const keenEye = heroes.some((h) => h.cls === 'rogue');
     heroes.forEach((h, k) => {
       const stats = S.derive(build(h)), row = rep.heroes[k] || {};
-      const xp = Math.round(12 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)));
+      const xp = Math.round(12 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)) * (1 + stats.xpBonus));
+      // Heritage: Renown for running with your own race, twice for your own culture.
+      const kin = H.kin(h.race, h.culture, heroes.filter((o) => o !== h).map((o) => [o.race, o.culture]));
+      const renown = H.renownGain(units, kin, stats.renownBonus), rankBefore = heritageRank(h);
+      h.renown += renown;
+      if (heritageRank(h) > rankBefore) post(heroChannel(h), h.name + "'s " + D.RACES[h.race].name + ' Heritage reached rank ' + heritageRank(h) + '.', { type: 'hero', hero: h.id });
+      Object.assign(row, { renown, kin });
       const gold = Math.round(5 * 1.045 ** (2 * dl) * units * stats.fortune);
       const mats = Math.round((3 + 0.5 * units) * (1 + dl / 10) * stats.fortune);
       h.gold += gold; h.materials += mats;
@@ -239,12 +253,14 @@
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: { name: D.DUNGEON_NAME, plan: D.DUNGEON }, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
+      talentTrees: D.TALENT_TREES, heritageTrees: D.HERITAGE_TREES, talentNeed: D.TALENT_NEED,
+      renown: { alone: D.HERITAGE.RENOWN_ALONE, perKin: D.HERITAGE.RENOWN_PER_KIN, swapGold: D.HERITAGE.CULTURE_SWAP_GOLD },
     };
   }
   function heroCard(h) {
     const g = guildOf(h);
     return {
-      id: h.id, name: h.name, race: h.race, cls: h.cls, origin: h.origin, path: h.path, role: role(h), level: h.level, look: look(h), marks: h.marks,
+      id: h.id, name: h.name, race: h.race, culture: h.culture, heritageRank: heritageRank(h), cls: h.cls, origin: h.origin, path: h.path, role: role(h), level: h.level, look: look(h), marks: h.marks,
       guild: g ? { id: g.id, name: g.name, tag: g.tag } : null, party: h.party, keystones: h.keystones, codex: h.codex.length, demo: isDemo(h),
     };
   }
@@ -256,10 +272,13 @@
   function presentHero(h) {
     const b = build(h), attrs = S.attributes(b), stats = S.derive(b), L = h.level, curves = {};
     for (const [stat, attr] of Object.entries({ crit: 'precision', haste: 'swiftness', cdr: 'focus', dodge: 'agility', resist: 'resolve', mega: 'ferocity' })) curves[stat] = { attr, points: round1(attrs.total[attr]) };
-    const avail = Cb.available(h.cls, L, h.path), skills = [];
+    const avail = Cb.available(h.cls, L, h.path, h.talents), skills = [], teachers = {};
+    for (const [nid, n] of Object.entries(T.tree(h.cls).nodes)) if (n.effect.grant) teachers[n.effect.grant] = nid;
     for (const [id, s] of Object.entries(R.classSkills(h.cls))) {
-      skills.push({ id, name: s[0], level: s[1], type: s[2], mult: s[3], cost: s[4], cd: s[5], opts: s[6], source: s[7], rank: Math.max(1, h.skillRanks[id] || 1), unlocked: s[7] === 'ultimate' ? L >= C.ULTIMATE_LEVEL : !!avail[id] });
+      skills.push({ id, name: s[0], level: s[1], type: s[2], mult: s[3], cost: s[4], cd: s[5], opts: s[6], source: s[7], rank: Math.max(1, h.skillRanks[id] || 1), talent: teachers[id] || null, unlocked: s[7] === 'ultimate' ? L >= C.ULTIMATE_LEVEL : !!avail[id] });
     }
+    const p = partyOf(h), rank = heritageRank(h);
+    const others = p ? members(p).filter((m) => m !== h).map((m) => [m.race, m.culture]) : [];
     return Object.assign(heroCard(h), {
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
@@ -267,6 +286,8 @@
       skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
+      talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
+      renown: { total: h.renown, rank, from: H.renownFor(rank), to: H.renownFor(rank + 1), free: heritagePoints(h), kin: H.kin(h.race, h.culture, others) },
     });
   }
   function presentItem(i, viewer = null) {
@@ -329,7 +350,7 @@
     for (const k of LOOK) { const v = (input.look || {})[k]; if ((typeof v === 'string' && /^[#a-zA-Z0-9]{1,16}$/.test(v)) || typeof v === 'number') lk[k] = v; }
     const h = ins('heroes', {
       user: u.id, name, race: input.race, cls: input.cls, origin: input.origin, path: null, oathTaken: false, look: lk, level: 1, xp: 0, spent: {}, carved: {}, skillRanks: {},
-      loadout: [], keystones: {}, codex: [], marks: [], career: {}, gold: 0, materials: 0, essence: 0, lootPolicy: 'upgrades', party: null, guild: null, guildRank: 'member', createdAt: time(),
+      loadout: [], keystones: {}, talents: {}, heritage: {}, culture: null, renown: 0, codex: [], marks: [], career: {}, gold: 0, materials: 0, essence: 0, lootPolicy: 'upgrades', party: null, guild: null, guildRank: 'member', createdAt: time(),
     });
     // Starter kit: plain commons in the class's own style. Everything after this drops, gets crafted or traded.
     const c = D.CLASSES[h.cls], r = new Rng(E.crc(name));
@@ -356,7 +377,7 @@
     if (h.level < C.PATH_LEVEL) fail('Paths open at level ' + C.PATH_LEVEL + '.');
     if (h.oathTaken) fail('Your Oath sealed your Path.');
     if (!D.CLASSES[h.cls].paths[path]) fail('Unknown Path.');
-    h.path = path; h.loadout = Cb.defaultLoadout(h.cls, h.level, path);
+    h.path = path; h.loadout = Cb.defaultLoadout(h.cls, h.level, path, h.talents);
   }
   function chooseKeystone(h, level, id) {
     if (!keystoneLevels(h.level).includes(level)) fail('That Keystone level is not open yet.');
@@ -368,7 +389,8 @@
   function rankUp(h, skill) {
     const all = R.classSkills(h.cls), s = all[skill];
     if (!s) fail('Unknown skill.');
-    if (s[1] > h.level || (s[7] !== 'core' && s[7] !== 'ultimate' && s[7] !== h.path)) fail('You have not unlocked that skill.');
+    const taught = s[7] === 'talent' && !!T.grants(h.cls, h.talents)[skill];
+    if (s[1] > h.level || (s[7] !== 'core' && s[7] !== 'ultimate' && s[7] !== h.path && !taught)) fail('You have not unlocked that skill.');
     if (skillPoints(h) < 1) fail('No skill points left. You get one per level.');
     const rank = Math.max(1, h.skillRanks[skill] || 1);
     if (rank >= D.MAX_RANK) fail('That skill is at its highest rank.');
@@ -380,11 +402,44 @@
     h.gold -= cost; h.skillRanks = {};
   }
   function setLoadout(h, ids) {
-    const avail = Cb.available(h.cls, h.level, h.path);
+    const avail = Cb.available(h.cls, h.level, h.path, h.talents);
     ids = uniq(ids.filter((x) => typeof x === 'string'));
     if (ids.length > C.LOADOUT_SIZE) fail('Your loadout holds ' + C.LOADOUT_SIZE + ' skills.');
     for (const id of ids) if (!avail[id]) fail('You cannot slot that skill.');
     h.loadout = ids;
+  }
+  function learnTalent(h, node) {
+    const err = T.check(T.tree(h.cls), h.talents, node, talentPoints(h));
+    if (err) fail(err === 'No points left.' ? 'No talent points left. You get one per level.' : err);
+    h.talents = Object.assign({}, h.talents, { [node]: (h.talents[node] || 0) + 1 });
+    const n = T.tree(h.cls).nodes[node];
+    if (n.kind === 'capstone') post(heroChannel(h), h.name + ' mastered ' + n.name + '.', { type: 'hero', hero: h.id });
+  }
+  function resetTalents(h) {
+    const cost = talentResetCost(h);
+    if (h.gold < cost) fail('Resetting talents costs ' + cost + ' gold.');
+    h.gold -= cost; h.talents = {};
+    const avail = Cb.available(h.cls, h.level, h.path);
+    h.loadout = h.loadout.filter((id) => avail[id]);
+  }
+  function chooseCulture(h, culture) {
+    const tree = H.tree(h.race);
+    if (!tree.cultures[culture]) fail('Unknown culture.');
+    if ((h.heritage.root || 0) < 1) fail('Learn ' + tree.nodes.root.name + ' first.');
+    if (h.culture === culture) return;
+    if (h.culture !== null) {
+      const cost = D.HERITAGE.CULTURE_SWAP_GOLD * h.level;
+      if (h.gold < cost) fail('Following another culture costs ' + cost + ' gold.');
+      h.gold -= cost;
+      h.heritage = Object.fromEntries(Object.entries(h.heritage).filter(([id]) => tree.nodes[id].culture === null));
+    }
+    h.culture = culture;
+    post(heroChannel(h), h.name + ' now follows the ways of ' + tree.cultures[culture][0] + '.', { type: 'hero', hero: h.id });
+  }
+  function learnHeritage(h, node) {
+    const err = T.check(H.tree(h.race), h.heritage, node, heritagePoints(h), h.culture);
+    if (err) fail(err === 'No points left.' ? 'No Heritage points left. Run dungeons with your own race to earn Renown.' : err);
+    h.heritage = Object.assign({}, h.heritage, { [node]: (h.heritage[node] || 0) + 1 });
   }
   function setLootPolicy(h, policy) {
     if (!['upgrades', 'greed', 'pass'].includes(policy)) fail('Unknown loot setting.');
@@ -632,7 +687,12 @@
     for (const lvl of keystoneLevels(h.level)) {
       if (h.keystones[lvl] === undefined) { const free = options.filter((o) => !Object.values(h.keystones).includes(o)); h.keystones = Object.assign({}, h.keystones, { [lvl]: free[(h.id + lvl) % free.length] }); }
     }
-    h.loadout = Cb.defaultLoadout(h.cls, h.level, h.path);
+    // Talents and Heritage follow a fixed plan per hero, so the demo heroes grow like players would.
+    h.talents = T.auto(h.cls, T.points(h.level), h.id);
+    const cultures = keys(H.tree(h.race).cultures);
+    h.culture = h.culture || cultures[h.id % cultures.length];
+    h.heritage = H.auto(h.race, h.culture, heritageRank(h));
+    h.loadout = Cb.defaultLoadout(h.cls, h.level, h.path, h.talents);
     let i = 0;
     while (skillPoints(h) > 0 && i++ < 200) { const s = h.loadout[i % h.loadout.length]; if ((h.skillRanks[s] || 1) < D.MAX_RANK) rankUp(h, s); }
     for (const item of bag(h)) {
@@ -732,6 +792,8 @@
       autoSpend: () => autoSpend(h), path: () => choosePath(h, String(input.path || '')),
       keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')),
       resetRanks: () => resetRanks(h), loadout: () => setLoadout(h, [].concat(input.skills || [])), lootPolicy: () => setLootPolicy(h, String(input.policy || '')),
+      talent: () => learnTalent(h, String(input.node || '')), resetTalents: () => resetTalents(h),
+      culture: () => chooseCulture(h, String(input.culture || '')), heritage: () => learnHeritage(h, String(input.node || '')),
     };
     (acts[input.action] || (() => fail('Unknown action.')))();
     return presentHero(h);

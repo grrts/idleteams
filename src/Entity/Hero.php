@@ -2,7 +2,9 @@
 
 namespace App\Entity;
 
+use App\Game\Heritage;
 use App\Game\Rules;
+use App\Game\Talents;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
@@ -64,6 +66,22 @@ class Hero
     #[ORM\Column(type: 'json')]
     public array $keystones = [];
 
+    /** Class talent tree: node id => rank. */
+    #[ORM\Column(type: 'json')]
+    public array $talents = [];
+
+    /** Race tree: node id => rank. */
+    #[ORM\Column(type: 'json')]
+    public array $heritage = [];
+
+    /** The culture of the hero's race they follow; only its branch of the race tree can be learned. */
+    #[ORM\Column(length: 16, nullable: true)]
+    public ?string $culture = null;
+
+    /** Earned by running dungeons with groupmates of the same race. Sets the Heritage rank. */
+    #[ORM\Column]
+    public int $renown = 0;
+
     /** Legendary powers found, kept forever. */
     #[ORM\Column(type: 'json')]
     public array $codex = [];
@@ -115,6 +133,21 @@ class Hero
     public function unspentPoints(): int
     {
         return $this->totalPoints() - array_sum($this->spent);
+    }
+
+    public function talentPoints(): int
+    {
+        return Talents::points($this->level) - array_sum($this->talents);
+    }
+
+    public function heritageRank(): int
+    {
+        return Heritage::rank($this->renown);
+    }
+
+    public function heritagePoints(): int
+    {
+        return $this->heritageRank() - array_sum($this->heritage);
     }
 
     public function skillPoints(): int

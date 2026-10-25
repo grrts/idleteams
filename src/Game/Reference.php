@@ -7,7 +7,8 @@ use Random\Randomizer;
 
 /**
  * The reference group: a sensible party at a dungeon level, wearing rare gear of that level and spending points
- * the suggested way. Enemies are tuned against it, so balance holds at every level without hand-written tables.
+ * and talents the suggested way (no Heritage: kin bonuses are a reward on top). Enemies are tuned against it, so
+ * balance holds at every level without hand-written tables.
  */
 final class Reference
 {
@@ -48,7 +49,10 @@ final class Reference
             $items[] = Items::generate($r, $ilvl, $base !== null && $level === 1 ? 'common' : $quality, $slot, $base, $shift);
         }
 
-        return ['race' => 'human', 'cls' => $cls, 'origin' => 'anvil', 'level' => $level, 'spent' => $spent, 'path' => null, 'keystones' => [], 'items' => $items];
+        return [
+            'race' => 'human', 'cls' => $cls, 'origin' => 'anvil', 'level' => $level, 'spent' => $spent, 'path' => null, 'keystones' => [], 'items' => $items,
+            'talents' => Talents::auto($cls, Talents::points($level)),
+        ];
     }
 
     /** Numbers the enemies are scaled from. */

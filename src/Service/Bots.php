@@ -5,8 +5,10 @@ namespace App\Service;
 use App\Entity\Hero;
 use App\Entity\Item;
 use App\Game\Combatants;
+use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Rules;
+use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -52,7 +54,12 @@ class Bots
                 $h->keystones = $ks;
             }
         }
-        $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $h->path);
+        // Talents and Heritage follow a fixed plan per hero, so the demo heroes grow like players would.
+        $h->talents = Talents::auto($h->cls, Talents::points($h->level), $h->id);
+        $cultures = array_keys(Heritage::TREES[$h->race]['cultures']);
+        $h->culture ??= $cultures[$h->id % count($cultures)];
+        $h->heritage = Heritage::auto($h->race, $h->culture, $h->heritageRank());
+        $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $h->path, $h->talents);
         $i = 0;
         while ($h->skillPoints() > 0 && $i++ < 200) {
             $skill = $h->loadout[$i % count($h->loadout)];

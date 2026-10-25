@@ -6,13 +6,15 @@ use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\User;
 use App\Game\Combatants;
+use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Rules;
+use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
-/** Character growth: creating a hero, spending points, Path, Keystones, skill ranks and the loadout. */
+/** Character growth: creating a hero, spending points, Path, Keystones, talents, Heritage, skill ranks and the loadout. */
 class HeroActions
 {
     public const MAX_RANK = 10;
@@ -119,7 +121,7 @@ class HeroActions
             throw new GameError('Unknown Path.');
         }
         $h->path = $path;
-        $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $path);
+        $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $path, $h->talents);
     }
 
     /** Keystones are permanent: once picked at a level, that slot is filled for good. */
@@ -150,7 +152,8 @@ class HeroActions
             throw new GameError('Unknown skill.');
         }
         $s = $all[$skill];
-        if ($s[1] > $h->level || ($s[7] !== 'core' && $s[7] !== 'ultimate' && $s[7] !== $h->path)) {
+        $taught = $s[7] === 'talent' && isset(Talents::grants($h->cls, $h->talents)[$skill]);
+        if ($s[1] > $h->level || ($s[7] !== 'core' && $s[7] !== 'ultimate' && $s[7] !== $h->path && !$taught)) {
             throw new GameError('You have not unlocked that skill.');
         }
         if ($h->skillPoints() < 1) {
@@ -178,7 +181,7 @@ class HeroActions
 
     public function setLoadout(Hero $h, array $ids): void
     {
-        $avail = Combatants::available($h->cls, $h->level, $h->path);
+        $avail = Combatants::available($h->cls, $h->level, $h->path, $h->talents);
         $ids = array_values(array_unique(array_filter($ids, 'is_string')));
         if (count($ids) > Rules::LOADOUT_SIZE) {
             throw new GameError('Your loadout holds '.Rules::LOADOUT_SIZE.' skills.');
@@ -189,6 +192,74 @@ class HeroActions
             }
         }
         $h->loadout = $ids;
+    }
+
+    /** One more rank of a class talent. */
+    public function learnTalent(Hero $h, string $node): void
+    {
+        if ($err = Talents::check(Talents::tree($h->cls), $h->talents, $node, $h->talentPoints())) {
+            throw new GameError($err === 'No points left.' ? 'No talent points left. You get one per level.' : $err);
+        }
+        $t = $h->talents;
+        $t[$node] = ($t[$node] ?? 0) + 1;
+        $h->talents = $t;
+        $n = Talents::tree($h->cls)['nodes'][$node];
+        if ($n['kind'] === 'capstone') {
+            $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s mastered %s.', $h->name, $n['name']), ['type' => 'hero', 'hero' => $h->id]);
+        }
+    }
+
+    /** Talents can be moved for gold; skills they taught leave the loadout. */
+    public function resetTalents(Hero $h): void
+    {
+        $cost = self::talentResetCost($h);
+        if ((int) $h->gold < $cost) {
+            throw new GameError("Resetting talents costs $cost gold.");
+        }
+        $h->gold = (string) ((int) $h->gold - $cost);
+        $h->talents = [];
+        $avail = Combatants::available($h->cls, $h->level, $h->path);
+        $h->loadout = array_values(array_filter($h->loadout, fn ($id) => isset($avail[$id])));
+    }
+
+    public static function talentResetCost(Hero $h): int
+    {
+        return 25 * $h->level;
+    }
+
+    /** Follow one culture of your race. Switching later costs gold and gives back the points in the old culture. */
+    public function chooseCulture(Hero $h, string $culture): void
+    {
+        $tree = Heritage::tree($h->race);
+        if (!isset($tree['cultures'][$culture])) {
+            throw new GameError('Unknown culture.');
+        }
+        if (($h->heritage['root'] ?? 0) < 1) {
+            throw new GameError(sprintf('Learn %s first.', $tree['nodes']['root']['name']));
+        }
+        if ($h->culture === $culture) {
+            return;
+        }
+        if ($h->culture !== null) {
+            $cost = Heritage::CULTURE_SWAP_GOLD * $h->level;
+            if ((int) $h->gold < $cost) {
+                throw new GameError("Following another culture costs $cost gold.");
+            }
+            $h->gold = (string) ((int) $h->gold - $cost);
+            $h->heritage = array_filter($h->heritage, fn ($id) => $tree['nodes'][$id]['culture'] === null, ARRAY_FILTER_USE_KEY);
+        }
+        $h->culture = $culture;
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s now follows the ways of %s.', $h->name, $tree['cultures'][$culture][0]), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    public function learnHeritage(Hero $h, string $node): void
+    {
+        if ($err = Talents::check(Heritage::tree($h->race), $h->heritage, $node, $h->heritagePoints(), $h->culture)) {
+            throw new GameError($err === 'No points left.' ? 'No Heritage points left. Run dungeons with your own race to earn Renown.' : $err);
+        }
+        $t = $h->heritage;
+        $t[$node] = ($t[$node] ?? 0) + 1;
+        $h->heritage = $t;
     }
 
     public function setLootPolicy(Hero $h, string $policy): void

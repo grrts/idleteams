@@ -8,6 +8,7 @@ use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
 use App\Game\Combatants;
+use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Rules;
 use App\Game\Simulator;
@@ -56,16 +57,17 @@ class Game
         return [
             'race' => $hero->race, 'cls' => $hero->cls, 'origin' => $hero->origin, 'level' => $hero->level,
             'spent' => $hero->spent, 'path' => $hero->path, 'keystones' => $hero->keystones,
+            'talents' => $hero->talents, 'heritage' => $hero->heritage, 'culture' => $hero->culture,
             'items' => array_map(fn (Item $i) => Items::spec($i), $this->equipped($hero)),
         ];
     }
 
     public function loadout(Hero $hero): array
     {
-        $avail = Combatants::available($hero->cls, $hero->level, $hero->path);
+        $avail = Combatants::available($hero->cls, $hero->level, $hero->path, $hero->talents);
         $ids = array_values(array_filter($hero->loadout, fn ($id) => isset($avail[$id])));
 
-        return $ids ?: Combatants::defaultLoadout($hero->cls, $hero->level, $hero->path);
+        return $ids ?: Combatants::defaultLoadout($hero->cls, $hero->level, $hero->path, $hero->talents);
     }
 
     public function combatant(Hero $hero): array
@@ -209,7 +211,23 @@ class Game
         }
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
-            $xp = (int) round(12 * $dl ** 1.5 * $units * ($h->race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $b->party->battlesTogether)));
+            $xp = (int) round(12 * $dl ** 1.5 * $units * ($h->race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $b->party->battlesTogether)) * (1 + $stats['xpBonus']));
+            // Heritage: Renown for running with your own race, twice for your own culture.
+            $others = [];
+            foreach ($heroes as $o) {
+                if ($o !== $h) {
+                    $others[] = [$o->race, $o->culture];
+                }
+            }
+            $kin = Heritage::kin($h->race, $h->culture, $others);
+            $renown = Heritage::renownGain($units, $kin, $stats['renownBonus']);
+            $rankBefore = $h->heritageRank();
+            $h->renown += $renown;
+            if ($h->heritageRank() > $rankBefore) {
+                $this->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf("%s's %s Heritage reached rank %d.", $h->name, Rules::RACES[$h->race]['name'], $h->heritageRank()), ['type' => 'hero', 'hero' => $h->id]);
+            }
+            $rep['heroes'][$k]['renown'] = $renown;
+            $rep['heroes'][$k]['kin'] = $kin;
             $gold = (int) round(5 * 1.045 ** (2 * $dl) * $units * $stats['fortune']);
             // Every run pays materials, even one that ends early.
             $mats = (int) round((3 + 0.5 * $units) * (1 + $dl / 10) * $stats['fortune']);

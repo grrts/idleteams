@@ -72,6 +72,7 @@ final class Simulator
             $this->h[$i] = $this->initHero($i, $x);
             $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0];
         }
+        $this->applyKin();
         $this->phase = 'boss';
         $this->mech = ['buster' => 1e9, 'rain' => 1e9, 'shock' => 1e9, 'curse' => 1e9];
         $this->enrageAt = 1e9;
@@ -97,6 +98,7 @@ final class Simulator
             $this->h[$i] = $this->initHero($i, $x);
             $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0];
         }
+        $this->applyKin();
         $done = 0;
         $bosses = 0;
         foreach (self::DUNGEON as $c => [$kind, $name, $wing]) {
@@ -159,7 +161,7 @@ final class Simulator
 
         return [
             'i' => $i, 'id' => $x['id'], 'name' => $x['name'], 'cls' => $x['cls'], 'role' => Rules::role($x['cls']),
-            'race' => $x['race'], 'origin' => $x['origin'], 'level' => $x['level'], 'ks' => $ks, 's' => $s,
+            'race' => $x['race'], 'culture' => $x['culture'] ?? null, 'origin' => $x['origin'], 'level' => $x['level'], 'ks' => $ks, 's' => $s,
             'school' => Rules::CLASSES[$x['cls']]['school'], 'passive' => Rules::CLASSES[$x['cls']]['passive'][0],
             'skills' => $skills, 'ult' => $ult, 'ranks' => $x['ranks'] ?? [],
             'hp' => $s['maxHp'], 'res' => $s['resource'] === 'rage' ? 0.0 : $s['resMax'], 'absorb' => 0.0,
@@ -169,6 +171,26 @@ final class Simulator
             'stack' => 0, 'stackTarget' => null, 'forceCrit' => false, 'firstHeal' => true, 'firstBossHit' => true,
             'firstPackHit' => true, 'oom' => false,
         ];
+    }
+
+    /** Heritage: heroes fight harder beside their own race, twice as much beside their own culture. */
+    private function applyKin(): void
+    {
+        foreach ($this->h as $i => $h) {
+            if (($h['s']['kin'] ?? 0) <= 0) {
+                continue;
+            }
+            $others = [];
+            foreach ($this->h as $k => $x) {
+                if ($k !== $i) {
+                    $others[] = [$x['race'], $x['culture']];
+                }
+            }
+            $f = 1 + $h['s']['kin'] * Heritage::kin($h['race'], $h['culture'], $others);
+            foreach (['might', 'arcana', 'spirit'] as $p) {
+                $this->h[$i]['s'][$p] *= $f;
+            }
+        }
     }
 
     private function ks(array $h, string $id): bool
@@ -524,7 +546,7 @@ final class Simulator
         if ($sk[7] === 'ultimate') {
             return 0;
         }
-        $c = $sk[4] * $h['s']['costScale'] * max(0.5, 1 - 0.02 * max(0, $this->rank($i, $id) - 5));
+        $c = $sk[4] * $h['s']['costScale'] * max(0.5, 1 - 0.02 * max(0, $this->rank($i, $id) - 5)) * ($h['s']['costMult'] ?? 1);
         if ($h['role'] === 'healer' && $this->ks($h, 'frugal') && in_array($sk[2], ['heal', 'groupheal', 'hot', 'shield'], true)) {
             $c *= 0.75;
         }
@@ -731,7 +753,7 @@ final class Simulator
         unset($h);
         $hh = $this->h[$i];
         $rankMult = 1 + 0.1 * (min(5, $this->rank($i, $id)) - 1);
-        $mult *= $rankMult;
+        $mult *= $rankMult * (1 + ($hh['s']['typeMult'][$type] ?? 0) + ($hh['s']['skillMult'][$id] ?? 0));
         $school = $opts['school'] ?? ($type === 'heal' || $type === 'groupheal' || $type === 'hot' || $type === 'shield' ? 'spirit' : $hh['school']);
         $cmd = $hh['s']['command'];
         $dur = ($opts['dur'] ?? 8) + ($hh['origin'] === 'crown' ? 2 : 0);
@@ -1078,7 +1100,7 @@ final class Simulator
                 $this->report[$i]['mechanics']['busterBlocked'] = ($this->report[$i]['mechanics']['busterBlocked'] ?? 0) + 1;
             }
         }
-        $dmg *= 1 - $s['dr'] * (!empty($o['magic']) ? 0.5 : 1);
+        $dmg *= (1 - $s['dr'] * (!empty($o['magic']) ? 0.5 : 1)) * ($s['taken'] ?? 1);
         $wall = 0.0;
         $h['walls'] = array_values(array_filter($h['walls'], fn ($w) => $w[1] > $this->t));
         foreach ($h['walls'] as $w) {

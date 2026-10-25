@@ -11,10 +11,12 @@ use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
 use App\Game\Combatants;
+use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Rules;
 use App\Game\Simulator;
 use App\Game\Stats;
+use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
 
 /** Turns entities into the JSON the menus read. */
@@ -41,6 +43,8 @@ class Present
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => ['name' => Simulator::DUNGEON_NAME, 'plan' => Simulator::DUNGEON], 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
+            'talentTrees' => Talents::trees(), 'heritageTrees' => Heritage::trees(), 'talentNeed' => Talents::NEED,
+            'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }
 
@@ -48,7 +52,7 @@ class Present
     public function heroCard(Hero $h): array
     {
         return [
-            'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
+            'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'culture' => $h->culture, 'heritageRank' => $h->heritageRank(), 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
             'role' => $h->role(), 'level' => $h->level, 'look' => $this->game->look($h), 'marks' => $h->marks,
             'guild' => $h->guild ? ['id' => $h->guild->id, 'name' => $h->guild->name, 'tag' => $h->guild->tag] : null,
             'party' => $h->party?->id, 'keystones' => $h->keystones, 'codex' => count($h->codex), 'demo' => $h->user->demo,
@@ -66,14 +70,27 @@ class Present
         foreach (['crit' => 'precision', 'haste' => 'swiftness', 'cdr' => 'focus', 'dodge' => 'agility', 'resist' => 'resolve', 'mega' => 'ferocity'] as $stat => $attr) {
             $curves[$stat] = ['attr' => $attr, 'points' => round($attrs['total'][$attr], 1)];
         }
-        $avail = Combatants::available($h->cls, $L, $h->path);
+        $avail = Combatants::available($h->cls, $L, $h->path, $h->talents);
+        $teachers = [];
+        foreach (Talents::tree($h->cls)['nodes'] as $nid => $n) {
+            if (isset($n['effect']['grant'])) {
+                $teachers[$n['effect']['grant']] = $nid;
+            }
+        }
         $skills = [];
         foreach (Rules::classSkills($h->cls) as $id => $s) {
             $skills[] = [
                 'id' => $id, 'name' => $s[0], 'level' => $s[1], 'type' => $s[2], 'mult' => $s[3], 'cost' => $s[4], 'cd' => $s[5],
-                'opts' => $s[6], 'source' => $s[7], 'rank' => max(1, $h->skillRanks[$id] ?? 1),
+                'opts' => $s[6], 'source' => $s[7], 'rank' => max(1, $h->skillRanks[$id] ?? 1), 'talent' => $teachers[$id] ?? null,
                 'unlocked' => $s[7] === 'ultimate' ? $L >= Rules::ULTIMATE_LEVEL : isset($avail[$id]),
             ];
+        }
+        $rank = $h->heritageRank();
+        $others = [];
+        foreach ($h->party?->members ?? [] as $m) {
+            if ($m !== $h) {
+                $others[] = [$m->race, $m->culture];
+            }
         }
         $openKeystones = [];
         foreach ($this->keystoneLevels($L) as $kl) {
@@ -91,6 +108,10 @@ class Present
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
             'resonance' => Stats::resonance($build['items']), 'guildRank' => $h->guildRank,
+            'talents' => (object) $h->talents, 'talentPoints' => ['total' => Talents::points($L), 'free' => $h->talentPoints()],
+            'talentResetCost' => HeroActions::talentResetCost($h),
+            'heritage' => (object) $h->heritage,
+            'renown' => ['total' => $h->renown, 'rank' => $rank, 'from' => Heritage::renownFor($rank), 'to' => Heritage::renownFor($rank + 1), 'free' => $h->heritagePoints(), 'kin' => Heritage::kin($h->race, $h->culture, $others)],
         ];
     }
 

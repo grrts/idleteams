@@ -108,4 +108,44 @@ class PlayTest extends WebTestCase
         $market = $this->api('GET', '/market');
         $this->assertContains($bow['id'], array_column($market, 'id'));
     }
+
+    public function testTalentsHeritageAndRenownFromKin(): void
+    {
+        $this->api('POST', '/register', ['username' => 'tester3', 'password' => 'secret123']);
+        $this->api('POST', '/hero', ['name' => 'Durna', 'race' => 'dwarf', 'cls' => 'rogue', 'origin' => 'fox']);
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => 'root']), 'no talent points at level 1');
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $hero = $em->getRepository(\App\Entity\Hero::class)->findOneBy(['name' => 'Durna']);
+        $hero->level = 9;
+        $em->flush();
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => 'tempo1']), 'branches grow from the root');
+        foreach (['root', 'tempo1', 'tempo1', 'tempo1', 'tempo2', 'tempo2', 'tempo3'] as $node) {
+            $sheet = $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => $node]);
+            $this->assertArrayNotHasKey('error', $sheet, $node);
+        }
+        $rush = array_values(array_filter($sheet['skills'], fn ($s) => $s['id'] === 'adrenalineRush'))[0];
+        $this->assertTrue($rush['unlocked'], 'the notable teaches Adrenaline Rush');
+        $this->assertSame(1, $sheet['talentPoints']['free']);
+
+        // Heritage: the root is free at rank 1, then a culture opens its branch.
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']));
+        $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'root']);
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold1']), 'follow the culture first');
+        $sheet = $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']);
+        $this->assertSame('ironhold', $sheet['culture']);
+
+        // Brannoc in the demo group is a dwarf: running with him pays Renown.
+        $lfm = array_values(array_filter($this->api('GET', '/tavern')['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];
+        $this->api('POST', '/party/apply', ['party' => $lfm['party']['id']]);
+        $state = $this->api('GET', '/state');
+        $this->assertSame(1, $state['hero']['renown']['kin']);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $battle = $em->find(Battle::class, $state['battle']['id']);
+        static::getContainer()->get(Game::class)->progress($battle->party, $battle->endsAt + 1);
+        $after = $this->api('GET', '/state')['hero'];
+        $this->assertGreaterThan(0, $after['renown']['total']);
+        $row = array_values(array_filter($battle->report['heroes'], fn ($r) => $r['name'] === 'Durna'))[0];
+        $this->assertSame(1, $row['kin']);
+    }
 }

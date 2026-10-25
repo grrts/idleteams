@@ -318,12 +318,12 @@
 
   // ------------------------------------------------------------------ shell
 
-  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market']];
+  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['talents', 'Talents', 'talents'], ['heritage', 'Heritage', 'heritage'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market']];
   function shell() {
     const h = S.st.hero;
-    const dots = { battle: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= S.cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, group: S.st.invites.length + (S.st.party ? S.st.party.requests.filter((r) => r.kind === 'application').length : 0) };
+    const dots = { battle: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= S.cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (S.st.party ? S.st.party.requests.filter((r) => r.kind === 'application').length : 0) };
     const nav = VIEWS.map(([id, n, i]) => '<a href="#/' + id + '" class="' + (S.view === id ? 'on' : '') + '">' + ico(i, '') + '<span>' + n + '</span>' + (dots[id] ? '<span class="badge">' + dots[id] + '</span>' : '') + '</a>').join('') + '<a href="#" data-act="toggleChat" class="chat-link">' + ico('chat', '') + '<span>Chat</span></a>';
-    const views = { battle: battleView, hero: heroView, skills: skillsView, gear: gearView, group: groupView, guild: guildView, market: marketView };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, gear: gearView, group: groupView, guild: guildView, market: marketView };
     return '<div class="shell' + (S.chatOpen ? ' chat-open' : '') + '"><header class="top"><span class="logo">Idle <span>Teams</span></span>' +
       '<span class="who">' + por(h.look) + '<span><b>' + esc(h.name) + '</b> <span class="muted small">Lv ' + h.level + ' ' + className(h.cls) + '</span></span></span>' +
       '<span class="xp" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><span class="tiny muted">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</span><span class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></span></span>' +
@@ -388,12 +388,12 @@
     if (!list.length) return '';
     return '<div class="panel"><h3>Recent runs</h3>' + list.slice(0, 6).map((x) => {
       const r = x.report, won = !r.wiped, top = Math.max(1, ...r.heroes.map((h) => h.damage));
-      const rows = r.heroes.map((h) => '<tr><td><b>' + esc(h.name) + '</b><div class="bar meter" style="width:110px"><i style="width:' + (100 * h.damage) / top + '%"></i></div></td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td></tr>').join('');
+      const rows = r.heroes.map((h) => '<tr><td><b>' + esc(h.name) + '</b><div class="bar meter" style="width:110px"><i style="width:' + (100 * h.damage) / top + '%"></i></div></td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td><td class="n" title="' + (h.kin ? h.kin + ' kin in the group' : 'No kin in the group') + '">' + fmt(h.renown) + (h.kin ? ' <span class="r-epic">×' + h.kin + '</span>' : '') + '</td></tr>').join('');
       const fellAt = r.wiped ? r.plan[r.encountersDone] : null;
       const loot = x.chest.filter((e) => e.winner).map((e) => '<span class="row" style="gap:6px">' + tile(e.item, { act: false }) + '<span><span class="r-' + e.item.rarity + '"><b>' + esc(e.item.name) + '</b></span><br><span class="small muted">won by ' + esc((x.roster.find((q) => q.id === e.winner) || {}).name || '?') + '</span></span></span>').join('');
       return '<details class="run"' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b><span class="chip">' + r.bossesKilled + '/3 bosses</span><span class="chip">level ' + x.dungeonLevel + '</span><span class="small muted">' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</span></summary>' +
         (r.cause ? '<p class="bad small" style="margin-top:8px">' + esc(r.cause) + '</p>' : '') +
-        '<div class="scroll-x" style="margin-top:8px"><table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">Mats</th></tr>' + rows + '</table></div>' +
+        '<div class="scroll-x" style="margin-top:8px"><table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">Mats</th><th class="n">Renown</th></tr>' + rows + '</table></div>' +
         (loot ? '<div class="row" style="margin-top:10px;gap:14px">' + loot + '</div>' : x.state === 'done' ? '<p class="small muted" style="margin-top:8px">No loot this time, only materials.</p>' : '') + '</details>';
     }).join('') + '</div>';
   }
@@ -537,15 +537,131 @@
       (ult ? '<div class="aslot">' + (ult.unlocked ? skillIcon(ult, ult.rank) : '<span class="sk empty">' + ico('lock') + '</span>') + '<span class="gold">' + esc(ult.name) + '</span></div>' : '');
     const card = (s) => {
       const locked = !s.unlocked, isUlt = s.source === 'ultimate';
-      const src = s.source === 'core' ? '' : isUlt ? '<span class="chip gold">Ultimate</span>' : '<span class="chip">' + esc(cfg.classes[h.cls].paths[s.source][0]) + ' path</span>';
+      const tnode = s.talent ? cfg.talentTrees[h.cls].nodes[s.talent] : null;
+      const src = s.source === 'core' ? '' : isUlt ? '<span class="chip gold">Ultimate</span>' : s.source === 'talent' ? '<span class="chip talent" data-act="tjump" data-id="' + s.talent + '">' + ico('talents') + 'Talent</span>' : '<span class="chip">' + esc(cfg.classes[h.cls].paths[s.source][0]) + ' path</span>';
       return '<div class="panel tight skill' + (locked ? ' locked' : '') + '">' + skillIcon(s) + '<div class="info"><div class="row between"><b class="' + (inLoadout.has(s.id) ? 'gold' : '') + '">' + esc(s.name) + '</b>' + src + '</div>' +
-        '<div class="small muted">' + (locked ? ico('lock') + ' Unlocks at level ' + s.level + (s.source !== 'core' && !isUlt ? ' on this Path' : '') : cap(s.type)) + (s.cost ? ' · ' + s.cost + ' ' + cfg.classes[h.cls].resource : '') + (s.cd ? ' · ' + s.cd + 's cooldown' : '') + '</div>' +
+        '<div class="small muted">' + (locked ? ico('lock') + (tnode ? ' Learn ' + esc(tnode.name) + ' in your talents' : ' Unlocks at level ' + s.level + (s.source !== 'core' && !isUlt ? ' on this Path' : '')) : cap(s.type)) + (s.cost ? ' · ' + s.cost + ' ' + cfg.classes[h.cls].resource : '') + (s.cd ? ' · ' + s.cd + 's cooldown' : '') + '</div>' +
         '<div class="small">' + esc(skillText(s)) + ' Each rank adds strength.</div><div class="row"><span class="pips">' + Array.from({ length: cfg.maxSkillRank }, (_, k) => '<i class="' + (k < s.rank ? 'on' : '') + '"></i>').join('') + '</span><span class="tiny muted">Rank ' + s.rank + '/' + cfg.maxSkillRank + '</span></div></div>' +
         (locked ? '' : '<div class="row act">' + (isUlt ? '<span class="small muted">Always slotted</span>' : '<button class="small ' + (inLoadout.has(s.id) ? 'on' : '') + '" data-act="slot" data-id="' + s.id + '">' + (inLoadout.has(s.id) ? 'In loadout' : 'Add to loadout') + '</button>') + '<button class="small" data-act="rankUp" data-id="' + s.id + '" ' + (h.skillPoints > 0 && s.rank < cfg.maxSkillRank ? '' : 'disabled') + '>Rank up</button></div>') + '</div>';
     };
     return '<div class="stack"><div class="panel"><div class="head"><h2>Loadout</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.skillPoints + '</span> <span class="muted small">skill points</span></span><button class="small" data-act="resetRanks">Reset ranks (' + 10 * h.level + 'g)</button></div></div>' +
-      '<p class="small muted" style="margin-bottom:12px">One skill point per level. Your loadout holds ' + cfg.loadoutSize + ' skills, and your ultimate joins it at level ' + cfg.ultimateLevel + '.</p><div class="actionbar">' + bar + '</div></div>' +
+      '<p class="small muted" style="margin-bottom:12px">One skill point per level. Your loadout holds ' + cfg.loadoutSize + ' skills, and your ultimate joins it at level ' + cfg.ultimateLevel + '. Capstones in your talent tree teach more skills.</p><div class="actionbar">' + bar + '</div></div>' +
       '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">' + h.skills.map(card).join('') + '</div></div>';
+  }
+
+  // ------------------------------------------------------------------ talents and heritage
+
+  // One pixel glyph per node, picked from what the node does.
+  const ATTR_GLYPH = { offense: 'strike', tempo: 'buff', defense: 'wall', sustain: 'heal', resources: 'hot', group: 'taunt' };
+  const STAT_GLYPH = { dmg: 'strike', crit: 'mark', critDmg: 'strike', heal: 'heal', healRecv: 'heal', regen: 'hot', hp: 'wall', taken: 'wall', block: 'wall', dodge: 'vanish', threat: 'taunt', haste: 'buff', cdr: 'buff', resRegen: 'hot', rageGain: 'dot', fortune: 'mark', xp: 'mark' };
+  function nodeGlyph(n, cls) {
+    const e = n.effect;
+    if (e.grant) return ((S.cfg.classes[cls] || {}).allSkills[e.grant] || [])[2] || 'strike';
+    if (e.type) return Object.keys(e.type)[0];
+    if (e.skill) return ((S.cfg.classes[cls] || {}).allSkills || {})[Object.keys(e.skill)[0]]?.[2] || 'strike';
+    if (e.kin) return 'groupheal';
+    if (e.cost) return 'buff';
+    if (e.stat) return STAT_GLYPH[Object.keys(e.stat)[0]] || 'buff';
+    if (e.attr) return ATTR_GLYPH[S.cfg.attributes[Object.keys(e.attr)[0]][1]] || 'buff';
+    return 'buff';
+  }
+  const KIND = { root: 'Root', minor: 'Minor', notable: 'Notable', capstone: 'Capstone' };
+  // State of a node for the hero: learned, open (can be learned now), next (path is open, needs points) or locked.
+  function nodeState(tree, have, n, free, culture) {
+    const r = have[n.id] || 0;
+    if (r >= n.max) return 'full';
+    const reqOk = !n.req || (have[n.req] || 0) > 0, cultureOk = n.culture === null || n.culture === culture;
+    if (!reqOk || !cultureOk) return r ? 'part' : 'locked';
+    const spent = Object.values(have).reduce((a, b) => a + b, 0);
+    if (spent < n.need) return r ? 'part' : 'gated';
+    return free > 0 ? (r ? 'part open' : 'open') : r ? 'part' : 'next';
+  }
+  function grantText(n) {
+    const sk = n.effect.grant && S.cfg.classes[S.st.hero.cls].allSkills[n.effect.grant];
+    if (!sk) return '';
+    const o = { name: sk[0], type: sk[2], mult: sk[3], cost: sk[4], cd: sk[5], opts: sk[6] };
+    return '<div class="row" style="margin-top:8px;gap:10px;align-items:flex-start">' + skillIcon(o) + '<div class="small"><b>' + esc(o.name) + '</b> · ' + cap(o.type) + (o.cost ? ' · ' + o.cost + ' ' + S.cfg.classes[S.st.hero.cls].resource : '') + (o.cd ? ' · ' + o.cd + 's cooldown' : '') + '<br>' + esc(skillText(o)) + '</div></div>';
+  }
+  function nodeDetail(tree, have, id, free, culture, kindLabel, act, glyphCls) {
+    const n = tree.nodes[id], r = have[id] || 0, st = nodeState(tree, have, n, free, culture);
+    const spent = Object.values(have).reduce((a, b) => a + b, 0);
+    const why = st.includes('open') ? '' : r >= n.max ? 'Fully learned.' : n.req && !(have[n.req] > 0) ? 'Learn ' + esc(tree.nodes[n.req].name) + ' first.' : n.culture !== null && n.culture !== culture ? 'Follow this culture to learn it.' : spent < n.need ? 'Opens after ' + n.need + ' points in this tree (' + spent + ' now).' : 'No points left.';
+    return '<div class="tdetail"><div class="row" style="gap:12px;align-items:center"><span class="tmedal ' + n.kind + ' ' + st + '" style="--c:' + (glyphCls || 'var(--ember)') + '"><img alt="" src="' + ITA.skill(nodeGlyph(n, S.st.hero.cls)) + '"></span><div><div class="eyebrow">' + KIND[n.kind] + (kindLabel ? ' · ' + esc(kindLabel) : '') + '</div><h3>' + esc(n.name) + '</h3></div></div>' +
+      '<p style="margin-top:10px">' + esc(n.desc) + '.</p>' + grantText(n) +
+      (n.max > 1 ? '<div class="row" style="margin-top:8px"><span class="pips">' + Array.from({ length: n.max }, (_, k) => '<i class="' + (k < r ? 'on' : '') + '"></i>').join('') + '</span><span class="tiny muted">Rank ' + r + '/' + n.max + '</span></div>' : '') +
+      (why ? '<p class="small muted" style="margin-top:8px">' + (r >= n.max ? ico('star') : ico('lock')) + ' ' + why + '</p>' : '') +
+      (r < n.max ? '<button class="primary" style="margin-top:12px;width:100%" data-act="' + act + '" data-id="' + id + '" ' + (st.includes('open') ? '' : 'disabled') + '>' + (r ? 'Learn rank ' + (r + 1) : 'Learn') + '</button>' : '') + '</div>';
+  }
+
+  function talentsView() {
+    const h = S.st.hero, cfg = S.cfg, tree = cfg.talentTrees[h.cls], have = h.talents || {}, free = h.talentPoints.free;
+    const sel = tree.nodes[S.tsel] ? S.tsel : 'root';
+    const STEP = [0, 118, 178, 240, 304];
+    const nb = tree.branches.length, pos = {}, branchOf = {};
+    pos.root = [0, 0];
+    tree.branches.forEach(([bid, , , col, ids], k) => {
+      const a = -Math.PI / 2 + (k * 2 * Math.PI) / nb;
+      ids.forEach((id, j) => { pos[id] = [Math.cos(a) * STEP[j + 1], Math.sin(a) * STEP[j + 1]]; branchOf[id] = k; });
+    });
+    let lines = '', nodes = '', labels = '';
+    tree.branches.forEach(([bid, name, , col, ids], k) => {
+      let prev = 'root';
+      ids.forEach((id) => {
+        const lit = (have[id] || 0) > 0, [x1, y1] = pos[prev], [x2, y2] = pos[id];
+        lines += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" class="tl' + (lit ? ' lit' : '') + '" style="--c:' + col + '"/>';
+        prev = id;
+      });
+      const a = -Math.PI / 2 + (k * 2 * Math.PI) / nb, lx = Math.cos(a) * 342, ly = Math.sin(a) * 342 + 6;
+      const pts = ids.reduce((t, id) => t + (have[id] || 0), 0);
+      labels += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" class="tlab" text-anchor="' + (Math.abs(lx) < 30 ? 'middle' : lx > 0 ? 'start' : 'end') + '" style="fill:' + (pts ? col : '') + '" data-act="tsel" data-id="' + ids[0] + '">' + esc(name) + (pts ? ' · ' + pts : '') + '</text>';
+    });
+    for (const [id, n] of Object.entries(tree.nodes)) {
+      const [x, y] = pos[id], col = id === 'root' ? '#ffd25a' : tree.branches[branchOf[id]][3], st = nodeState(tree, have, n, free, null), r = have[id] || 0;
+      const size = { root: 34, minor: 19, notable: 22, capstone: 27 }[n.kind];
+      const shape = n.kind === 'minor' || n.kind === 'root' ? '<circle r="' + size + '" class="tn"/>' : n.kind === 'notable' ? '<rect x="' + -size * 0.8 + '" y="' + -size * 0.8 + '" width="' + size * 1.6 + '" height="' + size * 1.6 + '" rx="4" transform="rotate(45)" class="tn"/>' : '<polygon points="' + Array.from({ length: 6 }, (_, k) => { const t = (Math.PI / 3) * k + Math.PI / 6; return (Math.cos(t) * size).toFixed(1) + ',' + (Math.sin(t) * size).toFixed(1); }).join(' ') + '" class="tn"/>';
+      const icon = size * 1.05;
+      nodes += '<g class="tnode ' + n.kind + ' ' + st + (sel === id ? ' sel' : '') + '" transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')" style="--c:' + col + '" data-act="tsel" data-id="' + id + '" tabindex="0" role="button" aria-label="' + esc(n.name) + '">' +
+        '<title>' + esc(n.name + ': ' + n.desc) + '</title>' + (st.includes('open') ? '<circle r="' + (size + 7) + '" class="halo"/>' : '') + shape +
+        '<image href="' + ITA.skill(nodeGlyph(n, h.cls)) + '" x="' + -icon / 2 + '" y="' + -icon / 2 + '" width="' + icon + '" height="' + icon + '"/>' +
+        (n.max > 1 ? '<text y="' + (size + 13) + '" class="trk">' + r + '/' + n.max + '</text>' : '') + '</g>';
+    }
+    const svg = '<svg class="ttree" viewBox="-480 -372 960 744" role="group" aria-label="Talent tree"><defs><radialGradient id="tglow"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".22"/><stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/></radialGradient></defs>' +
+      '<circle r="330" fill="url(#tglow)"/>' + [118, 178, 240, 304].map((rr) => '<circle r="' + rr + '" class="ring"/>').join('') + lines + nodes + labels + '</svg>';
+    const selNode = tree.nodes[sel], branch = selNode.branch ? tree.branches.find((b) => b[0] === selNode.branch) : null;
+    const branchList = tree.branches.map(([bid, name, theme, col, ids]) => {
+      const pts = ids.reduce((t, id) => t + (have[id] || 0), 0), max = ids.reduce((t, id) => t + tree.nodes[id].max, 0);
+      const next = ids.find((id) => (have[id] || 0) < tree.nodes[id].max) || ids[ids.length - 1];
+      return '<button class="tbranch' + (branch && branch[0] === bid ? ' on' : '') + '" style="--c:' + col + '" data-act="tsel" data-id="' + next + '"><i></i><span><b>' + esc(name) + '</b><span class="tiny muted">' + esc(theme) + '</span></span><span class="num small">' + pts + '/' + max + '</span></button>';
+    }).join('');
+    const spent = Object.values(have).reduce((a, b) => a + b, 0);
+    return '<div class="stack"><div class="panel"><div class="head"><h2>' + esc(cfg.classes[h.cls].name) + ' talents</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + free + '</span> <span class="muted small">talent points · ' + spent + ' spent</span></span><button class="small" data-act="resetTalents" ' + (spent ? '' : 'disabled') + '>Reset (' + fmt(h.talentPoints.total ? h.talentResetCost : 0) + 'g)</button></div></div>' +
+      '<p class="small muted">One point per level from level 2. Everything grows out of the root: ten branches, each with two minor nodes, a notable after ' + cfg.talentNeed.notable + ' points in the tree and a capstone after ' + cfg.talentNeed.capstone + '. Many capstones teach a new skill for your loadout.</p></div>' +
+      '<div class="tgrid"><div class="panel ttree-wrap">' + svg + '</div><div class="stack"><div class="panel" style="border-color:' + (branch ? branch[3] : 'var(--gold)') + '80">' + nodeDetail(tree, have, sel, free, null, branch ? branch[1] : 'Where every branch starts', 'talent', branch ? branch[3] : '#ffd25a') + '</div>' +
+      '<div class="panel tight"><h3 style="margin-bottom:8px">Branches</h3><div class="tbranches">' + branchList + '</div></div></div></div></div>';
+  }
+
+  function heritageView() {
+    const h = S.st.hero, cfg = S.cfg, tree = cfg.heritageTrees[h.race], have = h.heritage || {}, rn = h.renown, free = rn.free;
+    const race = cfg.races[h.race], sel = tree.nodes[S.hsel] ? S.hsel : 'root';
+    const medal = (id, col) => {
+      const n = tree.nodes[id], st = nodeState(tree, have, n, free, h.culture), r = have[id] || 0;
+      return '<button class="hnode ' + st + (sel === id ? ' sel' : '') + '" data-act="hsel" data-id="' + id + '" title="' + esc(n.name + ': ' + n.desc) + '"><span class="tmedal ' + n.kind + ' ' + st + '" style="--c:' + col + '"><img alt="" src="' + ITA.skill(nodeGlyph(n, null)) + '"></span><span class="hn"><b>' + esc(n.name) + '</b><span class="tiny muted">' + esc(n.desc) + '</span></span>' + (n.max > 1 ? '<span class="tiny num">' + r + '/' + n.max + '</span>' : r ? '<span class="tiny gold">' + ico('star') + '</span>' : '') + '</button>';
+    };
+    const pct = Math.min(100, (100 * (rn.total - rn.from)) / Math.max(1, rn.to - rn.from));
+    const p = S.st.party, kinList = p ? p.members.filter((m) => m.id !== h.id && m.race === h.race) : [];
+    const kinText = !p ? 'You are not in a group yet.' : rn.kin ? kinList.map((m) => esc(m.name) + (h.culture && m.culture === h.culture ? ' (same culture, counts twice)' : '')).join(', ') + (kinList.length === 1 ? ' shares' : ' share') + ' your heritage: every run pays ' + (cfg.renown.alone + cfg.renown.perKin * rn.kin) + ' Renown per reward unit instead of ' + cfg.renown.alone + '.' : 'Nobody in your group is ' + esc(race.name) + ', so runs only pay a trickle of Renown (' + cfg.renown.alone + ' per reward unit). Each ' + esc(race.name) + ' groupmate adds ' + cfg.renown.perKin + ', twice that if they follow your culture.';
+    const cultures = Object.entries(tree.cultures).map(([cid, [name, theme, col, ids]]) => {
+      const mine = h.culture === cid;
+      const btn = mine ? '<span class="chip solid">' + ico('star') + 'Your culture</span>' : '<button class="small" data-act="culture" data-id="' + cid + '" ' + ((have.root || 0) ? '' : 'disabled') + '>' + (h.culture ? 'Follow (' + fmt(cfg.renown.swapGold * h.level) + 'g)' : 'Follow') + '</button>';
+      return '<div class="culture' + (mine ? ' mine' : h.culture ? ' other' : '') + '" style="--c:' + col + '"><div class="ccrest"><span class="cpennant"><img alt="" src="' + ITA.ui('heritage') + '"></span><div><h3>' + esc(name) + '</h3><div class="small muted">' + esc(theme) + '</div></div></div><div class="row" style="margin:8px 0 10px">' + btn + '</div><div class="hcol">' + ids.map((id) => medal(id, col)).join('') + '</div></div>';
+    }).join('');
+    const selNode = tree.nodes[sel], selCol = selNode.culture ? tree.cultures[selNode.culture][2] : '#ffd25a';
+    return '<div class="stack"><div class="panel heritage-top"><div class="hbadge"><span class="eyebrow">Heritage rank</span><span class="big num">' + rn.rank + '</span></div><div style="flex:1;min-width:0"><div class="eyebrow">' + esc(race.name) + (h.culture ? ' · ' + esc(tree.cultures[h.culture][0]) : '') + '</div><h2>' + esc(tree.nodes.root.name) + '</h2>' +
+      '<div class="small muted" style="margin:6px 0 4px">' + fmt(rn.total) + ' Renown · ' + fmt(rn.to - rn.total) + ' to rank ' + (rn.rank + 1) + '</div><div class="bar"><i class="renf" style="width:' + pct + '%"></i></div>' +
+      '<p class="small" style="margin-top:8px">' + ico('group') + ' ' + kinText + '</p></div><div class="num" style="font-size:1.2rem;align-self:center"><span class="gold">' + free + '</span> <span class="muted small">points</span></div></div>' +
+      '<p class="small muted">Renown grows by running dungeons with groupmates of your race. Each Heritage rank gives one point. Learn the root, then follow one of three cultures: only its branch can be learned, and kin who follow it too count twice, for Renown and for the kinship bonus in battle.</p>' +
+      '<div class="panel"><div class="hgrid"><div class="htrunk">' + medal('root', '#ffd25a') + tree.trunk.map((id) => medal(id, '#ffd25a')).join('') + '</div>' +
+      '<div class="hsel" style="border-color:' + selCol + '80">' + nodeDetail(tree, have, sel, free, h.culture, selNode.culture ? tree.cultures[selNode.culture][0] : race.name, 'heritage', selCol) + '</div></div><div class="cultures">' + cultures + '</div></div></div>';
   }
 
   // ------------------------------------------------------------------ gear
@@ -599,8 +715,15 @@
 
   // ------------------------------------------------------------------ group and tavern
 
+  // Groupmates of your race: more Renown from every run together, and a kinship bonus in battle once learned.
+  function kinChip(m) {
+    const h = S.st && S.st.hero;
+    if (!h || m.id === h.id || m.race !== h.race) return '';
+    const twice = h.culture && m.culture === h.culture, cult = m.culture ? S.cfg.heritageTrees[m.race].cultures[m.culture][0] : null;
+    return '<span class="chip kin" title="' + esc((cult ? cult + '. ' : '') + 'Same race: more Renown from every run together' + (twice ? ', twice for your culture' : '')) + '">' + ico('heritage') + (twice ? 'Kin ×2' : 'Kin') + '</span>';
+  }
   function memberCard(m, extra) {
-    return '<div class="panel tight member">' + por(m.look) + '<div style="flex:1;min-width:0"><b>' + esc(m.name) + '</b><div class="row" style="gap:6px"><span class="small muted">Lv ' + m.level + ' ' + className(m.cls) + '</span>' + role(m.role) + '</div>' + (extra || '') + '</div></div>';
+    return '<div class="panel tight member">' + por(m.look) + '<div style="flex:1;min-width:0"><b>' + esc(m.name) + '</b><div class="row" style="gap:6px"><span class="small muted">Lv ' + m.level + ' ' + className(m.cls) + '</span>' + role(m.role) + kinChip(m) + '</div>' + (extra || '') + '</div></div>';
   }
   function groupView() {
     const st = S.st, h = st.hero, p = st.party, tv = S.tavern;
@@ -609,7 +732,7 @@
       const lead = p.leader === h.id;
       const reqs = p.requests.map((r) => '<div class="row small">' + (r.kind === 'application' ? '<b>' + esc(r.hero.name) + '</b> (Lv ' + r.hero.level + ' ' + className(r.hero.cls) + ') wants to join' + (r.message ? ': “' + esc(r.message) + '”' : '') + (lead ? ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Accept</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Decline</button>' : '') : 'Invited <b>' + esc(r.hero.name) + '</b>, waiting for an answer') + '</div>').join('');
       mine = '<div class="camp" style="text-align:left"><div class="head"><div><div class="eyebrow">Your group</div><h1>' + esc(p.name) + '</h1></div><span class="chip gold">' + p.battlesTogether + ' runs together · bond +' + Math.min(10, p.battlesTogether) + '% XP</span></div>' +
-        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
+        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + kinChip(m) + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
         Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div></div>' +
         '<div class="panel stack tight">' + (reqs ? '<div>' + reqs + '</div>' : '') +
         (lead ? '<div class="row"><label style="margin:0" for="offset">Dungeon level</label><select id="offset" data-act-change="offset">' + [-3, -2, -1, 0, 1, 2, 3, 4, 5].map((o) => '<option value="' + o + '"' + (o === p.dungeonOffset ? ' selected' : '') + '>' + (o > 0 ? '+' : '') + o + (o === 0 ? ' (median level)' : '') + '</option>').join('') + '</select><span class="small muted">Now level ' + p.dungeonLevel + '. Higher is harder, with more XP and better item levels.</span></div>' +
@@ -713,6 +836,13 @@
     keystone: (d) => confirmBox('Take <b>' + esc(S.cfg.keystones[S.st.hero.role][d.id][0]) + '</b> as your level ' + d.l + ' Keystone? This is permanent.', () => act(() => post('/hero/act', { action: 'keystone', level: +d.l, keystone: d.id }), 'Keystone chosen.')),
     rankUp: (d) => act(() => post('/hero/act', { action: 'rankUp', skill: d.id })),
     resetRanks: () => confirmBox('Reset all skill ranks for ' + 10 * S.st.hero.level + ' gold?', () => act(() => post('/hero/act', { action: 'resetRanks' }))),
+    tsel: (d) => { S.tsel = d.id; render(); },
+    tjump: (d) => { S.tsel = d.id; location.hash = '#/talents'; },
+    talent: (d) => act(() => post('/hero/act', { action: 'talent', node: d.id })),
+    resetTalents: () => confirmBox('Reset all talents for ' + fmt(S.st.hero.talentResetCost) + ' gold? Skills they taught leave your loadout.', () => act(() => post('/hero/act', { action: 'resetTalents' }), 'Talents reset.')),
+    hsel: (d) => { S.hsel = d.id; render(); },
+    heritage: (d) => act(() => post('/hero/act', { action: 'heritage', node: d.id })),
+    culture: (d) => { const t = S.cfg.heritageTrees[S.st.hero.race].cultures[d.id][0]; confirmBox(S.st.hero.culture ? 'Follow the ways of <b>' + esc(t) + '</b> for ' + fmt(S.cfg.renown.swapGold * S.st.hero.level) + ' gold? Points in your old culture come back.' : 'Follow the ways of <b>' + esc(t) + '</b>? You can change later for gold.', () => act(() => post('/hero/act', { action: 'culture', culture: d.id }), 'You follow the ways of ' + t + '.')); },
     slot: (d) => { let l = S.st.hero.loadout.slice(); l = l.includes(d.id) ? l.filter((x) => x !== d.id) : [...l, d.id]; if (l.length > S.cfg.loadoutSize) { toast('Your loadout holds ' + S.cfg.loadoutSize + ' skills. Take one out first.'); return; } act(() => post('/hero/act', { action: 'loadout', skills: l })); },
     // gear
     sel: async (d) => { S.sel = +d.id; if (S.view !== 'gear') location.hash = '#/gear'; if (!S.craftCost) S.craftCost = await get('/craft/cost').catch(() => null); render(); },

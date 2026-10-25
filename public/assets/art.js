@@ -120,6 +120,9 @@
       case 'star': path('M0 -7 L2 -2 L7 -2 L3 1.5 L4.5 7 L0 3.6 L-4.5 7 L-3 1.5 L-7 -2 L-2 -2 Z', '#ffd25a'); break;
       case 'rage': path('M0 -7 Q6 -1 3 5 Q0 8 -3 5 Q-6 -1 0 -7 Z', '#ff5a3a'); break;
       case 'mana': path('M0 -7 Q6 0 4 4 Q2 7 0 7 Q-2 7 -4 4 Q-6 0 0 -7 Z', '#4aa3ff'); break;
+      case 'talents': b.next(); b.line(8, 14, 8, 8, '#8a5a34', { flat: true }); b.line(8, 8, 3, 3, '#8a5a34', { flat: true }); b.line(8, 8, 13, 3, '#8a5a34', { flat: true }); b.line(8, 10, 12, 7, '#8a5a34', { flat: true });
+        [[3, 3, '#ffd25a'], [13, 3, '#ff8a6b'], [12, 7, '#6fd97a'], [8, 8, '#c084ff']].forEach(([x, y, c]) => { b.next(); b.ellipse(x, y, 1.8, 1.8, c); }); break;
+      case 'heritage': path('M-5 -7 L5 -7 L5 5 L0 2 L-5 5 Z', '#c0392b'); path('M-5 -7 L5 -7 L5 -4 L-5 -4 Z', '#f0c23a'); path('M0 -2 L2 0 L0 2 L-2 0 Z', '#f0c23a'); break;
       case 'energy': path('M2 -7 L-4 1 L0 1 L-2 7 L5 -1 L1 -1 Z', '#ffd25a'); break;
     }
     return b.toCanvas();

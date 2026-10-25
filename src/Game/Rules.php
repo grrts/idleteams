@@ -36,7 +36,7 @@ final class Rules
     public const KEYSTONE_LEVELS = [15, 25, 35, 45];
     public const ULTIMATE_LEVEL = 20;
     public const REFORGE_LEVEL = 50;
-    public const LOADOUT_SIZE = 4;
+    public const LOADOUT_SIZE = 5;
 
     public const RACES = [
         'human' => ['name' => 'Human', 'points' => ['might' => 4, 'vitality' => 4, 'command' => 4], 'passive' => ['versatile', 'Versatile', '5% more XP from every battle']],
@@ -81,6 +81,8 @@ final class Rules
                 'taunt' => ['Taunting Shout', 3, 'taunt', 0, 0, 12, []],
                 'shieldWall' => ['Shield Wall', 5, 'wall', 0.30, 20, 24, ['dur' => 8, 'party' => true]],
                 'cleave' => ['Cleave', 8, 'aoe', 0.7, 15, 6, ['threat' => 4]],
+                'shieldThrow' => ['Shield Throw', 12, 'strike', 1.6, 12, 6, ['threat' => 5]],
+                'rallyingCry' => ['Rallying Cry', 16, 'shield', 0.10, 25, 30, ['party' => true, 'ofHp' => true]],
             ],
             'paths' => [
                 'bulwark' => ['Bulwark', 'Blocks and group damage reduction', ['bastion' => ['Bastion', 10, 'wall', 0.45, 20, 20, ['dur' => 6]]]],
@@ -99,6 +101,8 @@ final class Rules
                 'barkskin' => ['Barkskin', 3, 'shield', 0.35, 20, 15, ['self' => true, 'ofHp' => true]],
                 'thornLash' => ['Thorn Lash', 5, 'strike', 1.4, 10, 4, ['threat' => 5]],
                 'roar' => ['Taunting Roar', 8, 'taunt', 0, 0, 12, []],
+                'entangle' => ['Entangling Roots', 12, 'slow', 0.25, 15, 18, ['dur' => 6, 'aoeMult' => 0.5]],
+                'ironwood' => ['Ironwood', 16, 'wall', 0.25, 20, 22, ['dur' => 8]],
             ],
             'paths' => [
                 'oakheart' => ['Oakheart', 'Regeneration and self-healing', ['regrowth' => ['Regrowth', 10, 'hot', 0.20, 15, 20, ['self' => true, 'dur' => 10, 'ofHp' => true]]]],
@@ -117,6 +121,8 @@ final class Rules
                 'smite' => ['Smite', 3, 'strike', 0.9, 8, 3, ['school' => 'arcana']],
                 'sanctuary' => ['Sanctuary', 5, 'groupheal', 1.1, 40, 10, []],
                 'holyWard' => ['Holy Ward', 8, 'shield', 2.2, 28, 8, ['tank' => true]],
+                'renew' => ['Renew', 12, 'hot', 2.4, 20, 4, ['dur' => 10]],
+                'prayerOfLight' => ['Prayer of Light', 16, 'groupheal', 1.4, 45, 14, []],
             ],
             'paths' => [
                 'lightbearer' => ['Lightbearer', 'Big direct heals and critical heals', ['radiance' => ['Radiance', 10, 'heal', 4.6, 45, 12, []]]],
@@ -135,6 +141,8 @@ final class Rules
                 'wildGrowth' => ['Wild Growth', 3, 'hot', 2.6, 45, 12, ['dur' => 8, 'party' => true]],
                 'swiftmend' => ['Swiftmend', 5, 'heal', 3.0, 22, 6, []],
                 'moonfire' => ['Moonfire', 8, 'strike', 0.8, 8, 3, ['school' => 'arcana']],
+                'lifebloom' => ['Lifebloom', 12, 'heal', 2.2, 18, 3, []],
+                'barkward' => ['Barkward', 16, 'shield', 1.8, 26, 10, ['tank' => true]],
             ],
             'paths' => [
                 'grove' => ['Grove', 'Heal-over-time that ramps through long fights', ['tranquilGrove' => ['Tranquil Grove', 10, 'groupheal', 1.8, 55, 20, []]]],
@@ -153,6 +161,8 @@ final class Rules
                 'volley' => ['Volley', 3, 'aoe', 0.85, 30, 6, []],
                 'markedPrey' => ['Marked Prey', 5, 'mark', 0.15, 15, 20, ['dur' => 10]],
                 'snareTrap' => ['Snare Trap', 8, 'slow', 0.25, 10, 20, ['dur' => 8]],
+                'multiShot' => ['Multi-Shot', 12, 'aoe', 1.0, 28, 8, []],
+                'serpentSting' => ['Serpent Sting', 16, 'dot', 2.6, 18, 10, ['dur' => 10]],
             ],
             'paths' => [
                 'sharpshooter' => ['Sharpshooter', 'Single target and crits', ['piercingShot' => ['Piercing Shot', 10, 'strike', 3.2, 35, 12, []]]],
@@ -171,6 +181,8 @@ final class Rules
                 'frostNova' => ['Frost Nova', 3, 'slow', 0.30, 25, 15, ['dur' => 6, 'aoeMult' => 0.6]],
                 'fireball' => ['Fireball', 1, 'strike', 1.2, 16, 0, ['fire' => true]],
                 'blizzard' => ['Blizzard', 8, 'aoe', 1.0, 38, 10, []],
+                'livingBomb' => ['Living Bomb', 12, 'dot', 2.8, 22, 10, ['dur' => 8]],
+                'iceLance' => ['Ice Lance', 16, 'strike', 1.6, 18, 3, []],
             ],
             'paths' => [
                 'arcanist' => ['Arcanist', 'Burst damage and MEGA crits', ['arcaneSurge' => ['Arcane Surge', 10, 'buff', 0.40, 20, 30, ['dur' => 10]]]],
@@ -189,6 +201,8 @@ final class Rules
                 'smokeBomb' => ['Smoke Bomb', 3, 'vanish', 0.3, 10, 20, []],
                 'fanOfKnives' => ['Fan of Knives', 5, 'aoe', 0.75, 25, 5, []],
                 'poisonedBlade' => ['Poisoned Blade', 8, 'dot', 2.4, 20, 10, ['dur' => 10]],
+                'backstab' => ['Backstab', 12, 'strike', 2.0, 25, 6, []],
+                'exposeArmor' => ['Expose Armor', 16, 'mark', 0.12, 20, 20, ['dur' => 10]],
             ],
             'paths' => [
                 'duelist' => ['Duelist', 'Combo chains on one target', ['eviscerate' => ['Eviscerate', 10, 'strike', 3.4, 35, 10, []]]],
@@ -297,7 +311,7 @@ final class Rules
         return self::CLASSES[$class]['role'];
     }
 
-    /** Every skill a class can use: [id => [name, level, type, mult, cost, cd, opts, source]]. */
+    /** Every skill a class can use: [id => [name, level, type, mult, cost, cd, opts, source]]. Talent skills have source 'talent'. */
     public static function classSkills(string $class): array
     {
         $c = self::CLASSES[$class];
@@ -312,6 +326,9 @@ final class Rules
         }
         [$uid, $uname, $ulvl, $utype, $umult, $ucost, $ucd, $uopts] = $c['ultimate'];
         $out[$uid] = [$uname, $ulvl, $utype, $umult, $ucost, $ucd, $uopts, 'ultimate'];
+        foreach (Talents::SKILLS[$class] ?? [] as $id => $s) {
+            $out[$id] = [...$s, 'talent'];
+        }
 
         return $out;
     }

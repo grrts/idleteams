@@ -8,7 +8,8 @@ namespace App\Game;
  * and never reaches 100%.
  *
  * A build is a plain array so heroes, reference heroes and tests share the same maths:
- * [race, cls, origin, level, spent => [attr => n], path, keystones => [lvl => id], items => [item spec, ...]]
+ * [race, cls, origin, level, spent => [attr => n], path, keystones => [lvl => id], items => [item spec, ...],
+ *  talents => [node => rank], heritage => [node => rank], culture]
  */
 final class Stats
 {
@@ -100,6 +101,9 @@ final class Stats
                     $add(Rules::GLYPHS[$gl[0]][1], $gl[1], Rules::GLYPHS[$gl[0]][0].' glyph');
                 }
             }
+        }
+        foreach (Talents::mods($build)['attrs'] as [$a, $n, $from]) {
+            $add($a, $n, $from);
         }
         // Passives that change how an attribute counts.
         if (in_array('unmovable', $build['keystones'] ?? [], true)) {
@@ -195,35 +199,46 @@ final class Stats
             default => [10 * $e['fury'], 0.0],
         };
 
-        $haste = 1 + self::curve($tot['swiftness'], $L);
-        $crit = min(self::CAPS['crit'], self::curve($tot['precision'], $L));
-        $maxHp = $health * (1 + $e['vitality'] / 20) + 20 * $e['vitality'];
+        // Talents and Heritage: percentage bonuses on top of what attributes give.
+        $m = Talents::mods($build);
+        $t = fn (string $k) => $m['stat'][$k] ?? 0.0;
+        $haste = 1 + self::curve($tot['swiftness'], $L) + $t('haste');
+        $crit = min(self::CAPS['crit'], self::curve($tot['precision'], $L) + $t('crit'));
+        $maxHp = ($health * (1 + $e['vitality'] / 20) + 20 * $e['vitality']) * (1 + $t('hp'));
+        $dmg = 1 + $t('dmg');
 
         return [
             'level' => $L,
             'maxHp' => $maxHp,
             'weaponDamage' => $damage,
-            'might' => $damage * (1 + $e['might'] / 10),
-            'arcana' => $damage * (1 + $e['arcana'] / 10),
-            'spirit' => $damage * (1 + $e['spirit'] / 10),
+            'might' => $damage * (1 + $e['might'] / 10) * $dmg,
+            'arcana' => $damage * (1 + $e['arcana'] / 10) * $dmg,
+            'spirit' => $damage * (1 + $e['spirit'] / 10) * (1 + $t('heal')),
             'crit' => $crit,
             'mega' => min(self::CAPS['mega'], self::curve($tot['ferocity'], $L) * 0.5),
-            'critMult' => 2 + $e['ferocity'] / (10 + 4 * $L),
+            'critMult' => (2 + $e['ferocity'] / (10 + 4 * $L)) * (1 + $t('critDmg')),
             'haste' => $haste,
-            'cdr' => min(self::CAPS['cdr'], self::curve($tot['focus'], $L)),
-            'dodge' => min(self::CAPS['dodge'], self::curve($tot['agility'], $L)),
+            'cdr' => min(self::CAPS['cdr'], self::curve($tot['focus'], $L) + $t('cdr')),
+            'dodge' => min(self::CAPS['dodge'], self::curve($tot['agility'], $L) + $t('dodge')),
             'dr' => min(self::CAPS['dr'], self::curve($tot['guard'] + $armor, $L)),
-            'block' => min(self::CAPS['block'], self::curve(0.4 * $tot['guard'] + $block, $L)),
+            'block' => min(self::CAPS['block'], self::curve(0.4 * $tot['guard'] + $block, $L) + $t('block')),
             'resist' => min(self::CAPS['resist'], self::curve($tot['resolve'], $L)),
-            'regen' => $maxHp * 0.0004 * $e['recovery'],
-            'healRecv' => 1 + 0.5 * $e['recovery'] / ($e['recovery'] + 10 + 2 * $L),
-            'threat' => 1 + $e['presence'] / (2 + 0.8 * $L),
+            'regen' => $maxHp * 0.0004 * $e['recovery'] * (1 + $t('regen')),
+            'healRecv' => (1 + 0.5 * $e['recovery'] / ($e['recovery'] + 10 + 2 * $L)) * (1 + $t('healRecv')),
+            'threat' => (1 + $e['presence'] / (2 + 0.8 * $L)) * max(0.2, 1 + $t('threat')),
             'command' => 1 + $e['command'] / (10 + 4 * $L),
-            'fortune' => 1 + $e['fortune'] / (5 + 2 * $L),
+            'fortune' => (1 + $e['fortune'] / (5 + 2 * $L)) * (1 + $t('fortune')),
             'resource' => $resource,
             'resMax' => $resMax,
-            'resRegen' => $resRegen,
-            'rageGain' => 3 + 0.3 * $e['fury'],
+            'resRegen' => $resRegen * (1 + $t('resRegen')),
+            'rageGain' => (3 + 0.3 * $e['fury']) * (1 + $t('rageGain')),
+            'taken' => max(0.5, 1 - $t('taken')),
+            'costMult' => max(0.5, 1 - $m['cost']),
+            'xpBonus' => $t('xp'),
+            'renownBonus' => $m['renown'],
+            'kin' => $m['kin'],
+            'typeMult' => $m['type'],
+            'skillMult' => $m['skill'],
             'costScale' => match ($resource) { 'rage' => 1 + 0.02 * ($L - 1), 'energy' => 1 + 0.03 * ($L - 1), default => 1 + 0.10 * ($L - 1) },
             'powers' => $powers,
             'resonance' => self::resonance($items)['tiers'],
