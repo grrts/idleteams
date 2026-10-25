@@ -57,7 +57,7 @@ class Game
         return [
             'race' => $hero->race, 'cls' => $hero->cls, 'origin' => $hero->origin, 'level' => $hero->level,
             'spent' => $hero->spent, 'path' => $hero->path, 'keystones' => $hero->keystones,
-            'talents' => $hero->talents, 'heritage' => $hero->heritage, 'culture' => $hero->culture,
+            'talents' => $hero->talents, 'heritage' => $hero->heritage, 'culture' => $hero->culture, 'backstory' => $hero->backstory,
             'items' => array_map(fn (Item $i) => Items::spec($i), $this->equipped($hero)),
         ];
     }
@@ -216,10 +216,10 @@ class Game
             $others = [];
             foreach ($heroes as $o) {
                 if ($o !== $h) {
-                    $others[] = [$o->race, $o->culture];
+                    $others[] = [$o->race, $o->culture, $o->backstory];
                 }
             }
-            $kin = Heritage::kin($h->race, $h->culture, $others);
+            $kin = Heritage::kin($h->race, $h->culture, $others, $h->backstory);
             $renown = Heritage::renownGain($units, $kin, $stats['renownBonus']);
             $rankBefore = $h->heritageRank();
             $h->renown += $renown;

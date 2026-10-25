@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Hero;
 use App\Entity\User;
+use App\Game\Heritage;
 use App\Game\Items;
 use App\Service\Bots;
 use App\Service\Game;
@@ -61,7 +62,7 @@ final class DemoSeedCommand extends Command
         $r = new Randomizer(new Mt19937(7));
         $pick = fn (array $a) => $a[$r->getInt(0, count($a) - 1)];
         $made = [];
-        foreach (self::HEROES as [$name, $race, $cls, $origin]) {
+        foreach (self::HEROES as $n => [$name, $race, $cls, $origin]) {
             $u = new User();
             $u->username = 'demo-'.strtolower($name);
             $u->password = '!'; // not a valid hash: demo accounts can't log in
@@ -77,7 +78,8 @@ final class DemoSeedCommand extends Command
                 'dye1' => $pick(['#c0392b', '#2f6fd0', '#3aa655', '#5b3fa8', '#e67e22']), 'dye2' => $pick(['#ece4d4', '#3d3a44', '#f1c40f']),
                 'metal' => $pick(['#b8c2cc', '#e0b04a', '#c58a5a']),
             ];
-            $made[$name] = $this->heroes->create($u, ['name' => $name, 'race' => $race, 'cls' => $cls, 'origin' => $origin, 'look' => $look]);
+            $made[$name] = $this->heroes->create($u, ['name' => $name, 'race' => $race, 'cls' => $cls, 'origin' => $origin, 'look' => $look,
+                'backstory' => array_keys(Heritage::backstories($race))[$n * 4 % 9]]);
         }
         $this->em->flush();
 

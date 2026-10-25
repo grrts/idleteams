@@ -58,6 +58,7 @@ class Bots
         $h->talents = Talents::auto($h->cls, Talents::points($h->level), $h->id);
         $cultures = array_keys(Heritage::TREES[$h->race]['cultures']);
         $h->culture ??= $cultures[$h->id % count($cultures)];
+        $h->backstory ??= array_key_first(array_filter(Heritage::backstories($h->race), fn ($b) => $b[1] === $h->culture));
         $h->heritage = Heritage::auto($h->race, $h->culture, $h->heritageRank());
         $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $h->path, $h->talents);
         $i = 0;

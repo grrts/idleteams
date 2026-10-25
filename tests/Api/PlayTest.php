@@ -38,9 +38,9 @@ class PlayTest extends WebTestCase
     public function testNewPlayerJoinsTheDemoGroupAndPlaysABattle(): void
     {
         $this->assertTrue($this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123'])['ok']);
-        $hero = $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'look' => ['hair' => 'bob']]);
+        $hero = $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'backstory' => 'cook', 'look' => ['hair' => 'bob']]);
         $this->assertSame(1, $hero['level']);
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Again', 'race' => 'elf', 'cls' => 'mage', 'origin' => 'oak']), 'one hero per account');
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Again', 'race' => 'elf', 'cls' => 'mage', 'origin' => 'oak', 'backstory' => 'acolyte']), 'one hero per account');
 
         $tavern = $this->api('GET', '/tavern');
         $lfm = array_values(array_filter($tavern['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];
@@ -71,7 +71,7 @@ class PlayTest extends WebTestCase
     public function testAWipeStopsTheChainUntilSomeoneSendsTheGroupBackIn(): void
     {
         $this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123']);
-        $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak']);
+        $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'backstory' => 'cook']);
         $lfm = array_values(array_filter($this->api('GET', '/tavern')['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];
         $this->api('POST', '/party/apply', ['party' => $lfm['party']['id']]);
         $state = $this->api('GET', '/state');
@@ -98,7 +98,7 @@ class PlayTest extends WebTestCase
     public function testPointsAndGear(): void
     {
         $this->api('POST', '/register', ['username' => 'tester2', 'password' => 'secret123']);
-        $this->api('POST', '/hero', ['name' => 'Gearhead', 'race' => 'human', 'cls' => 'ranger', 'origin' => 'hawk']);
+        $this->api('POST', '/hero', ['name' => 'Gearhead', 'race' => 'human', 'cls' => 'ranger', 'origin' => 'hawk', 'backstory' => 'scout']);
         $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'spend', 'points' => ['might' => 1]]), 'no points at level 1');
         $state = $this->api('GET', '/state');
         $bow = array_values(array_filter($state['inventory'], fn ($i) => $i['slot'] === 'weapon'))[0];
@@ -112,7 +112,9 @@ class PlayTest extends WebTestCase
     public function testTalentsHeritageAndRenownFromKin(): void
     {
         $this->api('POST', '/register', ['username' => 'tester3', 'password' => 'secret123']);
-        $this->api('POST', '/hero', ['name' => 'Durna', 'race' => 'dwarf', 'cls' => 'rogue', 'origin' => 'fox']);
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Durna', 'race' => 'dwarf', 'cls' => 'rogue', 'origin' => 'fox']), 'a backstory is required');
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Durna', 'race' => 'dwarf', 'cls' => 'rogue', 'origin' => 'fox', 'backstory' => 'squire']), 'backstories belong to a race');
+        $this->api('POST', '/hero', ['name' => 'Durna', 'race' => 'dwarf', 'cls' => 'rogue', 'origin' => 'fox', 'backstory' => 'delver']);
         $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => 'root']), 'no talent points at level 1');
 
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -129,13 +131,14 @@ class PlayTest extends WebTestCase
         $tree = $this->api('GET', '/tree/talent/rogue');
         $this->assertGreaterThan(1500, count($tree['nodes']));
 
-        // Heritage: the root is free at rank 1, then a culture opens its branches.
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']));
-        $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'root']);
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold0.2.1']), 'follow the culture first');
-        $sheet = $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']);
-        $this->assertSame('ironhold', $sheet['culture']);
+        // Heritage: the backstory chose the culture and the first steps along its branch, with Renown for rank 3.
+        $this->assertSame('runedeep', $sheet['culture']);
+        $this->assertSame('delver', $sheet['backstory']);
+        $this->assertSame(3, $sheet['renown']['rank']);
         $this->assertSame(0, $sheet['renown']['free']);
+        $this->assertEqualsCanonicalizing(['root', 'runedeep1.2.1', 'runedeep1.2.2', 'runedeep1.2.3', 'runedeep1.2.4'], array_keys((array) $sheet['heritage']));
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold0.2.1']), 'only your own culture');
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'backstory', 'backstory' => 'smith']), 'a backstory is chosen once');
 
         // Brannoc in the demo group is a dwarf: running with him pays Renown.
         $lfm = array_values(array_filter($this->api('GET', '/tavern')['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];

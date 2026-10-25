@@ -270,13 +270,21 @@
   function creatorState() {
     if (!S.creator) {
       const r = ITP.randomHero();
-      S.creator = { name: '', race: 'human', cls: 'guardian', origin: 'anvil', look: { skin: ITP.RACES.human.skins[1], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: 'none', acc: 'none', build: 1, height: 1, dye1: r.dye1, dye2: r.dye2, metal: r.metal } };
+      S.creator = { name: '', race: 'human', backstory: null, cls: 'guardian', origin: 'anvil', look: { skin: ITP.RACES.human.skins[1], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: 'none', acc: 'none', build: 1, height: 1, dye1: r.dye1, dye2: r.dye2, metal: r.metal } };
     }
     return S.creator;
   }
   // The creator shows the hero in plain clothes: gear comes from play, not from the creator.
   const plain = (c, race) => ({ ...c.look, race: race || c.race, skin: race && race !== c.race ? ITP.RACES[race].skins[1] : c.look.skin, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
-  const STEPS = [['race', 'Race'], ['cls', 'Class'], ['origin', 'Origin'], ['look', 'Look']];
+  const STEPS = [['race', 'Race'], ['story', 'Backstory'], ['cls', 'Class'], ['origin', 'Origin'], ['look', 'Look']];
+
+  /** Backstory cards for a race, grouped by culture. act/kind decide what a click does (creator pick or a later choice). */
+  function backstoryCards(race, on, attrs) {
+    const list = Object.entries(S.cfg.backstories[race] || {}), byCulture = {};
+    list.forEach(([id, b]) => (byCulture[b[1]] = byCulture[b[1]] || []).push([id, b]));
+    return '<div class="stories">' + Object.entries(byCulture).map(([cid, items]) => '<div class="storygroup"><div class="eyebrow">' + esc(S.cfg.cultures[race][cid]) + '</div><div class="choices">' +
+      items.map(([id, b]) => '<div class="choice story' + (on === id ? ' on' : '') + '" ' + attrs(id) + '><b>' + esc(b[0]) + '</b><div>' + esc(b[3]) + '</div><div class="muted small">Starts in ' + esc(b[5]) + ' · ' + esc(b[4]) + '</div></div>').join('') + '</div></div>').join('') + '</div>';
+  }
 
   function creatorView() {
     const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep;
@@ -296,6 +304,11 @@
       body = '<h2>Choose a race</h2><p class="muted">Races come in real sizes, from stout dwarves to towering orcs and draka. Every race can play every role.</p><div class="races" style="margin-top:12px">' +
         Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
         '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>';
+    } else if (step === 'story') {
+      const b = c.backstory && cfg.backstories[c.race][c.backstory];
+      body = '<h2>Choose a backstory</h2><p class="muted">Where your ' + esc(cfg.races[c.race].name) + ' grew up. Your backstory sets the culture you follow, starts you at Heritage rank 3 with the first ' + cfg.backstoryNodes + ' steps of its branch learned, and gives a small edge for good. Kin who share your backstory count three times for Renown and kinship.</p>' +
+        backstoryCards(c.race, c.backstory, (id) => 'data-act="pick" data-kind="backstory" data-id="' + id + '"') +
+        (b ? '<div class="detail"><b class="title">' + esc(b[0]) + '</b><div>You follow <b>' + esc(cfg.cultures[c.race][b[1]]) + '</b> and start in its ' + esc(b[5]) + ' branch.</div><div class="muted small">' + esc(b[4]) + ' (the Renown only while you follow ' + esc(cfg.cultures[c.race][b[1]]) + ')</div></div>' : '');
     } else if (step === 'cls') {
       body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
         Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>';
@@ -311,10 +324,11 @@
     const idx = STEPS.findIndex(([s]) => s === step);
     const nav = '<div class="row between" style="margin-top:16px">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">Back</button>' : '<span></span>') + (idx < STEPS.length - 1 ? '<button class="primary" data-act="cstep" data-s="' + STEPS[idx + 1][0] + '">Next</button>' : '<button class="primary" data-act="create">Create hero</button>') + '</div>';
     const k = cfg.classes[c.cls];
-    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, class and Origin are permanent. The look is yours to keep.</span></div><div class="cols">' +
+    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, backstory, class and Origin are permanent. The look is yours to keep.</span></div><div class="cols">' +
       '<div class="stagebox stack"><div class="panel stack"><div class="portrait" style="aspect-ratio:4/4.4">' + spr(plain(c), 4, 'idle') + '</div>' +
       '<div><label for="cname">Name</label><input id="cname" value="' + esc(c.name) + '" maxlength="20" style="width:100%" placeholder="3 to 20 letters"></div>' +
       '<div class="row"><b class="num" style="font-size:1.2rem">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</b>' + role(k.role) + '</div>' +
+      (c.backstory ? '<div class="small"><span class="muted">Backstory:</span> <b>' + esc(cfg.backstories[c.race][c.backstory][0]) + '</b> of ' + esc(cfg.cultures[c.race][cfg.backstories[c.race][c.backstory][1]]) + '</div>' : '<div class="small muted">No backstory yet</div>') +
       '<div><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
       '<button class="primary" data-act="create">Create hero</button></div></div>' +
       '<div class="panel"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (i + 1) + '</i>' + n + '</button>').join('') + '</div>' + body + nav + '</div></div></div>';
@@ -496,7 +510,7 @@
     const career = h.career || {};
 
     return '<div class="stack"><div class="hero-top"><div class="portrait"><span class="lvl">Level ' + h.level + '</span>' + spr(h.look, 4, 'idle') + '</div>' +
-      '<div class="stack tight"><div><div class="eyebrow">' + esc(race.name) + ' · Origin: ' + esc(origin[0]) + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div><h1>' + esc(h.name) + '</h1>' +
+      '<div class="stack tight"><div><div class="eyebrow">' + esc(race.name) + ' · Origin: ' + esc(origin[0]) + (h.backstory ? ' · ' + esc(S.cfg.backstories[h.race][h.backstory][0]) : '') + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div><h1>' + esc(h.name) + '</h1>' +
       '<div class="row title-line">' + esc(cls.name) + (h.path ? ' of the ' + esc(cls.paths[h.path][0]) : '') + role(h.role) + (h.oathTaken ? '<span class="chip gold">' + ico('lock') + 'Oathsworn</span>' : '') + '</div></div>' +
       '<div><div class="small muted" style="margin-bottom:4px">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP to level ' + (h.level + 1) + '</div><div class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></div></div>' +
       '<div class="statstrip">' + key + '</div>' +
@@ -815,7 +829,7 @@
     const race = cfg.races[h.race], tree = map && map.tree, sel = tree && tree.nodes[S.hsel] ? S.hsel : 'root';
     const pctDone = Math.min(100, (100 * (rn.total - rn.from)) / Math.max(1, rn.to - rn.from));
     const p = S.st.party, kinList = p ? p.members.filter((m) => m.id !== h.id && m.race === h.race) : [];
-    const kinText = !p ? 'You are not in a group yet.' : rn.kin ? kinList.map((m) => esc(m.name) + (h.culture && m.culture === h.culture ? ' (same culture, counts twice)' : '')).join(', ') + (kinList.length === 1 ? ' shares' : ' share') + ' your heritage: every run pays ' + (cfg.renown.alone + cfg.renown.perKin * rn.kin) + ' Renown per reward unit instead of ' + cfg.renown.alone + '.' : 'Nobody in your group is ' + esc(race.name) + ', so runs only pay a trickle of Renown (' + cfg.renown.alone + ' per reward unit). Each ' + esc(race.name) + ' groupmate adds ' + cfg.renown.perKin + ', twice that if they follow your culture.';
+    const kinText = !p ? 'You are not in a group yet.' : rn.kin ? kinList.map((m) => esc(m.name) + (h.backstory && m.culture === h.culture && m.backstory === h.backstory ? ' (same backstory, counts three times)' : h.culture && m.culture === h.culture ? ' (same culture, counts twice)' : '')).join(', ') + (kinList.length === 1 ? ' shares' : ' share') + ' your heritage: every run pays ' + (cfg.renown.alone + cfg.renown.perKin * rn.kin) + ' Renown per reward unit instead of ' + cfg.renown.alone + '.' : 'Nobody in your group is ' + esc(race.name) + ', so runs only pay a trickle of Renown (' + cfg.renown.alone + ' per reward unit). Each ' + esc(race.name) + ' groupmate adds ' + cfg.renown.perKin + ', twice that if they follow your culture.';
     let cultures = '', side = '', detail = '';
     if (tree) {
       cultures = Object.entries(tree.cultures).map(([cid, [name, theme, col, bids]]) => {
@@ -826,13 +840,16 @@
           '<div class="tiny muted" style="margin-top:6px">' + tree.branches.filter((b) => bids.includes(b[0])).map((b) => '<a href="#/heritage" data-act="mapBranch" data-id="' + b[5][0] + '">' + esc(b[1]) + '</a>').join(' · ') + '</div></div>';
       }).join('');
       detail = nodeDetail(map, have, sel, free, h.culture, 'heritage');
-      side = '<div class="panel tight"><h3 style="margin-bottom:6px">Your heritage</h3><p class="small">' + (Object.keys(have).length ? esc(h.heritageTotal) + '.' : 'Nothing learned yet. The root in the middle is free at rank 1.') + '</p></div>';
+      const story = h.backstory && cfg.backstories[h.race][h.backstory];
+      side = (story ? '<div class="panel tight"><div class="eyebrow">Backstory</div><h3 style="margin-bottom:6px">' + esc(story[0]) + '</h3><p class="small">' + esc(story[3]) + '</p><p class="small muted">' + esc(story[4]) + (h.culture !== story[1] ? '. The Renown comes back if you follow ' + esc(cfg.cultures[h.race][story[1]]) + ' again.' : '.') + '</p><a class="small" href="#/heritage" data-act="mapBranch" data-id="' + story[2] + '.2.1">Show my branch: ' + esc(story[5]) + '</a></div>' : '') +
+        '<div class="panel tight"><h3 style="margin-bottom:6px">Your heritage</h3><p class="small">' + (Object.keys(have).length ? esc(h.heritageTotal) + '.' : 'Nothing learned yet. The root in the middle is free at rank 1.') + '</p></div>';
     }
     const count = tree ? Object.keys(tree.nodes).length : 0;
     return '<div class="stack"><div class="panel heritage-top"><div class="hbadge"><span class="eyebrow">Heritage rank</span><span class="big num">' + rn.rank + '</span></div><div style="flex:1;min-width:0"><div class="eyebrow">' + esc(race.name) + (h.culture && tree ? ' · ' + esc(tree.cultures[h.culture][0]) : '') + '</div><h2>' + esc(race.name) + ' Heritage</h2>' +
       '<div class="small muted" style="margin:6px 0 4px">' + fmt(rn.total) + ' Renown · ' + fmt(rn.to - rn.total) + ' to rank ' + (rn.rank + 1) + '</div><div class="bar"><i class="renf" style="width:' + pctDone + '%"></i></div>' +
       '<p class="small" style="margin-top:8px">' + ico('group') + ' ' + kinText + '</p></div><div class="num" style="font-size:1.2rem;align-self:center"><span class="gold">' + free + '</span> <span class="muted small">points</span></div></div>' +
       '<p class="small muted">Renown grows by running dungeons with groupmates of your race. Every Heritage rank gives two points to spend on a map of ' + fmt(count) + ' nodes: three trunk branches every ' + esc(race.name) + ' shares, and three cultures of three branches each. Follow one culture: only its branches can be learned, and kin who follow it too count twice, for Renown and for the kinship bonus in battle.</p>' +
+      (h.backstory ? '' : '<div class="panel stack"><h3>Choose your backstory</h3><p class="small muted">Your hero was made before backstories. Pick one once: you follow its culture, gain ' + fmt(cfg.backstoryRenown) + ' Renown and its edge, and kin who share it count three times.</p>' + backstoryCards(h.race, null, (id) => 'data-act="backstory" data-id="' + id + '"') + '</div>') +
       (cultures ? '<div class="cultures">' + cultures + '</div>' : '') +
       '<div class="tgrid">' + mapPanel('heritage', h.race, LEGEND + '<span><i class="lg oc"></i>Another culture</span>', detail) + '<div class="stack">' + side + '</div></div></div>';
   }
@@ -985,10 +1002,11 @@
   const handlers = {
     authMode: (d) => { S.authMode = d.mode; render(); },
     cstep: (d) => { const c = creatorState(); c.name = $('#cname').value; S.creatorStep = d.s; render(); },
-    pick: (d) => { const c = creatorState(); c[d.kind] = d.id; if (d.kind === 'race') c.look.skin = ITP.RACES[d.id].skins[1]; c.name = $('#cname').value; render(); },
+    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.backstory = null; c[d.kind] = d.id; if (d.kind === 'race') c.look.skin = ITP.RACES[d.id].skins[1]; c.name = $('#cname').value; render(); },
+    backstory: (d) => { const b = S.cfg.backstories[S.st.hero.race][d.id]; confirmBox('Write <b>' + esc(b[0]) + '</b> as your backstory? You will follow <b>' + esc(S.cfg.cultures[S.st.hero.race][b[1]]) + '</b> and gain ' + fmt(S.cfg.backstoryRenown) + ' Renown. This is permanent.', () => act(() => post('/hero/act', { action: 'backstory', backstory: d.id }), 'Your backstory is written.')); },
     look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; c.name = $('#cname').value; render(); },
     randomLook: () => { const c = creatorState(), r = ITP.randomHero(); c.name = $('#cname').value; Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
-    create: async () => { const c = creatorState(); c.name = $('#cname').value.trim(); if (!c.name) { toast('Give your hero a name first.'); $('#cname').focus(); return; } try { await post('/hero', c); S.creator = null; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); } },
+    create: async () => { const c = creatorState(); c.name = $('#cname').value.trim(); if (!c.name) { toast('Give your hero a name first.'); $('#cname').focus(); return; } if (!c.backstory) { toast('Choose a backstory first.'); S.creatorStep = 'story'; render(); return; } try { await post('/hero', c); S.creator = null; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); } },
     logout: async () => {
       if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }
       S.sureNew = false;

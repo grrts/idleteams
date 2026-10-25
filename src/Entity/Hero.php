@@ -78,6 +78,10 @@ class Hero
     #[ORM\Column(length: 16, nullable: true)]
     public ?string $culture = null;
 
+    /** Chosen at creation: one per branch of each culture. Sets the starting culture and Heritage, and kin. */
+    #[ORM\Column(length: 16, nullable: true)]
+    public ?string $backstory = null;
+
     /** Earned by running dungeons with groupmates of the same race. Sets the Heritage rank. */
     #[ORM\Column]
     public int $renown = 0;

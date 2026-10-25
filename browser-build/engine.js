@@ -114,6 +114,8 @@
       const m = { attrs: [], stat: {}, type: {}, skill: {}, cost: 0, kin: 0, renown: 0 }, sets = [];
       if (build.talents && keys(build.talents).length && D.TALENT_TREES[build.cls]) sets.push([T.tree(build.cls), build.talents, 'Talent']);
       if (build.heritage && keys(build.heritage).length && D.HERITAGE_TREES[build.race]) sets.push([D.HERITAGE_TREES[build.race], build.heritage, 'Heritage']);
+      const story = build.backstory && D.HERITAGE.BACKSTORY_INFO[build.race]?.[build.backstory];
+      if (story) sets.push([{ nodes: { b: { name: story[0], max: 1, effect: H.backstoryEffect(build.race, build.backstory, build.culture || null) } } }, { b: 1 }, 'Backstory']);
       for (const [tree, have, label] of sets) {
         for (const [id, r] of Object.entries(have)) {
           const n = tree.nodes[id];
@@ -157,7 +159,16 @@
     renownFor: (rank) => 20 * (rank - 1) * rank,
     points: (rank) => Math.max(0, 2 * rank - 1),
     rank(renown) { let r = 1; while (renown >= H.renownFor(r + 1)) ++r; return r; },
-    kin(race, culture, others) { let n = 0; for (const [r, c] of others) if (r === race) n += culture !== null && c === culture ? 2 : 1; return n; },
+    /** Same race counts once, same culture twice, same culture and backstory three times. others: [[race, culture, backstory]]. */
+    kin(race, culture, others, backstory = null) { let n = 0; for (const [r, c, b] of others) if (r === race) n += culture !== null && c === culture ? (backstory !== null && b === backstory ? 3 : 2) : 1; return n; },
+    backstories: (race) => D.HERITAGE.BACKSTORY_INFO[race] || {},
+    backstoryStart(race, id) { const bid = H.backstories(race)[id][2], nodes = { root: 1 }; for (let d = 1; d <= D.HERITAGE.BACKSTORY_NODES; ++d) nodes[bid + '.2.' + d] = 1; return nodes; },
+    backstoryEffect(race, id, culture) {
+      const b = H.backstories(race)[id || ''];
+      if (!b) return {};
+      const e = D.HERITAGE.BACKSTORY_BASE[race][id];
+      return culture === b[1] ? TM.merge(e, { renown: D.HERITAGE.BACKSTORY_RENOWN_BONUS }) : e;
+    },
     renownGain: (units, kin, bonus) => Math.round(units * (D.HERITAGE.RENOWN_ALONE + D.HERITAGE.RENOWN_PER_KIN * kin) * (1 + bonus)),
     plan(race, culture) {
       const key = 'h:' + race + ':' + culture;
@@ -326,7 +337,7 @@
     },
     make(build, id, name, loadout = null, ranks = {}) {
       loadout = loadout || Cb.defaultLoadout(build.cls, build.level, build.path || null, build.talents || {});
-      return { id, name, cls: build.cls, race: build.race, culture: build.culture || null, origin: build.origin, level: build.level, path: build.path || null, keystones: Object.values(build.keystones || {}), loadout, ranks, stats: S.derive(build) };
+      return { id, name, cls: build.cls, race: build.race, culture: build.culture || null, backstory: build.backstory || null, origin: build.origin, level: build.level, path: build.path || null, keystones: Object.values(build.keystones || {}), loadout, ranks, stats: S.derive(build) };
     },
   });
 
@@ -404,7 +415,7 @@
     applyKin() {
       for (const h of this.h) {
         if (!(h.s.kin > 0)) continue;
-        const f = 1 + Math.min(D.HERITAGE.KIN_CAP, h.s.kin * H.kin(h.race, h.culture, this.h.filter((x) => x !== h).map((x) => [x.race, x.culture])));
+        const f = 1 + Math.min(D.HERITAGE.KIN_CAP, h.s.kin * H.kin(h.race, h.culture, this.h.filter((x) => x !== h).map((x) => [x.race, x.culture, x.backstory || null]), h.backstory || null));
         h.s = Object.assign({}, h.s, { might: h.s.might * f, arcana: h.s.arcana * f, spirit: h.s.spirit * f });
       }
     }
@@ -414,7 +425,7 @@
       const ult = D.CLASSES[x.cls].ultimate[0];
       if (x.level >= C.ULTIMATE_LEVEL) skills[ult] = all[ult];
       return {
-        i, id: x.id, name: x.name, cls: x.cls, role: R.role(x.cls), race: x.race, culture: x.culture || null, origin: x.origin, level: x.level, ks: Object.values(x.keystones || []), s,
+        i, id: x.id, name: x.name, cls: x.cls, role: R.role(x.cls), race: x.race, culture: x.culture || null, backstory: x.backstory || null, origin: x.origin, level: x.level, ks: Object.values(x.keystones || []), s,
         school: D.CLASSES[x.cls].school, passive: D.CLASSES[x.cls].passive[0], skills, ult, ranks: x.ranks || {},
         hp: s.maxHp, res: s.resource === 'rage' ? 0 : s.resMax, absorb: 0, cd: {}, gcd: 0, swing: 0, dead: false, knock: 0,
         walls: [], buffs: [], hots: [], pets: [], curse: null, nineLives: false, phoenix: false, lastRite: false, secondWind: false,

@@ -39,7 +39,7 @@ final class Combatants
         $loadout ??= self::defaultLoadout($build['cls'], $build['level'], $build['path'] ?? null, $build['talents'] ?? []);
 
         return [
-            'id' => $id, 'name' => $name, 'cls' => $build['cls'], 'race' => $build['race'], 'culture' => $build['culture'] ?? null, 'origin' => $build['origin'],
+            'id' => $id, 'name' => $name, 'cls' => $build['cls'], 'race' => $build['race'], 'culture' => $build['culture'] ?? null, 'backstory' => $build['backstory'] ?? null, 'origin' => $build['origin'],
             'level' => $build['level'], 'path' => $build['path'] ?? null, 'keystones' => array_values($build['keystones'] ?? []),
             'loadout' => $loadout, 'ranks' => $ranks, 'stats' => Stats::derive($build),
         ];

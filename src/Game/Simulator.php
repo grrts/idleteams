@@ -161,7 +161,7 @@ final class Simulator
 
         return [
             'i' => $i, 'id' => $x['id'], 'name' => $x['name'], 'cls' => $x['cls'], 'role' => Rules::role($x['cls']),
-            'race' => $x['race'], 'culture' => $x['culture'] ?? null, 'origin' => $x['origin'], 'level' => $x['level'], 'ks' => $ks, 's' => $s,
+            'race' => $x['race'], 'culture' => $x['culture'] ?? null, 'backstory' => $x['backstory'] ?? null, 'origin' => $x['origin'], 'level' => $x['level'], 'ks' => $ks, 's' => $s,
             'school' => Rules::CLASSES[$x['cls']]['school'], 'passive' => Rules::CLASSES[$x['cls']]['passive'][0],
             'skills' => $skills, 'ult' => $ult, 'ranks' => $x['ranks'] ?? [],
             'hp' => $s['maxHp'], 'res' => $s['resource'] === 'rage' ? 0.0 : $s['resMax'], 'absorb' => 0.0,
@@ -183,10 +183,10 @@ final class Simulator
             $others = [];
             foreach ($this->h as $k => $x) {
                 if ($k !== $i) {
-                    $others[] = [$x['race'], $x['culture']];
+                    $others[] = [$x['race'], $x['culture'], $x['backstory'] ?? null];
                 }
             }
-            $f = 1 + min(Heritage::KIN_CAP, $h['s']['kin'] * Heritage::kin($h['race'], $h['culture'], $others));
+            $f = 1 + min(Heritage::KIN_CAP, $h['s']['kin'] * Heritage::kin($h['race'], $h['culture'], $others, $h['backstory'] ?? null));
             foreach (['might', 'arcana', 'spirit'] as $p) {
                 $this->h[$i]['s'][$p] *= $f;
             }

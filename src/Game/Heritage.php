@@ -24,6 +24,124 @@ final class Heritage
     /** The kinship bonus in battle never goes past this, however many kin are in the group. */
     public const KIN_CAP = 0.30;
 
+    /**
+     * Backstories: every hero picks one at creation. A backstory belongs to one culture and one of its three branches
+     * (the third is the culture's Kinship branch). race => culture => [[id, name, blurb] x 3], in branch order.
+     */
+    public const BACKSTORIES = [
+        'human' => [
+            'crownlands' => [
+                ['squire', 'Squire of the Crown', 'Raised in a castle yard, polishing armor for knights who never came home.'],
+                ['courtier', 'Fallen Courtier', 'Once a voice at court, now a name the heralds no longer call.'],
+                ['bannerchild', 'Child of the Banner', 'Born in a war camp and brought up by the whole company.'],
+            ],
+            'freeport' => [
+                ['dockhand', 'Dockhand', 'Grew up hauling crates and haggling for every copper on the wharf.'],
+                ['deckhand', 'Ship\'s Boy', 'Ran away to sea at nine and learned to fight on a rolling deck.'],
+                ['crewborn', 'Crew-born', 'One of the old smuggling families, where the crew is blood.'],
+            ],
+            'highmarch' => [
+                ['shepherd', 'Mountain Shepherd', 'Kept flocks alive through winters that killed whole villages.'],
+                ['scout', 'Pass Scout', 'Walked the high trails ahead of the wardens, watching for raiders.'],
+                ['wardenkin', 'Warden\'s Kin', 'Every generation of your family has held the same watchtower.'],
+            ],
+        ],
+        'elf' => [
+            'silverwood' => [
+                ['treeborn', 'Treeborn', 'Born in a house woven into a living silver oak.'],
+                ['bowyer', 'Bowyer\'s Apprentice', 'Spent a century learning to shape one perfect bow.'],
+                ['grovekeeper', 'Grovekeeper', 'Raised among the sentinels who guard the oldest groves together.'],
+            ],
+            'starspire' => [
+                ['acolyte', 'Tower Acolyte', 'Copied star charts by candlelight in the white towers.'],
+                ['stargazer', 'Exiled Stargazer', 'Read an omen the high mages did not want read aloud.'],
+                ['circle', 'Child of the Circle', 'Fostered by a whole circle of mages, each teaching one spell.'],
+            ],
+            'duskvale' => [
+                ['mourner', 'Dusk Mourner', 'Sang the twilight hymns for those the glades could not save.'],
+                ['herbalist', 'Wandering Herbalist', 'Walked the borders trading cures for stories.'],
+                ['lanternbearer', 'Lantern-bearer', 'Led the night processions that keep the glade-folk together.'],
+            ],
+        ],
+        'dwarf' => [
+            'ironhold' => [
+                ['smith', 'Forge Apprentice', 'Grew up at the anvil, with burn scars to prove it.'],
+                ['shieldbearer', 'Shield-bearer', 'Held the line in the deep tunnels before your beard came in.'],
+                ['clanheir', 'Clan Heir', 'Heir of an old Ironhold clan with a hall full of cousins.'],
+            ],
+            'brewhall' => [
+                ['cook', 'Hall Cook', 'Fed a hundred miners a day and never let a pot burn.'],
+                ['brewer', 'Brewer\'s Child', 'Knows every barrel in Brewhall by its smell.'],
+                ['skald', 'Tavern Skald', 'Told the old sagas until the whole hall sang along.'],
+            ],
+            'runedeep' => [
+                ['runecarver', 'Runecarver', 'Carved warding runes into the deepest gates.'],
+                ['delver', 'Deep Delver', 'Mapped tunnels no dwarf had walked in a thousand years.'],
+                ['runekin', 'Rune-sworn', 'Bound by an oath-rune to a brotherhood of priests.'],
+            ],
+        ],
+        'orc' => [
+            'bloodfang' => [
+                ['pitfighter', 'Pit Fighter', 'Fought in the blood pits for meat and glory.'],
+                ['outrider', 'Steppe Outrider', 'Rode ahead of the horde on the red steppe.'],
+                ['warband', 'Warband-born', 'Born on the march, raised by the whole warband.'],
+            ],
+            'stormcaller' => [
+                ['spiritchild', 'Spirit-touched', 'Heard the ancestors whisper before you could speak.'],
+                ['raincaller', 'Rain-caller', 'Danced the rain dance that broke a seven-year drought.'],
+                ['totemkeeper', 'Totem-keeper', 'Kept the clan totem and the names carved on it.'],
+            ],
+            'ashland' => [
+                ['scavenger', 'Ash Scavenger', 'Survived the burned wastes on what others left behind.'],
+                ['survivor', 'Last Survivor', 'Walked out of the ash storm alone and lived.'],
+                ['caravan', 'Caravan Guard', 'Guarded the ash caravans, where every hand counts.'],
+            ],
+        ],
+        'felkin' => [
+            'sandstride' => [
+                ['dunerunner', 'Dune Runner', 'Carried messages across the dunes faster than any camel.'],
+                ['oasiskeeper', 'Oasis Keeper', 'Kept the hidden springs where the caravans drink.'],
+                ['nomad', 'Caravan Child', 'Born under a tent that never stayed in one place.'],
+            ],
+            'moonclaw' => [
+                ['rooftop', 'Rooftop Thief', 'Learned the high roofs by stealing the moon\'s silver.'],
+                ['nighthunter', 'Night Hunter', 'Hunted beasts by moonlight for the night market.'],
+                ['clawsworn', 'Clawsworn', 'Sworn to a pride of hunters that shares every kill.'],
+            ],
+            'hearthpaw' => [
+                ['hearthtender', 'Hearth Tender', 'Kept the village fire burning through every storm.'],
+                ['healerpaw', 'Healer\'s Ward', 'Raised by the village healer, fetching herbs and bandages.'],
+                ['villageborn', 'Village Heart', 'Everyone in the village knows your name and your mischief.'],
+            ],
+        ],
+        'draka' => [
+            'ashwing' => [
+                ['skyrider', 'Sky Rider', 'Rode the updrafts above the volcano before you could walk.'],
+                ['diver', 'Cliff Diver', 'Dove from the peaks for the thrill of the fall.'],
+                ['flight', 'Flight-born', 'Hatched into a flight that flies, hunts and roosts as one.'],
+            ],
+            'cinderscale' => [
+                ['forgeguard', 'Forge Guard', 'Stood watch at the great forge where the lava runs.'],
+                ['bellows', 'Bellows Keeper', 'Worked the bellows until your roar shook the forge.'],
+                ['forgekin', 'Forge-kin', 'One of the families who have tended the forge since it was lit.'],
+            ],
+            'emberkin' => [
+                ['kindler', 'Kindler', 'Lit the first fires of every season.'],
+                ['mender', 'Ember Mender', 'Healed burns with warmth instead of water.'],
+                ['flamespeaker', 'Flame-speaker', 'Spoke for your clan at the great fire councils.'],
+            ],
+        ],
+    ];
+
+    /** Renown a new hero starts with, from their backstory: enough for Heritage rank 3 (five points). */
+    public const BACKSTORY_RENOWN = 120;
+
+    /** Spine nodes of the backstory's branch a new hero starts with, after the root. */
+    public const BACKSTORY_NODES = 4;
+
+    /** Extra Renown while following the backstory's culture. */
+    public const BACKSTORY_RENOWN_BONUS = 0.10;
+
     /** race => [root [name, effect], trunk [[name, ranks, effect] x 2], cultures [id => [name, theme, colour, [5 nodes]]]] */
     public const TREES = [
         'human' => [
@@ -234,6 +352,65 @@ final class Heritage
         return self::$built[$race] = $map;
     }
 
+    /** Every backstory of a race: id => [name, culture, branch id, blurb]. */
+    public static function backstories(string $race): array
+    {
+        $out = [];
+        foreach (self::BACKSTORIES[$race] ?? [] as $cid => $list) {
+            foreach ($list as $i => [$id, $name, $blurb]) {
+                $out[$id] = [$name, $cid, $cid.$i, $blurb];
+            }
+        }
+
+        return $out;
+    }
+
+    /** For the creator: race => id => [name, culture, branch, blurb, what it gives, the branch's name]. */
+    public static function backstoryInfo(): array
+    {
+        $out = [];
+        foreach (array_keys(self::TREES) as $race) {
+            $tree = self::tree($race);
+            $names = array_column($tree['branches'], 1, 0);
+            foreach (self::backstories($race) as $id => [$name, $cid, $bid, $blurb]) {
+                $out[$race][$id] = [$name, $cid, $bid, $blurb, Talents::describe(self::backstoryEffect($race, $id, $cid)), $names[$bid]];
+            }
+        }
+
+        return $out;
+    }
+
+    /** The nodes a backstory starts a hero with: the root and the first steps along its branch. */
+    public static function backstoryStart(string $race, string $backstory): array
+    {
+        $bid = self::backstories($race)[$backstory][2];
+        $nodes = ['root' => 1];
+        for ($d = 1; $d <= self::BACKSTORY_NODES; ++$d) {
+            $nodes[$bid.'.2.'.$d] = 1;
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * What a backstory gives for good: double the first minor of its branch, and more Renown while the hero follows
+     * its culture. Same effect words as the maps.
+     */
+    public static function backstoryEffect(string $race, ?string $backstory, ?string $culture): array
+    {
+        $b = self::backstories($race)[$backstory ?? ''] ?? null;
+        if ($b === null) {
+            return [];
+        }
+        $tree = self::tree($race);
+        $e = TreeMap::scale($tree['nodes'][$b[2].'.2.1']['effect'], 2);
+        if ($culture === $b[1]) {
+            $e = TreeMap::merge($e, ['renown' => self::BACKSTORY_RENOWN_BONUS]);
+        }
+
+        return $e;
+    }
+
     public static function trees(): array
     {
         $out = [];
@@ -245,15 +422,16 @@ final class Heritage
     }
 
     /**
-     * How many groupmates count as kin for a hero: same race counts once, same race and culture twice.
-     * $others: [[race, culture], ...] for the other members.
+     * How many groupmates count as kin for a hero: same race counts once, same race and culture twice, and someone
+     * who also shares your backstory three times. $others: [[race, culture, backstory], ...] for the other members.
      */
-    public static function kin(string $race, ?string $culture, array $others): int
+    public static function kin(string $race, ?string $culture, array $others, ?string $backstory = null): int
     {
         $n = 0;
-        foreach ($others as [$r, $c]) {
+        foreach ($others as $o) {
+            [$r, $c] = $o;
             if ($r === $race) {
-                $n += ($culture !== null && $c === $culture) ? 2 : 1;
+                $n += ($culture !== null && $c === $culture) ? (($backstory !== null && ($o[2] ?? null) === $backstory) ? 3 : 2) : 1;
             }
         }
 

@@ -53,6 +53,10 @@ class HeroActions
                 throw new GameError("Pick a $k.");
             }
         }
+        $story = Heritage::backstories($in['race'])[$in['backstory'] ?? ''] ?? null;
+        if ($story === null) {
+            throw new GameError('Pick a backstory.');
+        }
         $look = [];
         foreach (self::LOOK as $k) {
             $v = $in['look'][$k] ?? null;
@@ -66,6 +70,7 @@ class HeroActions
         $h->race = $in['race'];
         $h->cls = $in['cls'];
         $h->origin = $in['origin'];
+        $this->startBackstory($h, $in['backstory']);
         $h->look = $look;
         $h->createdAt = time();
         $this->em->persist($h);
@@ -235,6 +240,35 @@ class HeroActions
     public static function talentResetCost(Hero $h): int
     {
         return 25 * $h->level;
+    }
+
+    /** A backstory sets the culture, a head start of Renown and the first nodes along its branch. */
+    private function startBackstory(Hero $h, string $backstory): void
+    {
+        $h->backstory = $backstory;
+        $h->culture = Heritage::backstories($h->race)[$backstory][1];
+        $h->renown = max($h->renown, Heritage::BACKSTORY_RENOWN);
+        $h->heritage = Heritage::backstoryStart($h->race, $backstory);
+    }
+
+    /**
+     * Heroes made before backstories pick one once. They get the Renown head start and follow its culture; their
+     * learned nodes stay if they are in that culture or the trunk, and the rest come back as points.
+     */
+    public function chooseBackstory(Hero $h, string $backstory): void
+    {
+        $story = Heritage::backstories($h->race)[$backstory] ?? null;
+        if ($story === null) {
+            throw new GameError('Unknown backstory.');
+        }
+        if ($h->backstory !== null) {
+            throw new GameError('Your backstory is already written.');
+        }
+        $tree = Heritage::tree($h->race);
+        $h->backstory = $backstory;
+        $h->culture = $story[1];
+        $h->renown += Heritage::BACKSTORY_RENOWN;
+        $h->heritage = array_filter($h->heritage, fn ($id) => isset($tree['nodes'][$id]) && in_array($tree['nodes'][$id]['culture'], [null, $story[1]], true), ARRAY_FILTER_USE_KEY);
     }
 
     /** Follow one culture of your race. Switching later costs gold and gives back the points in the old culture. */

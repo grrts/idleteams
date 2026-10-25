@@ -562,6 +562,12 @@ final class Talents
         if (!empty($build['heritage']) && isset(Heritage::TREES[$build['race']])) {
             $sets[] = [Heritage::tree($build['race']), $build['heritage'], 'Heritage'];
         }
+        if (!empty($build['backstory']) && isset(Heritage::TREES[$build['race']])) {
+            $b = Heritage::backstories($build['race'])[$build['backstory']] ?? null;
+            if ($b) {
+                $sets[] = [['nodes' => ['b' => ['name' => $b[0], 'max' => 1, 'effect' => Heritage::backstoryEffect($build['race'], $build['backstory'], $build['culture'] ?? null)]]], ['b' => 1], 'Backstory'];
+            }
+        }
         foreach ($sets as [$tree, $have, $label]) {
             foreach ($have as $id => $rank) {
                 $n = $tree['nodes'][$id] ?? null;

@@ -32,7 +32,10 @@ class BrowserDataCommand extends Command
             'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,
             'TWISTS' => Rules::TWISTS, 'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'HERITAGE_TREES' => Heritage::trees(),
             'TALENT' => ['POINTS_PER_LEVEL' => Talents::POINTS_PER_LEVEL, 'SHAPE' => Talents::SHAPE, 'SKILL_AT' => Talents::SKILL_AT, 'VERSION' => Talents::VERSION, 'BRANCHES' => array_map(fn ($t) => array_keys($t['branches']), Talents::TREES)],
-            'HERITAGE' => ['RENOWN_ALONE' => Heritage::RENOWN_ALONE, 'RENOWN_PER_KIN' => Heritage::RENOWN_PER_KIN, 'CULTURE_SWAP_GOLD' => Heritage::CULTURE_SWAP_GOLD, 'KIN_CAP' => Heritage::KIN_CAP, 'SHAPE' => Heritage::SHAPE],
+            'HERITAGE' => ['RENOWN_ALONE' => Heritage::RENOWN_ALONE, 'RENOWN_PER_KIN' => Heritage::RENOWN_PER_KIN, 'CULTURE_SWAP_GOLD' => Heritage::CULTURE_SWAP_GOLD, 'KIN_CAP' => Heritage::KIN_CAP, 'SHAPE' => Heritage::SHAPE,
+                'BACKSTORIES' => Heritage::BACKSTORIES, 'BACKSTORY_INFO' => Heritage::backstoryInfo(),
+                'BACKSTORY_BASE' => array_map(fn ($list) => array_map(fn ($b) => (object) Heritage::backstoryEffect($b[0], $b[1], null), $list), array_map(fn ($race) => array_map(fn ($id) => [$race, $id], array_combine(array_keys(Heritage::backstories($race)), array_keys(Heritage::backstories($race)))), array_combine(array_keys(Heritage::TREES), array_keys(Heritage::TREES)))), 'BACKSTORY_RENOWN' => Heritage::BACKSTORY_RENOWN,
+                'BACKSTORY_NODES' => Heritage::BACKSTORY_NODES, 'BACKSTORY_RENOWN_BONUS' => Heritage::BACKSTORY_RENOWN_BONUS],
         ];
         $file = dirname(__DIR__, 2).'/browser-build/data.js';
         file_put_contents($file, 'window.IT_DATA = '.json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).";\n");

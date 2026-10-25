@@ -21,6 +21,10 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   capstone) at ring 15 and ends in a mastery at ring 30; the outer lanes end in twenty trade-off keystones.
   Learn any node next to one you have, or learn the whole path to a far node in one go. The map pans, zooms
   and searches. Resetting costs gold.
+- Backstory: picked at creation, after race. Each race has nine, one for every branch of its three cultures (for
+  example Forge Apprentice, Hall Cook or Deep Delver for dwarves). It sets the culture you follow, starts you at
+  Heritage rank 3 with the first steps of its branch learned, and gives a small lasting edge plus 10% more Renown
+  while you follow its culture. Kin who share your backstory count three times. Heroes made earlier pick one once.
 - Heritage: every race has a map of 1,201 nodes: three trunk branches and three cultures (for example Ironhold,
   Brewhall and Runedeep for dwarves) of three branches each, five lanes twenty-four rings deep. Follow one
   culture to open its branches. Heritage ranks come from Renown, which runs pay mostly for kin: every other hero

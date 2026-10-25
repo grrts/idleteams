@@ -72,4 +72,32 @@ class MapsTest extends TestCase
         $this->assertNull(TreeMap::path($h, ['root' => 1], 'starspire0.2.3', 'silverwood'));
         $this->assertCount(3, TreeMap::path($h, ['root' => 1], 'starspire0.2.3', 'starspire'));
     }
+
+    public function testBackstoriesCoverEveryCultureBranchAndCountAsKin(): void
+    {
+        foreach (array_keys(Heritage::TREES) as $race) {
+            $tree = Heritage::tree($race);
+            $stories = Heritage::backstories($race);
+            $this->assertCount(9, $stories, $race);
+            $this->assertEqualsCanonicalizing(array_merge(...array_column($tree['cultures'], 3)), array_column($stories, 2), "$race: one backstory per culture branch");
+            foreach ($stories as $id => [, $cid]) {
+                $start = Heritage::backstoryStart($race, $id);
+                $this->assertCount(Heritage::points(Heritage::rank(Heritage::BACKSTORY_RENOWN)), $start, "$race $id: the head start fills its points");
+                $have = [];
+                foreach (array_keys($start) as $node) {
+                    $this->assertNull(TreeMap::check($tree, $have, $node, 99, $cid), "$race $id $node");
+                    $have[$node] = 1;
+                }
+            }
+        }
+        $this->assertSame(1, Heritage::kin('dwarf', 'runedeep', [['dwarf', 'ironhold', 'smith']], 'delver'));
+        $this->assertSame(2, Heritage::kin('dwarf', 'ironhold', [['dwarf', 'ironhold', 'shieldbearer']], 'smith'));
+        $this->assertSame(3, Heritage::kin('dwarf', 'ironhold', [['dwarf', 'ironhold', 'smith']], 'smith'));
+
+        $build = ['race' => 'dwarf', 'cls' => 'guardian', 'origin' => 'anvil', 'level' => 5, 'items' => [], 'backstory' => 'smith', 'culture' => 'ironhold'];
+        $attrs = Stats::attributes($build);
+        $this->assertContains('Backstory: Forge Apprentice', array_column($attrs['sources']['guard'] ?? [], 0));
+        $this->assertEqualsWithDelta(Heritage::BACKSTORY_RENOWN_BONUS, Stats::derive($build)['renownBonus'], 0.05);
+        $this->assertEqualsWithDelta(0.0, Stats::derive(['culture' => 'runedeep'] + $build)['renownBonus'], 0.05, 'the Renown bonus needs the culture');
+    }
 }

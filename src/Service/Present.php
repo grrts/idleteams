@@ -45,6 +45,7 @@ class Present
             'marks' => HeroActions::MARKS,
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],
+            'backstories' => Heritage::backstoryInfo(), 'backstoryNodes' => Heritage::BACKSTORY_NODES, 'backstoryRenown' => Heritage::BACKSTORY_RENOWN,
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }
@@ -53,7 +54,7 @@ class Present
     public function heroCard(Hero $h): array
     {
         return [
-            'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'culture' => $h->culture, 'heritageRank' => $h->heritageRank(), 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
+            'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'culture' => $h->culture, 'backstory' => $h->backstory, 'heritageRank' => $h->heritageRank(), 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
             'role' => $h->role(), 'level' => $h->level, 'look' => $this->game->look($h), 'marks' => $h->marks,
             'guild' => $h->guild ? ['id' => $h->guild->id, 'name' => $h->guild->name, 'tag' => $h->guild->tag] : null,
             'party' => $h->party?->id, 'keystones' => $h->keystones, 'codex' => count($h->codex), 'demo' => $h->user->demo,
@@ -95,7 +96,7 @@ class Present
         $others = [];
         foreach ($h->party?->members ?? [] as $m) {
             if ($m !== $h) {
-                $others[] = [$m->race, $m->culture];
+                $others[] = [$m->race, $m->culture, $m->backstory];
             }
         }
         $openKeystones = [];
@@ -121,7 +122,7 @@ class Present
             'treeVersion' => Talents::VERSION,
             'talentResetCost' => HeroActions::talentResetCost($h),
             'heritage' => (object) $h->heritage,
-            'renown' => ['total' => $h->renown, 'rank' => $rank, 'from' => Heritage::renownFor($rank), 'to' => Heritage::renownFor($rank + 1), 'free' => $h->heritagePoints(), 'kin' => Heritage::kin($h->race, $h->culture, $others)],
+            'renown' => ['total' => $h->renown, 'rank' => $rank, 'from' => Heritage::renownFor($rank), 'to' => Heritage::renownFor($rank + 1), 'free' => $h->heritagePoints(), 'kin' => Heritage::kin($h->race, $h->culture, $others, $h->backstory)],
         ];
     }
 
