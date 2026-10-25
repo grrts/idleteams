@@ -427,9 +427,16 @@
     b.next();
     const torsoBase = (bot) => [[CX - tw, tt + 1], [CX - tw + 1, tt], [CX + tw - 1, tt], [CX + tw, tt + 1], [CX + tw * 0.92, bot], [CX - tw * 0.92, bot]];
     if (robe) {
-      b.poly([[CX - tw, tt + 1], [CX - tw + 1, tt], [CX + tw - 1, tt], [CX + tw, tt + 1], [CX + tw + L * 0.4 + 1, FY], [CX - tw - L * 0.4 - 1, FY]], d1);
-      b.next().rect(CX - 1, tt + 1, 2, FY - tt - 1, d2);
+      // fitted at the waist, flaring to a scalloped hem, with folds, a hem band and a tied sash
+      const hw = tw + L * 0.4 + 1, mid = hip + (FY - hip) * 0.5, n = Math.max(4, Math.round(hw / 1.5) * 2);
+      const hem = (dy) => Array.from({ length: n + 1 }, (_, k) => [CX + hw - (2 * hw * k) / n, FY - (k % 2 ? 1 : 0) + dy]);
+      b.poly([[CX - tw, tt + 1], [CX - tw + 1, tt], [CX + tw - 1, tt], [CX + tw, tt + 1], [CX + tw * 0.9, hip - 2], [CX + tw + (hw - tw) * 0.45, mid], ...hem(0), [CX - tw - (hw - tw) * 0.45, mid], [CX - tw * 0.9, hip - 2]], d1);
+      const fold = mix(d1, "#2b2347", 0.35);
+      [-0.55, 0.55].forEach((k) => b.line(CX + tw * 0.4 * Math.sign(k), hip + 1, CX + hw * k, FY - 2, fold, { flat: true }));
+      b.next().poly([...hem(0), ...hem(-2).reverse()], d2);
+      b.next().poly([[CX - 2, tt], [CX + 2, tt], [CX, tt + Math.max(2, T * 0.35)]], d2);
       b.next().rect(CX - tw, hip - 2, tw * 2, 2, d2);
+      b.next().rect(CX + 1, hip, 1, Math.max(2, L * 0.3), d2);
     } else if (top === "plate") {
       b.poly(torsoBase(hip + 1), metal);
       b.next().poly([[CX - tw * 0.55, tt + 2], [CX + tw * 0.45, tt + 2], [CX + tw * 0.4, hip], [CX - tw * 0.05, hip + 2], [CX - tw * 0.5, hip]], d1);

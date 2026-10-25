@@ -13,6 +13,7 @@
   const rand = (a, b) => a + Math.random() * (b - a);
   const fmt = (n) => (n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n)));
   const ease = (t) => 1 - (1 - t) * (1 - t);
+  const sfx = (name, opts) => { if (window.ITS) window.ITS.play(name, opts); };
 
   class Arena {
     constructor(canvas, hooks) {
@@ -58,6 +59,7 @@
             if (e.dst !== 2) {
               this.wing = e.x.wing; this.label = e.x.name;
               const bossy = e.dst === 1;
+              if (fresh) sfx(bossy ? 'boss' : 'pack');
               if (fresh) this.banner(bossy ? e.x.name : e.x.name, bossy ? 'Boss · wing ' + (e.x.wing + 1) : 'Wing ' + (e.x.wing + 1) + ' · ' + ART.WINGS[e.x.wing].name, bossy ? '#ff8a3a' : '#ffd25a');
               log(e.t, bossy ? '<b>Boss: ' + esc(e.x.name) + '</b>' : esc(e.x.name), bossy ? 'gold' : '');
             }
@@ -71,11 +73,12 @@
             if (fresh && e.amt > 0) this.heroHit(cur, e);
             break;
           }
-          case 'heal': if (fresh && e.amt > 0) { const p = this.heroPos(e.dst); this.beams.push({ x: p[0], y: p[1], col: '#7dff8a', t, life: 0.5, w: e.flags & 1 ? 26 : 16 }); this.num(p[0] + rand(-14, 14), p[1] - 150, '+' + fmt(e.amt), '#7dff8a', e.flags & 1 ? 30 : 22); this.burst(p[0], p[1] - 60, '#9dffa8', 4, 60, -40); } break;
+          case 'heal': if (fresh && e.amt > 0) { sfx('heal'); const p = this.heroPos(e.dst); this.beams.push({ x: p[0], y: p[1], col: '#7dff8a', t, life: 0.5, w: e.flags & 1 ? 26 : 16 }); this.num(p[0] + rand(-14, 14), p[1] - 150, '+' + fmt(e.amt), '#7dff8a', e.flags & 1 ? 30 : 22); this.burst(p[0], p[1] - 60, '#9dffa8', 4, 60, -40); } break;
           case 'hurt': {
             this.hurtAt[e.dst] = t;
             if (e.src != null && e.src >= 0) this.enemyAct[e.src] = t;
             if (fresh && e.amt > 0) {
+              sfx(e.flags & 1 ? 'block' : 'hurt', { big: e.flags & 2 });
               const p = this.heroPos(e.dst);
               this.num(p[0] + rand(-12, 12), p[1] - 130, '-' + fmt(e.amt), e.flags & 4 ? '#ffa04a' : '#ff6464', e.flags & 2 ? 34 : 22);
               if (e.flags & 2) { this.shake = Math.max(this.shake, 14); this.burst(p[0], p[1] - 70, '#ffd25a', 22, 260); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff5a3a', t, life: 0.45, r: 90, w: 6 }); }
@@ -85,14 +88,14 @@
             }
             break;
           }
-          case 'dodge': if (fresh) this.callout(e.dst, 'Dodge', '#a9c4ff'); break;
-          case 'shield': if (fresh) { const ids = e.dst >= 0 ? [e.dst] : cur.roster.map((_, k) => k); ids.forEach((k) => { const p = this.heroPos(k); this.rings.push({ x: p[0], y: p[1] - 70, col: '#cfe4ff', t, life: 0.5, r: 60, w: 3 }); }); } break;
+          case 'dodge': if (fresh) sfx('dodge'); if (fresh) this.callout(e.dst, 'Dodge', '#a9c4ff'); break;
+          case 'shield': if (fresh) { sfx('shield'); const ids = e.dst >= 0 ? [e.dst] : cur.roster.map((_, k) => k); ids.forEach((k) => { const p = this.heroPos(k); this.rings.push({ x: p[0], y: p[1] - 70, col: '#cfe4ff', t, life: 0.5, r: 60, w: 3 }); }); } break;
           case 'cast': {
             this.act[e.src] = t;
             if (e.flags & 1) {
               log(e.t, '<b>' + esc(names[e.src]) + '</b> used ' + esc(e.x.name) + '!', 'gold');
-              if (fresh) { const p = this.heroPos(e.src); this.beams.push({ x: p[0], y: p[1], col: CLASS_COL[cur.roster[e.src].cls], t, life: 1.1, w: 60, pillar: true }); this.banner(e.x.name, names[e.src] + "'s ultimate", CLASS_COL[cur.roster[e.src].cls]); this.flash = { col: CLASS_COL[cur.roster[e.src].cls], t, life: 0.35 }; }
-            } else if (fresh) this.callout(e.src, e.x.name, CLASS_COL[cur.roster[e.src].cls]);
+              if (fresh) { sfx('ultimate'); const p = this.heroPos(e.src); this.beams.push({ x: p[0], y: p[1], col: CLASS_COL[cur.roster[e.src].cls], t, life: 1.1, w: 60, pillar: true }); this.banner(e.x.name, names[e.src] + "'s ultimate", CLASS_COL[cur.roster[e.src].cls]); this.flash = { col: CLASS_COL[cur.roster[e.src].cls], t, life: 0.35 }; }
+            } else if (fresh) { sfx('cast'); this.callout(e.src, e.x.name, CLASS_COL[cur.roster[e.src].cls]); }
             break;
           }
           case 'mech': {
@@ -100,6 +103,7 @@
             log(e.t, '<b class="bad">' + esc(n) + '</b>' + (e.dst >= 0 ? ' on ' + esc(names[e.dst]) : ''), e.flags & 1 ? 'good' : '');
             if (!fresh) break;
             this.mechText = n; this.mechUntil = t + 2;
+            sfx(e.flags & 1 ? 'revive' : { 'Magma Rain': 'magma', 'Tank Buster': 'buster', Shockwave: 'shockwave', Enrage: 'enrage', 'Smouldering Curse': 'curse', 'Ember Shards': 'shards' }[n] || 'cast');
             if (e.flags & 1) { const p = this.heroPos(e.dst); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 0.9, w: 40, pillar: true }); this.callout(e.dst, n, '#fff2a0'); break; }
             if (n === 'Magma Rain') { for (let k = 0; k < 9; k++) this.meteors.push({ x: rand(40, 440), t: t + k * 0.12, life: 0.55 }); this.flash = { col: '#ff5a1a', t, life: 0.25 }; }
             else if (n === 'Tank Buster') { const p = this.heroPos(e.dst); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff2a2a', t, life: 1.2, r: 70, w: 5, target: true }); this.banner('Tank Buster', 'on ' + names[e.dst], '#ff5a5a', 1.2); }
@@ -109,12 +113,13 @@
             else if (n === 'Ember Shards') this.banner('Ember Shards', 'Kill them before they reach the healer', '#ffb340', 1.4);
             break;
           }
-          case 'death': { log(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); if (fresh) { const p = this.heroPos(e.dst); this.burst(p[0], p[1] - 70, '#d0c8e0', 18, 120, -60); this.callout(e.dst, 'Down!', '#ff6464'); } break; }
-          case 'revive': log(e.t, esc(names[e.src]) + ' is back on their feet.', 'good'); if (fresh) { const p = this.heroPos(e.src); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 1, w: 50, pillar: true }); } break;
+          case 'death': { log(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); if (fresh) { sfx('death'); const p = this.heroPos(e.dst); this.burst(p[0], p[1] - 70, '#d0c8e0', 18, 120, -60); this.callout(e.dst, 'Down!', '#ff6464'); } break; }
+          case 'revive': log(e.t, esc(names[e.src]) + ' is back on their feet.', 'good'); if (fresh) { sfx('revive'); const p = this.heroPos(e.src); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 1, w: 50, pillar: true }); } break;
           case 'kill': {
             const en = this.enemies[e.dst];
             if (!en) break;
             en.hp = 0; en.dead = t;
+            if (fresh) sfx(en.kind === 'boss' ? 'bossDown' : 'kill');
             if (fresh) { const p = this.enemyPos(en); this.burst(p[0], p[1] - 30, '#ffb340', en.kind === 'boss' ? 60 : 16, en.kind === 'boss' ? 420 : 200); }
             if (en.kind === 'boss') {
               log(e.t, 'The ' + esc(en.name) + ' is down!', 'good');
@@ -133,14 +138,15 @@
       const to = this.enemyPos(en), crit = e.flags & 1, mega = e.flags & 2, dot = e.flags & 16, pet = e.flags & 8;
       const size = mega ? 44 : crit ? 32 : dot ? 16 : e.flags & 4 ? 18 : 22, col = mega ? '#ff5cf0' : crit ? '#ffd040' : dot ? '#ffa04a' : '#ffffff';
       const tx = to[0] + rand(-24, 24), ty = to[1] + rand(-30, 30), text = (mega ? 'MEGA ' : '') + fmt(e.amt) + (crit && !mega ? '!' : '');
-      if (dot) { this.num(tx, ty, text, col, size); this.burst(tx, ty + 20, '#ff8a2a', 2, 60, -60); return; }
+      if (dot) { sfx('dot'); this.num(tx, ty, text, col, size); this.burst(tx, ty + 20, '#ff8a2a', 2, 60, -60); return; }
       const hero = cur.roster[e.src], kind = pet ? 'paw' : hero ? RANGED[hero.cls] : null;
       if (kind && kind !== 'paw') {
         const from = this.heroPos(e.src);
-        this.projs.push({ kind, x0: from[0] + 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
+        sfx(kind);
+        this.projs.push({ kind, x0: from[0] + 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { sfx(mega ? 'mega' : crit ? 'crit' : 'hit', { vol: 0.6 }); this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
       } else {
         this.rings.push({ x: tx, y: ty, col: pet ? '#c89a6a' : '#ffffff', t, life: 0.18, r: crit ? 46 : 32, w: 4, slash: true, a: rand(-0.6, 0.6) });
-        this.num(tx, ty, text, col, size); this.impact(tx, ty, '#ffffff', crit || mega); if (mega) this.megaHit(tx, ty);
+        sfx(mega ? 'mega' : crit ? 'crit' : 'hit'); this.num(tx, ty, text, col, size); this.impact(tx, ty, '#ffffff', crit || mega); if (mega) this.megaHit(tx, ty);
       }
     }
     impact(x, y, col, big) { this.burst(x, y, col, big ? 12 : 5, big ? 260 : 150); if (big) this.shake = Math.max(this.shake, 5); }
@@ -167,6 +173,7 @@
 
     draw(cur, tl, simT, snap) {
       const g = this.g, t = this.now(), dt = Math.min(0.05, t - (this.lastDraw || t)); this.lastDraw = t;
+      if (window.ITS) window.ITS.ambient();
       if (snap) snap[3].forEach(([id, hp]) => { if (this.enemies[id] && !this.enemies[id].dead) this.enemies[id].hp = hp; });
       g.save();
       g.imageSmoothingEnabled = false;
@@ -258,7 +265,7 @@
       this.meteors.forEach((m) => {
         const k = (t - m.t) / m.life; if (k < 0) return;
         if (k < 1) { const x = m.x + 120 * (1 - k), y = -40 + (FLOOR + 10) * k; g.fillStyle = '#ff7a1a'; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffe080'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(255,140,40,0.5)'; g.lineWidth = 8; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 50, y - 160); g.stroke(); }
-        else if (!m.boom) { m.boom = true; this.burst(m.x, FLOOR, '#ff8a2a', 14, 260, -120); this.shake = Math.max(this.shake, 6); }
+        else if (!m.boom) { m.boom = true; sfx('meteor'); this.burst(m.x, FLOOR, '#ff8a2a', 14, 260, -120); this.shake = Math.max(this.shake, 6); }
       });
       // projectiles
       this.projs = this.projs.filter((p) => {
