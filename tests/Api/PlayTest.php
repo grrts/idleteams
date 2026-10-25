@@ -119,21 +119,23 @@ class PlayTest extends WebTestCase
         $hero = $em->getRepository(\App\Entity\Hero::class)->findOneBy(['name' => 'Durna']);
         $hero->level = 9;
         $em->flush();
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => 'tempo1']), 'branches grow from the root');
-        foreach (['root', 'tempo1', 'tempo1', 'tempo1', 'tempo2', 'tempo2', 'tempo3'] as $node) {
-            $sheet = $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => $node]);
-            $this->assertArrayNotHasKey('error', $sheet, $node);
-        }
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'node' => 'tempo.3.2']), 'nodes grow from what you have');
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'talent', 'nodes' => ['root', ...array_map(fn ($d) => 'tempo.3.'.$d, range(1, 16))]]), 'level 9 has 16 points, not 17');
+        $sheet = $this->api('POST', '/hero/act', ['action' => 'talent', 'nodes' => ['root', ...array_map(fn ($d) => 'tempo.3.'.$d, range(1, 15))]]);
+        $this->assertArrayNotHasKey('error', $sheet);
         $rush = array_values(array_filter($sheet['skills'], fn ($s) => $s['id'] === 'adrenalineRush'))[0];
-        $this->assertTrue($rush['unlocked'], 'the notable teaches Adrenaline Rush');
-        $this->assertSame(1, $sheet['talentPoints']['free']);
+        $this->assertTrue($rush['unlocked'], 'halfway along the spine, the branch teaches Adrenaline Rush');
+        $this->assertSame(0, $sheet['talentPoints']['free']);
+        $tree = $this->api('GET', '/tree/talent/rogue');
+        $this->assertGreaterThan(1500, count($tree['nodes']));
 
-        // Heritage: the root is free at rank 1, then a culture opens its branch.
+        // Heritage: the root is free at rank 1, then a culture opens its branches.
         $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']));
         $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'root']);
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold1']), 'follow the culture first');
+        $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold0.2.1']), 'follow the culture first');
         $sheet = $this->api('POST', '/hero/act', ['action' => 'culture', 'culture' => 'ironhold']);
         $this->assertSame('ironhold', $sheet['culture']);
+        $this->assertSame(0, $sheet['renown']['free']);
 
         // Brannoc in the demo group is a dwarf: running with him pays Renown.
         $lfm = array_values(array_filter($this->api('GET', '/tavern')['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];

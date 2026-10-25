@@ -112,8 +112,50 @@ final class Stats
         if ($build['race'] === 'draka') {
             $add('recovery', $tot['recovery'] * 0.1, 'Ember Heart');
         }
+        // Class twists that let one attribute count as another, read from the totals before any of them apply.
+        $base = $tot;
+        foreach (Rules::TWISTS[$build['cls']] ?? [] as $a => $tw) {
+            foreach ($tw['as'] ?? [] as $to => $f) {
+                $add($to, $base[$a] * $f, Rules::CLASSES[$build['cls']]['name'].': '.Rules::ATTRIBUTES[$a][0]);
+            }
+        }
 
         return ['total' => $tot, 'sources' => $src];
+    }
+
+    /** How much of a class twist's value these points give: all of it at one point per level, never more than twice. */
+    public static function twistScale(float $points, int $level): float
+    {
+        $x = max(0.0, $points) / (5 + $level);
+
+        return 2 * $x / (1 + $x);
+    }
+
+    /**
+     * Every attribute's class twist for a hero: [attr => [effect at the current points, words]]. Conversions ('as')
+     * are already in the attribute totals, so their effect here is only for the words.
+     */
+    public static function twists(string $cls, array $eff, int $level): array
+    {
+        $out = [];
+        foreach (Rules::TWISTS[$cls] ?? [] as $a => $tw) {
+            $x = self::twistScale($eff[$a] ?? 0, $level);
+            if (isset($tw['as'])) {
+                $to = array_key_first($tw['as']);
+                $out[$a] = [$tw, sprintf('%d%% of it also counts as %s', round($tw['as'][$to] * 100), Rules::ATTRIBUTES[$to][0])];
+                continue;
+            }
+            $now = [];
+            foreach (['stat', 'type'] as $k) {
+                foreach ($tw[$k] ?? [] as $key => $v) {
+                    $now[$k][$key] = $v * $x;
+                }
+            }
+            $per = Talents::describe($tw);
+            $out[$a] = [$now, $per.' at one point per level (up to twice that)'];
+        }
+
+        return $out;
     }
 
     /** Linear stats get a soft cap: past 20% of all your points in one attribute, each point counts half. */
@@ -199,9 +241,18 @@ final class Stats
             default => [10 * $e['fury'], 0.0],
         };
 
-        // Talents and Heritage: percentage bonuses on top of what attributes give.
+        // Talents, Heritage and class twists: percentage bonuses on top of what attributes give.
         $m = Talents::mods($build);
+        foreach (self::twists($build['cls'], $e, $L) as [$tw]) {
+            foreach (['stat', 'type'] as $k) {
+                foreach ($tw[$k] ?? [] as $key => $v) {
+                    $m[$k][$key] = ($m[$k][$key] ?? 0) + $v;
+                }
+            }
+        }
         $t = fn (string $k) => $m['stat'][$k] ?? 0.0;
+        $power = 1 + $e['insight'] / (10 + 4 * $L);
+        $lore = $e['lore'] / (10 + 4 * $L);
         $haste = 1 + self::curve($tot['swiftness'], $L) + $t('haste');
         $crit = min(self::CAPS['crit'], self::curve($tot['precision'], $L) + $t('crit'));
         $maxHp = ($health * (1 + $e['vitality'] / 20) + 20 * $e['vitality']) * (1 + $t('hp'));
@@ -211,9 +262,9 @@ final class Stats
             'level' => $L,
             'maxHp' => $maxHp,
             'weaponDamage' => $damage,
-            'might' => $damage * (1 + $e['might'] / 10) * $dmg,
-            'arcana' => $damage * (1 + $e['arcana'] / 10) * $dmg,
-            'spirit' => $damage * (1 + $e['spirit'] / 10) * (1 + $t('heal')),
+            'might' => $damage * (1 + $e['might'] / 10) * $dmg * $power,
+            'arcana' => $damage * (1 + $e['arcana'] / 10) * $dmg * $power,
+            'spirit' => $damage * (1 + $e['spirit'] / 10) * (1 + $t('heal')) * $power,
             'crit' => $crit,
             'mega' => min(self::CAPS['mega'], self::curve($tot['ferocity'], $L) * 0.5),
             'critMult' => (2 + $e['ferocity'] / (10 + 4 * $L)) * (1 + $t('critDmg')),
@@ -232,10 +283,11 @@ final class Stats
             'resMax' => $resMax,
             'resRegen' => $resRegen * (1 + $t('resRegen')),
             'rageGain' => (3 + 0.3 * $e['fury']) * (1 + $t('rageGain')),
-            'taken' => max(0.5, 1 - $t('taken')),
-            'costMult' => max(0.5, 1 - $m['cost']),
-            'xpBonus' => $t('xp'),
-            'renownBonus' => $m['renown'],
+            'taken' => max(0.5, (1 - $t('taken')) * (1 - 0.5 * self::curve($tot['tenacity'], $L))),
+            'lifesteal' => min(0.3, 0.5 * self::curve($tot['hunger'], $L) + $t('lifesteal')),
+            'costMult' => max(0.5, (1 - $m['cost']) * (1 - 0.5 * self::curve($tot['thrift'], $L))),
+            'xpBonus' => $t('xp') + $lore,
+            'renownBonus' => $m['renown'] + $lore,
             'kin' => $m['kin'],
             'typeMult' => $m['type'],
             'skillMult' => $m['skill'],

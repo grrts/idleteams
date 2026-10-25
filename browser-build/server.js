@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const D = window.IT_DATA, C = D.C, E = window.IT_ENGINE;
-  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, Simulator, Rng } = E;
+  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng } = E;
   const BATTLE_SECONDS = 150, CHEST_SECONDS = 90, OFFLINE_CAP = 43200, MAX_CATCH_UP = 12, PARTY_SIZE = 5, GUILD_MAX = 100, MAX_TEMPER = 15;
   const BOSS_DROP = [0.35, 0.45, 0.6];
   const KEY = 'idleteams-play-v1';
@@ -25,9 +25,12 @@
     try { const raw = localStorage.getItem(KEY); if (raw) { db = JSON.parse(raw); migrate(); return; } } catch (e) { /* storage blocked: play in memory */ }
     db = fresh(); seed(); save();
   }
-  /** Saves from before talents and Heritage get the new fields. */
+  /** Saves from before talents and Heritage get the new fields; saves from the small trees get their points back. */
   function migrate() {
-    for (const h of db.heroes) { h.talents = h.talents || {}; h.heritage = h.heritage || {}; h.culture = h.culture || null; h.renown = h.renown || 0; }
+    for (const h of db.heroes) {
+      h.talents = TM.clean(T.tree(h.cls), h.talents); h.heritage = TM.clean(H.tree(h.race), h.heritage); h.culture = h.culture || null; h.renown = h.renown || 0;
+      if (!keys(h.talents).length) { const avail = Cb.available(h.cls, h.level, h.path); h.loadout = (h.loadout || []).filter((id) => avail[id]); }
+    }
   }
   function save() {
     // Keep the save small: recent chat and finished battles only.
@@ -50,7 +53,7 @@
   const unspent = (h) => totalPoints(h) - sum(Object.values(h.spent));
   const talentPoints = (h) => T.points(h.level) - sum(Object.values(h.talents));
   const heritageRank = (h) => H.rank(h.renown);
-  const heritagePoints = (h) => heritageRank(h) - sum(Object.values(h.heritage));
+  const heritagePoints = (h) => H.points(heritageRank(h)) - sum(Object.values(h.heritage));
   const talentResetCost = (h) => 25 * h.level;
   const skillPoints = (h) => h.level - 1 - sum(Object.values(h.skillRanks).map((r) => Math.max(0, r - 1)));
   const heroChannel = (h) => (h.guild ? 'guild:' + h.guild : 'tavern');
@@ -253,7 +256,8 @@
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: { name: D.DUNGEON_NAME, plan: D.DUNGEON }, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
-      talentTrees: D.TALENT_TREES, heritageTrees: D.HERITAGE_TREES, talentNeed: D.TALENT_NEED,
+      cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
+      talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
       renown: { alone: D.HERITAGE.RENOWN_ALONE, perKin: D.HERITAGE.RENOWN_PER_KIN, swapGold: D.HERITAGE.CULTURE_SWAP_GOLD },
     };
   }
@@ -275,10 +279,11 @@
     const avail = Cb.available(h.cls, L, h.path, h.talents), skills = [], teachers = {};
     for (const [nid, n] of Object.entries(T.tree(h.cls).nodes)) if (n.effect.grant) teachers[n.effect.grant] = nid;
     for (const [id, s] of Object.entries(R.classSkills(h.cls))) {
-      skills.push({ id, name: s[0], level: s[1], type: s[2], mult: s[3], cost: s[4], cd: s[5], opts: s[6], source: s[7], rank: Math.max(1, h.skillRanks[id] || 1), talent: teachers[id] || null, unlocked: s[7] === 'ultimate' ? L >= C.ULTIMATE_LEVEL : !!avail[id] });
+      skills.push({ id, name: s[0], level: s[1], type: s[2], mult: s[3], cost: s[4], cd: s[5], opts: s[6], source: s[7], rank: Math.max(1, h.skillRanks[id] || 1), talent: teachers[id] || null, talentName: teachers[id] ? T.tree(h.cls).nodes[teachers[id]].name : null, unlocked: s[7] === 'ultimate' ? L >= C.ULTIMATE_LEVEL : !!avail[id] });
     }
-    const p = partyOf(h), rank = heritageRank(h);
+    const p = partyOf(h), rank = heritageRank(h), twists = {};
     const others = p ? members(p).filter((m) => m !== h).map((m) => [m.race, m.culture]) : [];
+    for (const [a, [now, per]] of Object.entries(S.twists(h.cls, S.effective(attrs.total), L))) twists[a] = { per, now: D.TWISTS[h.cls][a].as ? per : T.describe(now) };
     return Object.assign(heroCard(h), {
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
@@ -286,7 +291,8 @@
       skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
-      talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
+      twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
+      talentTotal: T.describe(T.total(T.tree(h.cls), h.talents), 1, h.cls), heritageTotal: T.describe(T.total(H.tree(h.race), h.heritage)), treeVersion: D.TALENT.VERSION,
       renown: { total: h.renown, rank, from: H.renownFor(rank), to: H.renownFor(rank + 1), free: heritagePoints(h), kin: H.kin(h.race, h.culture, others) },
     });
   }
@@ -408,12 +414,18 @@
     for (const id of ids) if (!avail[id]) fail('You cannot slot that skill.');
     h.loadout = ids;
   }
-  function learnTalent(h, node) {
-    const err = T.check(T.tree(h.cls), h.talents, node, talentPoints(h));
-    if (err) fail(err === 'No points left.' ? 'No talent points left. You get one per level.' : err);
-    h.talents = Object.assign({}, h.talents, { [node]: (h.talents[node] || 0) + 1 });
-    const n = T.tree(h.cls).nodes[node];
-    if (n.kind === 'capstone') post(heroChannel(h), h.name + ' mastered ' + n.name + '.', { type: 'hero', hero: h.id });
+  /** Learns class talents in order (a whole path at once): all of them or none. */
+  function learnTalent(h, nodes) {
+    const tree = T.tree(h.cls), t = Object.assign({}, h.talents);
+    let free = talentPoints(h);
+    if (!nodes.length) fail('Pick a talent.');
+    for (const node of nodes) {
+      const err = T.check(tree, t, node, free);
+      if (err) fail(err === 'No points left.' ? 'Not enough talent points. You get two per level.' : err);
+      t[node] = 1; --free;
+    }
+    h.talents = t;
+    for (const node of nodes) { const n = tree.nodes[node]; if (n.kind === 'capstone' || n.kind === 'keystone') post(heroChannel(h), h.name + ' mastered ' + n.name + '.', { type: 'hero', hero: h.id }); }
   }
   function resetTalents(h) {
     const cost = talentResetCost(h);
@@ -436,10 +448,17 @@
     h.culture = culture;
     post(heroChannel(h), h.name + ' now follows the ways of ' + tree.cultures[culture][0] + '.', { type: 'hero', hero: h.id });
   }
-  function learnHeritage(h, node) {
-    const err = T.check(H.tree(h.race), h.heritage, node, heritagePoints(h), h.culture);
-    if (err) fail(err === 'No points left.' ? 'No Heritage points left. Run dungeons with your own race to earn Renown.' : err);
-    h.heritage = Object.assign({}, h.heritage, { [node]: (h.heritage[node] || 0) + 1 });
+  /** Learns Heritage nodes in order (a whole path at once): all of them or none. */
+  function learnHeritage(h, nodes) {
+    const tree = H.tree(h.race), t = Object.assign({}, h.heritage);
+    let free = heritagePoints(h);
+    if (!nodes.length) fail('Pick a node.');
+    for (const node of nodes) {
+      const err = T.check(tree, t, node, free, h.culture);
+      if (err) fail(err === 'No points left.' ? 'Not enough Heritage points. Run dungeons with your own race to earn Renown.' : err);
+      t[node] = 1; --free;
+    }
+    h.heritage = t;
   }
   function setLootPolicy(h, policy) {
     if (!['upgrades', 'greed', 'pass'].includes(policy)) fail('Unknown loot setting.');
@@ -792,8 +811,8 @@
       autoSpend: () => autoSpend(h), path: () => choosePath(h, String(input.path || '')),
       keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')),
       resetRanks: () => resetRanks(h), loadout: () => setLoadout(h, [].concat(input.skills || [])), lootPolicy: () => setLootPolicy(h, String(input.policy || '')),
-      talent: () => learnTalent(h, String(input.node || '')), resetTalents: () => resetTalents(h),
-      culture: () => chooseCulture(h, String(input.culture || '')), heritage: () => learnHeritage(h, String(input.node || '')),
+      talent: () => learnTalent(h, [].concat(input.nodes || input.node || []).map(String)), resetTalents: () => resetTalents(h),
+      culture: () => chooseCulture(h, String(input.culture || '')), heritage: () => learnHeritage(h, [].concat(input.nodes || input.node || []).map(String)),
     };
     (acts[input.action] || (() => fail('Unknown action.')))();
     return presentHero(h);
@@ -823,6 +842,7 @@
 
   const ROUTES = [
     ['GET', /^\/config$/, () => config()],
+    ['GET', /^\/tree\/(talent|heritage)\/([a-z]+)$/, (m) => (m[1] === 'talent' ? T.tree(m[2]) : H.tree(m[2])) || fail('Unknown map.')],
     ['POST', /^\/logout$/, () => { db = fresh(); seed(); return { ok: true }; }],
     ['GET', /^\/state$/, () => state()],
     ['GET', /^\/battle$/, (m, b, q) => battles(q)],

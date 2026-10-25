@@ -3,14 +3,20 @@
 namespace App\Game;
 
 /**
- * Class talent trees. Every class has one root node and ten branches that fan out from it. A branch is four nodes:
- * two minor nodes of three ranks, a notable and a capstone. Some capstones teach a new skill.
- * One talent point per level from level 2, so the whole tree (81 points) fills in around level 82.
+ * Class talent maps. Every class has one root and ten branches that fan out from it. Each branch is a map of its own:
+ * a spine of 30 nodes from the root outward, with six more lanes forking off it, about 166 nodes a branch and over
+ * 1,600 a class. Nodes link along their lane, and on every fifth ring across lanes and into the neighbouring branch.
+ * A node can be learned once a node linked to it is learned. Two talent points per level from level 2.
  *
- * Effects are shared with the race trees (Heritage) and read by Stats::derive and the Simulator:
- *   attr  => [attribute => points]        flat attribute points, per rank
+ * What a node does comes from the branch's handwritten core (TREES): its minor nodes fill the spine, its notable and
+ * capstone sit on the spine, and a capstone that teaches a skill sits halfway out. The other lanes follow one
+ * attribute (every attribute does something for every class, see Rules::TWISTS) or one skill, and end in a
+ * notable or a keystone with a trade-off.
+ *
+ * Effects are shared with the race maps (Heritage) and read by Stats::derive and the Simulator:
+ *   attr  => [attribute => points]        flat attribute points
  *   stat  => [stat => fraction]           dmg, heal, hp, threat, taken, crit, critDmg, haste, cdr, dodge, block,
- *                                         regen, resRegen, rageGain, healRecv, fortune, xp (per rank)
+ *                                         regen, resRegen, rageGain, healRecv, fortune, xp, lifesteal
  *   type  => [skill type => fraction]     skills of that type hit, heal or protect harder
  *   skill => [skill id => fraction]       one skill hits, heals or protects harder
  *   cost  => fraction                     skills cost less
@@ -20,8 +26,40 @@ namespace App\Game;
  */
 final class Talents
 {
-    /** Points needed in the whole tree before a branch's notable and capstone open. */
-    public const NEED = ['notable' => 6, 'capstone' => 15];
+    /** The shape of a class map: where each lane starts (lane 3 is the spine), how deep it goes, how often hubs come. */
+    public const SHAPE = ['starts' => [13, 8, 4, 1, 4, 8, 13], 'depth' => 30, 'hub' => 5, 'value' => 0.5];
+
+    /** Spine depth of the node that teaches the branch's skill (or holds its capstone). */
+    public const SKILL_AT = 15;
+
+    public const POINTS_PER_LEVEL = 2;
+
+    /** Bumped when the maps change shape, so clients reload them. */
+    public const VERSION = 2;
+
+    /** Keystones at the ends of the outer lanes: big and with a cost. Every class map has all twenty. */
+    public const KEYSTONES = [
+        ['Glass Cannon', ['stat' => ['dmg' => 0.20, 'taken' => -0.10]]],
+        ['Iron Fortress', ['stat' => ['taken' => 0.12, 'dmg' => -0.08]]],
+        ['Blood Pact', ['stat' => ['lifesteal' => 0.06, 'healRecv' => -0.20]]],
+        ['Overflowing', ['stat' => ['resRegen' => 0.30, 'haste' => -0.05]]],
+        ['Hair Trigger', ['stat' => ['haste' => 0.12, 'critDmg' => -0.15]]],
+        ["Executioner's Eye", ['stat' => ['critDmg' => 0.40, 'crit' => -0.04]]],
+        ['Lucky Star', ['stat' => ['crit' => 0.08, 'critDmg' => -0.15]]],
+        ['Patience', ['stat' => ['cdr' => 0.12, 'haste' => -0.06]]],
+        ['Juggernaut', ['stat' => ['hp' => 0.15, 'dodge' => -0.05]]],
+        ['Ghost', ['stat' => ['dodge' => 0.08, 'hp' => -0.08]]],
+        ['Shieldwall', ['stat' => ['block' => 0.08, 'haste' => -0.04]]],
+        ['Warlord', ['stat' => ['threat' => 0.40, 'dmg' => -0.05]]],
+        ['Unseen', ['stat' => ['threat' => -0.40, 'hp' => -0.05]]],
+        ['Martyr', ['stat' => ['heal' => 0.15, 'taken' => -0.06]]],
+        ['Ascetic', ['cost' => 0.12, 'stat' => ['dmg' => -0.05]]],
+        ['Wellspring', ['stat' => ['regen' => 0.60, 'healRecv' => -0.10]]],
+        ['Berserker', ['stat' => ['rageGain' => 0.30, 'taken' => -0.05]]],
+        ['Scholar', ['stat' => ['xp' => 0.20, 'dmg' => -0.03]]],
+        ['Avalanche', ['type' => ['aoe' => 0.25, 'strike' => -0.10]]],
+        ['Duelist', ['type' => ['strike' => 0.20, 'aoe' => -0.15]]],
+    ];
 
     /** Skills taught by talents: same shape as Rules::CLASSES skills. */
     public const SKILLS = [
@@ -335,15 +373,28 @@ final class Talents
 
     private static array $built = [];
 
-    /** One talent point per level from level 2. */
     public static function points(int $level): int
     {
-        return max(0, $level - 1);
+        return self::POINTS_PER_LEVEL * max(0, $level - 1);
+    }
+
+    /** One effect of a handwritten node, sized for one node of the big map. Ranked nodes were per rank already. */
+    public static function perNode(array $src, float $f = 1.0): array
+    {
+        [, $ranks, $effect] = $src;
+
+        return TreeMap::scale($effect, ($ranks > 1 ? 0.7 : 0.3) * $f);
+    }
+
+    /** Skills a lane can follow: the class's own skills (not the ultimate, not talent skills). */
+    private static function laneSkills(string $cls): array
+    {
+        return array_keys(array_filter(Rules::classSkills($cls), fn ($s) => !in_array($s[7], ['talent', 'ultimate'], true)));
     }
 
     /**
-     * A class tree as the client and the rules read it:
-     * [root, branches => [[id, name, theme, colour, nodeIds]], nodes => [id => node]].
+     * A class map as the client and the rules read it:
+     * [root, branches => [[id, name, theme, colour, culture, nodeIds]], nodes => [id => node], size].
      */
     public static function tree(string $cls): array
     {
@@ -351,25 +402,67 @@ final class Talents
             return self::$built['t:'.$cls];
         }
         $t = self::TREES[$cls];
-        $nodes = ['root' => self::node('root', $t['root'][0], 1, $t['root'][1], null, 0, null, 'root', $cls)];
-        $branches = [];
-        foreach ($t['branches'] as $bid => [$name, $theme, $colour, $list]) {
-            $ids = [];
-            $prev = 'root';
-            foreach ($list as $n => [$nname, $max, $effect]) {
-                $id = $bid.($n + 1);
-                $kind = $n < 2 ? 'minor' : ($n === 2 ? 'notable' : 'capstone');
-                $nodes[$id] = self::node($id, $nname, $max, $effect, $prev, $n + 1, $bid, $kind, $cls);
-                $ids[] = $id;
-                $prev = $id;
+        $attrs = array_keys(Rules::ATTRIBUTES);
+        $ci = array_search($cls, array_keys(Rules::CLASSES), true);
+        $skills = self::laneSkills($cls);
+        $suggest = array_keys(Rules::CLASSES[$cls]['suggest']);
+        $specs = [];
+        $k = 0;
+        foreach ($t['branches'] as $bid => [$name, $theme, $colour, [$n1, $n2, $n3, $n4]]) {
+            $a = self::perNode($n1);
+            $b = self::perNode($n2);
+            $notable = $n3[2];
+            $x = array_key_first($n1[2]['attr'] ?? []) ?? $suggest[$k % count($suggest)];
+            $spine = [
+                'a' => $a, 'b' => $b,
+                'hubs' => [
+                    5 => [$n3[0], $notable, 'notable'],
+                    10 => [null, TreeMap::merge(TreeMap::scale($a, 3), TreeMap::scale($b, 3)), 'notable'],
+                    self::SKILL_AT => [$n4[0], $n4[2], 'capstone'],
+                    20 => [null, TreeMap::merge($notable, TreeMap::scale($a, 2)), 'notable'],
+                    25 => [null, TreeMap::merge(TreeMap::scale($b, 4), TreeMap::scale($a, 2)), 'notable'],
+                ],
+                'end' => [$name.' Mastery', TreeMap::merge(TreeMap::scale($notable, 1.5), TreeMap::scale($b, 3))],
+            ];
+            $lanes = [];
+            // Lanes 2 and 4: the branch's attribute and its second minor, grown big.
+            $lanes[2] = [
+                'minor' => ['attr' => [$x => 2]],
+                'notable' => TreeMap::merge(['attr' => [$x => 6]], TreeMap::scale($b, 1.5)),
+                'end' => [null, TreeMap::merge(['attr' => [$x => 10]], TreeMap::scale($notable, 0.75)), 'notable'],
+            ];
+            $lanes[4] = [
+                'minor' => $b,
+                'notable' => TreeMap::merge(TreeMap::scale($b, 4), ['attr' => [$x => 2]]),
+                'end' => [null, TreeMap::merge(TreeMap::scale($b, 6), TreeMap::scale($a, 2)), 'notable'],
+            ];
+            // Lanes 1 and 5: one of the class's skills each.
+            foreach ([1 => 0, 5 => 1] as $j => $o) {
+                $sk = $skills[($k * 2 + $o) % count($skills)];
+                $lanes[$j] = [
+                    'minor' => ['skill' => [$sk => 0.03]],
+                    'notable' => ['skill' => [$sk => 0.10], 'attr' => [$suggest[0] => 3]],
+                    'end' => [null, ['skill' => [$sk => 0.25], 'cost' => 0.03], 'notable'],
+                ];
             }
-            $branches[] = [$bid, $name, $theme, $colour, $ids];
+            // Lanes 0 and 6: any attribute, so every attribute has a home in every class map, and a keystone.
+            foreach ([0 => 0, 6 => 1] as $j => $o) {
+                $y = $attrs[($ci * 3 + $k * 2 + $o) % count($attrs)];
+                $tw = Rules::TWISTS[$cls][$y] ?? [];
+                $lanes[$j] = [
+                    'minor' => ['attr' => [$y => 2]],
+                    'notable' => TreeMap::merge(['attr' => [$y => 5]], isset($tw['as']) ? ['attr' => [$y => 2]] : TreeMap::scale($tw, 0.25)),
+                    'end' => [...self::KEYSTONES[($k * 2 + $o) % count(self::KEYSTONES)], 'keystone'],
+                ];
+            }
+            $specs[] = [$bid, $name, $theme, $colour, null, $spine, $lanes];
+            ++$k;
         }
 
-        return self::$built['t:'.$cls] = ['root' => 'root', 'branches' => $branches, 'nodes' => $nodes];
+        return self::$built['t:'.$cls] = TreeMap::build($t['root'], $specs, self::SHAPE + ['cls' => $cls]);
     }
 
-    /** Every class tree, for the client config and the browser build. */
+    /** Every class map, for the browser build. */
     public static function trees(): array
     {
         $out = [];
@@ -380,97 +473,79 @@ final class Talents
         return $out;
     }
 
-    public static function node(string $id, string $name, int $max, array $effect, ?string $req, int $tier, ?string $branch, string $kind, ?string $cls, ?string $culture = null): array
-    {
-        return [
-            'id' => $id, 'name' => $name, 'max' => $max, 'effect' => $effect, 'req' => $req, 'tier' => $tier, 'branch' => $branch,
-            'kind' => $kind, 'need' => self::NEED[$kind] ?? 0, 'culture' => $culture,
-            'desc' => self::describe($effect, $max, $cls),
-        ];
-    }
-
     /** Skills a set of learned talents teaches. */
     public static function grants(string $cls, array $talents): array
     {
         $out = [];
-        foreach (self::tree($cls)['nodes'] as $id => $n) {
-            if (($talents[$id] ?? 0) > 0 && isset($n['effect']['grant'])) {
-                $out[$n['effect']['grant']] = $id;
+        $nodes = self::tree($cls)['nodes'];
+        foreach ($talents as $id => $r) {
+            if ($r > 0 && isset($nodes[$id]['effect']['grant'])) {
+                $out[$nodes[$id]['effect']['grant']] = $id;
             }
         }
 
         return $out;
     }
 
-    /** Spent points and whether one more rank of a node can be learned. Returns an error message or null. */
     public static function check(array $tree, array $have, string $id, int $free, ?string $culture = null): ?string
     {
-        $n = $tree['nodes'][$id] ?? null;
-        if (!$n) {
-            return 'Unknown talent.';
-        }
-        if (($have[$id] ?? 0) >= $n['max']) {
-            return 'That talent is at its highest rank.';
-        }
-        if ($n['req'] && ($have[$n['req']] ?? 0) < 1) {
-            return sprintf('Learn %s first.', $tree['nodes'][$n['req']]['name']);
-        }
-        if ($n['culture'] !== null && $n['culture'] !== $culture) {
-            return 'That belongs to another culture. Choose it first.';
-        }
-        if (array_sum($have) < $n['need']) {
-            return sprintf('Spend %d points in this tree first.', $n['need']);
-        }
-        if ($free < 1) {
-            return 'No points left.';
-        }
-
-        return null;
+        return TreeMap::check($tree, $have, $id, $free, $culture);
     }
 
     /**
-     * Talents the server picks for demo heroes and the reference group: the first branch as deep as it opens,
-     * then the next, coming back to capstones once enough points are in. Deterministic.
+     * The order demo heroes and the reference group learn in: the spines of their first three branches out to the
+     * skill, then out to the end, then the branch lanes, then the other branches. Deterministic.
      */
-    public static function auto(string $cls, int $points, int $offset = 0): array
+    public static function plan(string $cls, int $offset = 0): array
     {
-        $tree = self::tree($cls);
-        $have = [];
-        $order = array_column($tree['branches'], 4);
+        $key = 'p:'.$cls.':'.($offset % 3);
+        if (isset(self::$built[$key])) {
+            return self::$built[$key];
+        }
+        $order = array_keys(self::TREES[$cls]['branches']);
         if ($offset) {
             // Demo heroes lean into different branches so a group of the same class still differs.
             $k = $offset % 3;
             $order = [...array_slice($order, $k, 1), ...array_slice($order, 0, $k), ...array_slice($order, $k + 1)];
         }
-        while ($points > 0) {
-            if (!$have) {
-                $have['root'] = 1;
-                --$points;
-                continue;
+        [$s, $depth] = [self::SHAPE['starts'], self::SHAPE['depth']];
+        $lane = fn ($bid, $j, $from, $to) => array_map(fn ($d) => $bid.'.'.$j.'.'.$d, range(max($from, $s[$j]), $to));
+        $plan = ['root'];
+        foreach (array_chunk($order, 3) as $group) {
+            foreach ($group as $bid) {
+                array_push($plan, ...$lane($bid, 3, 1, self::SKILL_AT));
             }
-            $learned = false;
-            foreach ($order as $ids) {
-                foreach ($ids as $id) {
-                    if (($have[$id] ?? 0) >= $tree['nodes'][$id]['max']) {
-                        continue;
-                    }
-                    if (self::check($tree, $have, $id, $points) === null) {
-                        $have[$id] = ($have[$id] ?? 0) + 1;
-                        --$points;
-                        $learned = true;
-                    }
-                    break;
-                }
-                if ($learned) {
-                    break;
-                }
+            foreach ($group as $bid) {
+                array_push($plan, ...$lane($bid, 3, self::SKILL_AT + 1, $depth));
             }
-            if (!$learned) {
-                break;
+            foreach ($group as $bid) {
+                foreach ([2, 4, 1, 5, 0, 6] as $j) {
+                    array_push($plan, ...$lane($bid, $j, 1, $depth));
+                }
             }
         }
 
-        return $have;
+        return self::$built[$key] = $plan;
+    }
+
+    public static function auto(string $cls, int $points, int $offset = 0): array
+    {
+        return TreeMap::auto(self::tree($cls), self::plan($cls, $offset), $points);
+    }
+
+    /** Everything a set of learned nodes adds up to, as one effect (skills they teach left out). */
+    public static function total(array $tree, array $have): array
+    {
+        $parts = [];
+        foreach ($have as $id => $r) {
+            if ($r > 0 && isset($tree['nodes'][$id])) {
+                $e = $tree['nodes'][$id]['effect'];
+                unset($e['grant']);
+                $parts[] = $e;
+            }
+        }
+
+        return TreeMap::merge(...$parts);
     }
 
     /**
@@ -517,6 +592,7 @@ final class Talents
         'crit' => '%s crit chance', 'critDmg' => '%s crit damage', 'haste' => '%s haste', 'cdr' => '%s faster cooldowns',
         'dodge' => '%s dodge', 'block' => '%s block', 'regen' => '%s health regen', 'resRegen' => '%s mana and energy regen',
         'rageGain' => '%s rage from hits', 'healRecv' => '%s healing received', 'fortune' => '%s gold and materials', 'xp' => '%s XP',
+        'lifesteal' => '%s lifesteal',
     ];
 
     public const TYPE_TEXT = [
@@ -535,14 +611,14 @@ final class Talents
         foreach ($e['stat'] ?? [] as $k => $v) {
             if ($k === 'taken') {
                 $parts[] = sprintf($v >= 0 ? '%s less damage taken' : '%s more damage taken', ltrim($p(abs($v)), '+'));
-            } elseif ($k === 'threat' && $v < 0) {
-                $parts[] = sprintf('%s less threat', ltrim($p(-$v), '+'));
+            } elseif ($v < 0 && in_array($k, ['threat', 'hp', 'dmg', 'heal', 'haste', 'crit', 'critDmg', 'dodge', 'healRecv', 'xp', 'fortune'], true)) {
+                $parts[] = sprintf(str_replace('%s ', '%s less ', self::STAT_TEXT[$k]), ltrim($p(-$v), '+'));
             } else {
                 $parts[] = sprintf(self::STAT_TEXT[$k] ?? ('%s '.$k), $p($v));
             }
         }
         foreach ($e['type'] ?? [] as $k => $v) {
-            $parts[] = sprintf('%s to %s', $p($v), self::TYPE_TEXT[$k] ?? $k);
+            $parts[] = $v < 0 ? sprintf('%s less from %s', ltrim($p(-$v), '+'), self::TYPE_TEXT[$k] ?? $k) : sprintf('%s to %s', $p($v), self::TYPE_TEXT[$k] ?? $k);
         }
         foreach ($e['skill'] ?? [] as $k => $v) {
             $parts[] = sprintf('%s to %s', $p($v), $cls ? (Rules::classSkills($cls)[$k][0] ?? $k) : $k);

@@ -45,10 +45,10 @@ class HeroController extends ApiController
             'resetRanks' => $actions->resetRanks($h),
             'loadout' => $actions->setLoadout($h, (array) ($in['skills'] ?? [])),
             'lootPolicy' => $actions->setLootPolicy($h, (string) ($in['policy'] ?? '')),
-            'talent' => $actions->learnTalent($h, (string) ($in['node'] ?? '')),
+            'talent' => $actions->learnTalent($h, array_map('strval', (array) ($in['nodes'] ?? [$in['node'] ?? '']))),
             'resetTalents' => $actions->resetTalents($h),
             'culture' => $actions->chooseCulture($h, (string) ($in['culture'] ?? '')),
-            'heritage' => $actions->learnHeritage($h, (string) ($in['node'] ?? '')),
+            'heritage' => $actions->learnHeritage($h, array_map('strval', (array) ($in['nodes'] ?? [$in['node'] ?? '']))),
             default => throw new \App\Service\GameError('Unknown action.'),
         };
         $this->em->flush();

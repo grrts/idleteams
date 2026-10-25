@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Game\Heritage;
+use App\Game\Talents;
 use App\Service\GameError;
 use App\Service\Present;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -17,6 +19,21 @@ class AuthController extends ApiController
     public function config(Present $present): JsonResponse
     {
         return $this->json($present->config());
+    }
+
+    /** One talent or Heritage map. They are big and never change between releases, so clients cache them. */
+    #[Route('/api/tree/{kind}/{key}', methods: ['GET'], requirements: ['kind' => 'talent|heritage', 'key' => '[a-z]+'])]
+    public function tree(string $kind, string $key): JsonResponse
+    {
+        $ok = $kind === 'talent' ? isset(Talents::TREES[$key]) : isset(Heritage::TREES[$key]);
+        if (!$ok) {
+            throw new GameError('Unknown map.');
+        }
+        $res = $this->json($kind === 'talent' ? Talents::tree($key) : Heritage::tree($key));
+        $res->setPublic();
+        $res->setMaxAge(86400);
+
+        return $res;
     }
 
     #[Route('/api/register', methods: ['POST'])]

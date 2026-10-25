@@ -12,21 +12,104 @@ final class Rules
         'might' => ['Might', 'offense', 'Physical power: swords, arrows, daggers'],
         'arcana' => ['Arcana', 'offense', 'Spell power: missiles, frost, holy damage'],
         'precision' => ['Precision', 'offense', 'Crit chance (curve)'],
+        'insight' => ['Insight', 'offense', 'Every skill hits, heals and shields harder'],
         'swiftness' => ['Swiftness', 'tempo', 'Haste: attack and cast speed'],
         'ferocity' => ['Ferocity', 'tempo', 'MEGA crit chance (curve) and crit damage'],
         'focus' => ['Focus', 'tempo', 'Cooldown recovery (curve)'],
         'vitality' => ['Vitality', 'defense', 'Max health'],
         'guard' => ['Guard', 'defense', 'Armor and block (curve)'],
         'agility' => ['Agility', 'defense', 'Dodge (curve)'],
+        'tenacity' => ['Tenacity', 'defense', 'Less damage taken from everything (curve)'],
         'spirit' => ['Spirit', 'sustain', 'Healing power'],
         'recovery' => ['Recovery', 'sustain', 'Health regen and healing received'],
         'resolve' => ['Resolve', 'sustain', 'Debuff and knockback resistance (curve)'],
+        'hunger' => ['Hunger', 'sustain', 'Lifesteal: damage you deal heals you (curve)'],
         'wisdom' => ['Wisdom', 'resources', 'Max mana and mana regen'],
         'stamina' => ['Stamina', 'resources', 'Max energy and energy regen'],
         'fury' => ['Fury', 'resources', 'Max rage and rage gained per hit'],
+        'thrift' => ['Thrift', 'resources', 'Skills cost less (curve)'],
         'presence' => ['Presence', 'group', 'Threat'],
         'command' => ['Command', 'group', 'Strength of buffs you give allies'],
         'fortune' => ['Fortune', 'group', 'Gold and materials (never item drops)'],
+        'lore' => ['Lore', 'group', 'More XP and Renown'],
+    ];
+
+    /**
+     * What every attribute does for each class on top of its own effect, so no attribute is useful to one class only.
+     *   stat/type => [key => v]   v at one point per level in that attribute (it grows with points, shrinks with level)
+     *   as => [attr => f]         that share of the attribute also counts as another attribute
+     */
+    public const TWISTS = [
+        'guardian' => [
+            'might' => ['stat' => ['threat' => 0.25]], 'arcana' => ['stat' => ['block' => 0.10]], 'precision' => ['stat' => ['rageGain' => 0.20]],
+            'insight' => ['type' => ['aoe' => 0.20]], 'swiftness' => ['stat' => ['threat' => 0.15]], 'ferocity' => ['type' => ['strike' => 0.20]],
+            'focus' => ['type' => ['wall' => 0.25]], 'vitality' => ['stat' => ['regen' => 0.40]], 'guard' => ['type' => ['strike' => 0.12]],
+            'agility' => ['stat' => ['block' => 0.08]], 'tenacity' => ['stat' => ['threat' => 0.15]], 'spirit' => ['stat' => ['healRecv' => 0.15]],
+            'recovery' => ['stat' => ['taken' => 0.05]], 'resolve' => ['stat' => ['hp' => 0.08]], 'hunger' => ['stat' => ['rageGain' => 0.15]],
+            'wisdom' => ['stat' => ['cdr' => 0.08]], 'stamina' => ['stat' => ['hp' => 0.06]], 'fury' => ['stat' => ['dmg' => 0.12]],
+            'thrift' => ['stat' => ['cdr' => 0.06]], 'presence' => ['stat' => ['taken' => 0.04]], 'command' => ['type' => ['shield' => 0.25]],
+            'fortune' => ['stat' => ['crit' => 0.05]], 'lore' => ['stat' => ['hp' => 0.05]],
+        ],
+        'warden' => [
+            'might' => ['stat' => ['regen' => 0.30]], 'arcana' => ['type' => ['aoe' => 0.20]], 'precision' => ['stat' => ['threat' => 0.15]],
+            'insight' => ['type' => ['wall' => 0.25]], 'swiftness' => ['type' => ['hot' => 0.20]], 'ferocity' => ['type' => ['aoe' => 0.15]],
+            'focus' => ['type' => ['shield' => 0.20]], 'vitality' => ['type' => ['hot' => 0.25]], 'guard' => ['stat' => ['regen' => 0.25]],
+            'agility' => ['stat' => ['taken' => 0.04]], 'tenacity' => ['stat' => ['regen' => 0.25]], 'spirit' => ['as' => ['recovery' => 0.5]],
+            'recovery' => ['stat' => ['hp' => 0.06]], 'resolve' => ['stat' => ['regen' => 0.25]], 'hunger' => ['stat' => ['threat' => 0.15]],
+            'wisdom' => ['type' => ['shield' => 0.15]], 'stamina' => ['stat' => ['dodge' => 0.05]], 'fury' => ['stat' => ['threat' => 0.20]],
+            'thrift' => ['stat' => ['rageGain' => 0.15]], 'presence' => ['stat' => ['hp' => 0.05]], 'command' => ['stat' => ['healRecv' => 0.12]],
+            'fortune' => ['stat' => ['dodge' => 0.04]], 'lore' => ['stat' => ['regen' => 0.20]],
+        ],
+        'cleric' => [
+            'might' => ['as' => ['spirit' => 0.4]], 'arcana' => ['type' => ['shield' => 0.20]], 'precision' => ['type' => ['heal' => 0.15]],
+            'insight' => ['stat' => ['cdr' => 0.06]], 'swiftness' => ['type' => ['groupheal' => 0.15]], 'ferocity' => ['stat' => ['critDmg' => 0.15]],
+            'focus' => ['stat' => ['resRegen' => 0.15]], 'vitality' => ['stat' => ['heal' => 0.06]], 'guard' => ['stat' => ['taken' => 0.05]],
+            'agility' => ['stat' => ['threat' => -0.20]], 'tenacity' => ['stat' => ['resRegen' => 0.10]], 'spirit' => ['type' => ['hot' => 0.10]],
+            'recovery' => ['type' => ['hot' => 0.15]], 'resolve' => ['stat' => ['resRegen' => 0.12]], 'hunger' => ['stat' => ['heal' => 0.05]],
+            'wisdom' => ['stat' => ['heal' => 0.06]], 'stamina' => ['stat' => ['resRegen' => 0.15]], 'fury' => ['stat' => ['crit' => 0.05]],
+            'thrift' => ['type' => ['groupheal' => 0.15]], 'presence' => ['type' => ['shield' => 0.15]], 'command' => ['type' => ['groupheal' => 0.20]],
+            'fortune' => ['stat' => ['resRegen' => 0.10]], 'lore' => ['type' => ['heal' => 0.10]],
+        ],
+        'druid' => [
+            'might' => ['type' => ['pet' => 0.25]], 'arcana' => ['as' => ['spirit' => 0.4]], 'precision' => ['type' => ['hot' => 0.15]],
+            'insight' => ['type' => ['groupheal' => 0.15]], 'swiftness' => ['stat' => ['resRegen' => 0.12]], 'ferocity' => ['type' => ['pet' => 0.20]],
+            'focus' => ['type' => ['hot' => 0.20]], 'vitality' => ['type' => ['shield' => 0.20]], 'guard' => ['type' => ['shield' => 0.15]],
+            'agility' => ['stat' => ['dodge' => 0.06]], 'tenacity' => ['stat' => ['heal' => 0.05]], 'spirit' => ['type' => ['groupheal' => 0.10]],
+            'recovery' => ['as' => ['spirit' => 0.3]], 'resolve' => ['stat' => ['taken' => 0.04]], 'hunger' => ['stat' => ['regen' => 0.30]],
+            'wisdom' => ['type' => ['hot' => 0.10]], 'stamina' => ['stat' => ['haste' => 0.06]], 'fury' => ['type' => ['strike' => 0.25]],
+            'thrift' => ['stat' => ['resRegen' => 0.12]], 'presence' => ['type' => ['pet' => 0.20]], 'command' => ['type' => ['hot' => 0.20]],
+            'fortune' => ['stat' => ['heal' => 0.04]], 'lore' => ['type' => ['heal' => 0.10]],
+        ],
+        'ranger' => [
+            'might' => ['type' => ['pet' => 0.15]], 'arcana' => ['type' => ['dot' => 0.25]], 'precision' => ['type' => ['mark' => 0.25]],
+            'insight' => ['type' => ['mark' => 0.20]], 'swiftness' => ['type' => ['strike' => 0.10]], 'ferocity' => ['type' => ['pet' => 0.20]],
+            'focus' => ['type' => ['aoe' => 0.20]], 'vitality' => ['stat' => ['dmg' => 0.05]], 'guard' => ['stat' => ['taken' => 0.04]],
+            'agility' => ['stat' => ['crit' => 0.05]], 'tenacity' => ['stat' => ['dodge' => 0.04]], 'spirit' => ['type' => ['pet' => 0.25]],
+            'recovery' => ['stat' => ['regen' => 0.30]], 'resolve' => ['stat' => ['dmg' => 0.04]], 'hunger' => ['type' => ['dot' => 0.20]],
+            'wisdom' => ['stat' => ['cdr' => 0.08]], 'stamina' => ['stat' => ['haste' => 0.06]], 'fury' => ['stat' => ['critDmg' => 0.15]],
+            'thrift' => ['stat' => ['haste' => 0.05]], 'presence' => ['stat' => ['threat' => -0.25]], 'command' => ['stat' => ['dmg' => 0.06]],
+            'fortune' => ['stat' => ['crit' => 0.06]], 'lore' => ['stat' => ['critDmg' => 0.10]],
+        ],
+        'mage' => [
+            'might' => ['type' => ['aoe' => 0.20]], 'arcana' => ['stat' => ['critDmg' => 0.10]], 'precision' => ['type' => ['dot' => 0.20]],
+            'insight' => ['stat' => ['crit' => 0.05]], 'swiftness' => ['stat' => ['cdr' => 0.06]], 'ferocity' => ['type' => ['aoe' => 0.15]],
+            'focus' => ['type' => ['buff' => 0.25]], 'vitality' => ['as' => ['arcana' => 0.2]], 'guard' => ['stat' => ['taken' => 0.05]],
+            'agility' => ['stat' => ['haste' => 0.05]], 'tenacity' => ['stat' => ['dmg' => 0.04]], 'spirit' => ['stat' => ['resRegen' => 0.15]],
+            'recovery' => ['stat' => ['resRegen' => 0.10]], 'resolve' => ['stat' => ['dmg' => 0.05]], 'hunger' => ['type' => ['dot' => 0.20]],
+            'wisdom' => ['stat' => ['dmg' => 0.05]], 'stamina' => ['stat' => ['haste' => 0.05]], 'fury' => ['stat' => ['crit' => 0.06]],
+            'thrift' => ['stat' => ['dmg' => 0.05]], 'presence' => ['stat' => ['threat' => -0.25]], 'command' => ['type' => ['buff' => 0.20]],
+            'fortune' => ['stat' => ['critDmg' => 0.10]], 'lore' => ['stat' => ['cdr' => 0.05]],
+        ],
+        'rogue' => [
+            'might' => ['type' => ['dot' => 0.15]], 'arcana' => ['type' => ['dot' => 0.25]], 'precision' => ['stat' => ['critDmg' => 0.10]],
+            'insight' => ['type' => ['aoe' => 0.20]], 'swiftness' => ['type' => ['strike' => 0.10]], 'ferocity' => ['stat' => ['crit' => 0.05]],
+            'focus' => ['type' => ['buff' => 0.25]], 'vitality' => ['stat' => ['dodge' => 0.04]], 'guard' => ['stat' => ['dodge' => 0.05]],
+            'agility' => ['stat' => ['dmg' => 0.06]], 'tenacity' => ['stat' => ['dodge' => 0.05]], 'spirit' => ['stat' => ['regen' => 0.30]],
+            'recovery' => ['stat' => ['dodge' => 0.04]], 'resolve' => ['stat' => ['crit' => 0.04]], 'hunger' => ['type' => ['strike' => 0.15]],
+            'wisdom' => ['type' => ['dot' => 0.15]], 'stamina' => ['stat' => ['dmg' => 0.05]], 'fury' => ['stat' => ['critDmg' => 0.15]],
+            'thrift' => ['stat' => ['haste' => 0.06]], 'presence' => ['stat' => ['threat' => -0.30]], 'command' => ['type' => ['strike' => 0.12]],
+            'fortune' => ['stat' => ['crit' => 0.05]], 'lore' => ['stat' => ['crit' => 0.04]],
+        ],
     ];
 
     public const POINTS_PER_LEVEL = 6;
@@ -267,6 +350,8 @@ final class Rules
         'spirit' => ['pre', 'Blessed'], 'recovery' => ['suf', 'of Mending'], 'resolve' => ['pre', 'Resolute'],
         'wisdom' => ['suf', 'of the Sage'], 'stamina' => ['pre', 'Tireless'], 'fury' => ['pre', 'Furious'],
         'presence' => ['pre', 'Imposing'], 'command' => ['suf', 'of Command'], 'fortune' => ['pre', 'Lucky'],
+        'insight' => ['suf', 'of Insight'], 'tenacity' => ['pre', 'Unyielding'], 'hunger' => ['pre', 'Ravenous'],
+        'thrift' => ['suf', 'of Thrift'], 'lore' => ['suf', 'of Lore'],
     ];
 
     public const RARITIES = [

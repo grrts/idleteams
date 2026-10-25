@@ -11,17 +11,25 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 
 - Create an account and a hero: race, class and Origin (each with pre-spent points and a passive), and a look.
   The creator shows the hero in plain clothes; gear comes from play.
-- Hero sheet: 18 attributes with a breakdown of where every point comes from, the soft cap, combat stats and
+- Hero sheet: 23 attributes with a breakdown of where every point comes from, the soft cap, combat stats and
   the percentage curves. Path at level 10, the Oath at 20 (seals the Path and carves in spent points),
   permanent Keystones at 15, 25, 35, 45 and every 25 levels after 50. Levels are uncapped.
 - Skills: ranks (one point per level), a loadout of five, ultimate at 20, two more class skills at 12 and 16.
-- Talents: one talent point per level from 2. Every class has a tree that starts from one root and branches out
-  into ten directions of four nodes each (minor, minor, a notable that needs 6 points in the tree, a capstone that
-  needs 15). Many notables and capstones teach a new skill. Resetting costs gold.
-- Heritage: every race has a tree with a shared trunk and three cultures (for example Ironhold, Brewhall and
-  Runedeep for dwarves). Follow one culture to open its branch. Heritage ranks come from Renown, which runs pay
-  mostly for kin: every other hero of your race adds Renown, more if they follow your culture. Kin in the group
-  also give a combat bonus through Kinship nodes. Changing culture costs gold and refunds its points.
+- Talents: two talent points per level from 2. Every class has a map of 1,661 nodes: one root, ten branches,
+  each with seven lanes thirty rings deep. Lanes link along their length and across at every fifth ring, and
+  neighbouring branches link at their hubs, so builds can cross over. A branch teaches a skill (or grants a
+  capstone) at ring 15 and ends in a mastery at ring 30; the outer lanes end in twenty trade-off keystones.
+  Learn any node next to one you have, or learn the whole path to a far node in one go. The map pans, zooms
+  and searches. Resetting costs gold.
+- Heritage: every race has a map of 1,201 nodes: three trunk branches and three cultures (for example Ironhold,
+  Brewhall and Runedeep for dwarves) of three branches each, five lanes twenty-four rings deep. Follow one
+  culture to open its branches. Heritage ranks come from Renown, which runs pay mostly for kin: every other hero
+  of your race adds Renown, more if they follow your culture. Each rank gives two points. Kin in the group also
+  give a combat bonus through Kinship nodes (capped at 30%). Changing culture costs gold and refunds its points.
+- Attributes: every attribute does something for every class. Besides its own effect, each one has a class
+  effect (for example Arcana raises a guardian's block, Might adds to a cleric's healing), shown on the hero
+  sheet. New: Insight (raises Might, Arcana and Spirit), Tenacity (less damage taken), Hunger (lifesteal),
+  Thrift (cheaper skills) and Lore (more XP and Renown).
 - Gear: wear anything (nothing binds), temper, socket glyphs for Resonance at 3/6/9, imprint Codex powers,
   reforge from level 50, salvage, craft, give to another player, sell on the market.
 - Group: start a group or join one from the tavern board, invite heroes, set the dungeon level, rest.
@@ -98,7 +106,8 @@ a database and cron.
 | Where | What |
 | --- | --- |
 | `src/Game/Rules.php` | All static game data: attributes, races, classes, Origins, skills, Keystones, slots, glyphs, powers |
-| `src/Game/Talents.php`, `Heritage.php` | The class talent trees and the race and culture Heritage trees, with Renown |
+| `src/Game/TreeMap.php` | Builds the radial node maps, checks them and finds paths |
+| `src/Game/Talents.php`, `Heritage.php` | The class talent maps and the race and culture Heritage maps, with Renown. The client loads a map from `GET /api/tree/{talent\|heritage}/{key}` |
 | `src/Game/Stats.php` | Build → attributes (with sources) → combat stats; the percentage curve and soft cap |
 | `src/Game/Items.php` | Item and glyph generation, names, tempering and salvage values |
 | `src/Game/Simulator.php` | The deterministic battle simulation (packs, the Ember Golem, mechanics, AI, timeline for playback) |
@@ -113,9 +122,11 @@ a database and cron.
 ## Balance notes
 
 `app:balance` shows where tuning stands. A balanced group (guardian, cleric, ranger, mage, rogue) clears the
-whole dungeon at levels 1 to 50. Groups without a tank or a healer fail, as intended. Known gaps: a Warden plus
-Druid group falls behind on damage at level 50, and level 80+ needs another pass once gear past 50 is
-designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+whole dungeon at levels 1 to 65, 85% at 80, 95% at 100 and all of it at 120. Enemy health follows the reference
+group's damage with talents; enemy hits follow its health and healing without them, so defensive talents make
+a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
+intended. Known gaps: a Warden plus Druid group falls behind on damage from level 50, and level 80+ needs
+another pass once gear past 50 is designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Browser build
 

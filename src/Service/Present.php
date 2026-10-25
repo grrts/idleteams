@@ -43,7 +43,8 @@ class Present
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => ['name' => Simulator::DUNGEON_NAME, 'plan' => Simulator::DUNGEON], 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
-            'talentTrees' => Talents::trees(), 'heritageTrees' => Heritage::trees(), 'talentNeed' => Talents::NEED,
+            'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
+            'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }
@@ -82,8 +83,13 @@ class Present
             $skills[] = [
                 'id' => $id, 'name' => $s[0], 'level' => $s[1], 'type' => $s[2], 'mult' => $s[3], 'cost' => $s[4], 'cd' => $s[5],
                 'opts' => $s[6], 'source' => $s[7], 'rank' => max(1, $h->skillRanks[$id] ?? 1), 'talent' => $teachers[$id] ?? null,
+                'talentName' => isset($teachers[$id]) ? Talents::tree($h->cls)['nodes'][$teachers[$id]]['name'] : null,
                 'unlocked' => $s[7] === 'ultimate' ? $L >= Rules::ULTIMATE_LEVEL : isset($avail[$id]),
             ];
+        }
+        $twists = [];
+        foreach (Stats::twists($h->cls, Stats::effective($attrs['total']), $L) as $a => [$now, $per]) {
+            $twists[$a] = ['per' => $per, 'now' => isset(Rules::TWISTS[$h->cls][$a]['as']) ? $per : Talents::describe($now)];
         }
         $rank = $h->heritageRank();
         $others = [];
@@ -108,7 +114,11 @@ class Present
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
             'resonance' => Stats::resonance($build['items']), 'guildRank' => $h->guildRank,
+            'twists' => $twists,
             'talents' => (object) $h->talents, 'talentPoints' => ['total' => Talents::points($L), 'free' => $h->talentPoints()],
+            'talentTotal' => Talents::describe(Talents::total(Talents::tree($h->cls), $h->talents), 1, $h->cls),
+            'heritageTotal' => Talents::describe(Talents::total(Heritage::tree($h->race), $h->heritage)),
+            'treeVersion' => Talents::VERSION,
             'talentResetCost' => HeroActions::talentResetCost($h),
             'heritage' => (object) $h->heritage,
             'renown' => ['total' => $h->renown, 'rank' => $rank, 'from' => Heritage::renownFor($rank), 'to' => Heritage::renownFor($rank + 1), 'free' => $h->heritagePoints(), 'kin' => Heritage::kin($h->race, $h->culture, $others)],

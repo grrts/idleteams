@@ -186,7 +186,7 @@ final class Simulator
                     $others[] = [$x['race'], $x['culture']];
                 }
             }
-            $f = 1 + $h['s']['kin'] * Heritage::kin($h['race'], $h['culture'], $others);
+            $f = 1 + min(Heritage::KIN_CAP, $h['s']['kin'] * Heritage::kin($h['race'], $h['culture'], $others));
             foreach (['might', 'arcana', 'spirit'] as $p) {
                 $this->h[$i]['s'][$p] *= $f;
             }
@@ -443,9 +443,11 @@ final class Simulator
         if ($t >= $this->mech['rain']) {
             $this->mech['rain'] += 9;
             $this->emit('mech', -1, -1, 0, 0, ['name' => 'Magma Rain']);
+            // Scaled from healing, but never past a share of a hero's health: big heals must not mean one-shots.
+            $rain = min($ref['hps'] * 0.30 * 9 / 5, $ref['avgHp'] * 0.35 * (1 - $ref['avgDr'] * 0.5)) * $f * $m / (1 - $ref['avgDr'] * 0.5);
             foreach ($this->h as $i => $h) {
                 if (!$h['dead']) {
-                    $this->damageHero($i, $ref['hps'] * 0.30 * 9 / 5 * $f * $m / (1 - $ref['avgDr'] * 0.5), ['fire' => true, 'magic' => true, 'src' => $boss['id'], 'what' => 'Magma Rain']);
+                    $this->damageHero($i, $rain, ['fire' => true, 'magic' => true, 'src' => $boss['id'], 'what' => 'Magma Rain']);
                 }
             }
         }
@@ -994,6 +996,12 @@ final class Simulator
         }
         $bt = $this->ks($h, 'bloodthirst') && $crit ? $dmg * 0.05 : 0;
         $bc = $this->ks($h, 'battleCleric') && empty($o['auto']) ? $dmg * 0.5 : 0;
+        // Lifesteal heals quietly: no event per hit, so the timeline stays small.
+        if (($h['s']['lifesteal'] ?? 0) > 0 && !$h['dead']) {
+            $ls = min($h['s']['maxHp'] - $h['hp'], $dmg * $h['s']['lifesteal'] * $h['s']['healRecv']);
+            $h['hp'] += $ls;
+            $this->report[$i]['healing'] += $ls;
+        }
         unset($h, $e);
         if ($bt > 0) {
             $this->heal($i, $i, $bt, false);

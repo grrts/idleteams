@@ -239,6 +239,9 @@
   }
 
   function render() {
+    // Mid-drag on a map: wait, so the page does not move under the finger.
+    if (S.mapDrag) { S.renderPending = true; return; }
+    S.renderPending = false;
     const app = $('#app');
     const keepScroll = $('.msgs') ? $('.msgs').scrollTop : null;
     keepInputs(app, () => {
@@ -247,6 +250,7 @@
       else app.innerHTML = shell();
     });
     hydrate(app);
+    mountMaps();
     const msgs = $('.msgs');
     if (msgs) msgs.scrollTop = keepScroll != null && !S.chatJump ? keepScroll : msgs.scrollHeight;
     S.chatJump = false;
@@ -466,7 +470,7 @@
         attrs += '<div class="attr"><span class="n" data-act="attrOpen" data-a="' + a + '">' + attrName(a) + (mine ? ' <small>(' + mine + ' yours' + (lock ? ', ' + lock + ' carved' : '') + ')</small>' : '') + '</span>' +
           '<span class="v' + (over ? ' bad' : '') + '">' + fmt(h.attributes[a]) + '</span><span class="btns"><button class="small" data-act="spend" data-a="' + a + '" data-n="-1" ' + (mine > lock ? '' : 'disabled') + ' aria-label="Take a point back">−</button><button class="small" data-act="spend" data-a="' + a + '" data-n="1" ' + (h.points.unspent > 0 ? '' : 'disabled') + ' aria-label="Spend a point">+</button><button class="small" data-act="spend" data-a="' + a + '" data-n="5" ' + (h.points.unspent >= 5 ? '' : 'disabled') + '>+5</button></span>' +
           '<span class="bar"><i style="width:' + (100 * h.attributes[a]) / maxA + '%;background:linear-gradient(90deg,var(--ember2),var(--ember))"></i></span>' +
-          '<span class="d">' + esc(cfg.attributes[a][2]) + (S.attrOpen === a ? '<br>' + (h.sources[a] || []).map(([f, n]) => esc(f) + ' +' + n).join(' · ') + (over ? '<br><span class="bad">Past the soft cap: counts as ' + fmt(h.effective[a]) + '</span>' : '') : '') + '</span></div>';
+          '<span class="d">' + esc(cfg.attributes[a][2]) + (h.twists && h.twists[a] ? '<span class="twist"> · ' + esc(className(h.cls)) + ': ' + esc(h.twists[a].per) + (S.attrOpen === a && h.twists[a].now !== h.twists[a].per && h.twists[a].now ? '. Now ' + esc(h.twists[a].now) : '') + '</span>' : '') + (S.attrOpen === a ? '<br>' + (h.sources[a] || []).map(([f, n]) => esc(f) + ' +' + n).join(' · ') + (over ? '<br><span class="bad">Past the soft cap: counts as ' + fmt(h.effective[a]) + '</span>' : '') : '') + '</span></div>';
       });
     });
     const res = { mana: 'Mana', energy: 'Energy', rage: 'Rage' }[st.resource];
@@ -500,7 +504,7 @@
       '<div class="row">' + (marks || '<span class="muted small">No Marks yet. Marks are earned in battle and shown on your card.</span>') + '</div>' +
       '<div class="small muted">' + (career.battles || 0) + ' runs · ' + (career.dungeons || 0) + ' clears · ' + (career.bossKills || 0) + ' bosses · ' + (career.deaths || 0) + ' deaths · Codex ' + h.codexPowers.length + ' of ' + Object.keys(cfg.powers).length + '</div></div></div>' +
       '<div class="panel"><div class="head"><h2>Attributes</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.points.unspent + '</span> <span class="muted small">unspent of ' + h.points.total + '</span></span><button class="small' + (h.points.unspent ? ' primary' : '') + '" data-act="autoSpend" ' + (h.points.unspent ? '' : 'disabled') + '>Spend the suggested way</button></div></div>' +
-      '<p class="small muted">Everything comes from attributes and gear, ' + cfg.pointsPerLevel + ' points per level. Percentage stats follow a curve that gets steep around 50% and never reaches 100%. One attribute above ' + Math.round(cfg.softCapShare * 100) + '% of all your points counts half past that line. Tap an attribute to see where its points come from.</p><div class="attrs">' + attrs + '</div></div>' +
+      '<p class="small muted">Everything comes from attributes and gear, ' + cfg.pointsPerLevel + ' points per level. Percentage stats follow a curve that gets steep around 50% and never reaches 100%. One attribute above ' + Math.round(cfg.softCapShare * 100) + '% of all your points counts half past that line. Every attribute also does something for your class, shown in gold, so none is wasted on you. Tap an attribute to see where its points come from and what its class effect gives you now.</p><div class="attrs">' + attrs + '</div></div>' +
       '<div class="panel"><h2>Combat stats</h2><div class="statstrip">' + stats + '</div></div>' +
       '<div class="panel"><div class="head"><h2>Curves</h2><span class="small muted">Points needed = K × p / (1 − p)², K = ' + h.k.toFixed(1) + ' at your level. The green dot is you.</span></div><div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' + curves + '</div></div>' +
       '<div class="panel"><h2>Path</h2>' + path + '</div>' +
@@ -537,7 +541,7 @@
       (ult ? '<div class="aslot">' + (ult.unlocked ? skillIcon(ult, ult.rank) : '<span class="sk empty">' + ico('lock') + '</span>') + '<span class="gold">' + esc(ult.name) + '</span></div>' : '');
     const card = (s) => {
       const locked = !s.unlocked, isUlt = s.source === 'ultimate';
-      const tnode = s.talent ? cfg.talentTrees[h.cls].nodes[s.talent] : null;
+      const tnode = s.talent ? { name: s.talentName } : null;
       const src = s.source === 'core' ? '' : isUlt ? '<span class="chip gold">Ultimate</span>' : s.source === 'talent' ? '<span class="chip talent" data-act="tjump" data-id="' + s.talent + '">' + ico('talents') + 'Talent</span>' : '<span class="chip">' + esc(cfg.classes[h.cls].paths[s.source][0]) + ' path</span>';
       return '<div class="panel tight skill' + (locked ? ' locked' : '') + '">' + skillIcon(s) + '<div class="info"><div class="row between"><b class="' + (inLoadout.has(s.id) ? 'gold' : '') + '">' + esc(s.name) + '</b>' + src + '</div>' +
         '<div class="small muted">' + (locked ? ico('lock') + (tnode ? ' Learn ' + esc(tnode.name) + ' in your talents' : ' Unlocks at level ' + s.level + (s.source !== 'core' && !isUlt ? ' on this Path' : '')) : cap(s.type)) + (s.cost ? ' · ' + s.cost + ' ' + cfg.classes[h.cls].resource : '') + (s.cd ? ' · ' + s.cd + 's cooldown' : '') + '</div>' +
@@ -549,119 +553,288 @@
       '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">' + h.skills.map(card).join('') + '</div></div>';
   }
 
-  // ------------------------------------------------------------------ talents and heritage
+  // ------------------------------------------------------------------ talent and heritage maps
 
   // One pixel glyph per node, picked from what the node does.
   const ATTR_GLYPH = { offense: 'strike', tempo: 'buff', defense: 'wall', sustain: 'heal', resources: 'hot', group: 'taunt' };
-  const STAT_GLYPH = { dmg: 'strike', crit: 'mark', critDmg: 'strike', heal: 'heal', healRecv: 'heal', regen: 'hot', hp: 'wall', taken: 'wall', block: 'wall', dodge: 'vanish', threat: 'taunt', haste: 'buff', cdr: 'buff', resRegen: 'hot', rageGain: 'dot', fortune: 'mark', xp: 'mark' };
+  const STAT_GLYPH = { dmg: 'strike', crit: 'mark', critDmg: 'strike', heal: 'heal', healRecv: 'heal', regen: 'hot', hp: 'wall', taken: 'wall', block: 'wall', dodge: 'vanish', threat: 'taunt', haste: 'buff', cdr: 'buff', resRegen: 'hot', rageGain: 'dot', fortune: 'mark', xp: 'mark', lifesteal: 'dot' };
   function nodeGlyph(n, cls) {
-    const e = n.effect;
-    if (e.grant) return ((S.cfg.classes[cls] || {}).allSkills[e.grant] || [])[2] || 'strike';
+    const e = n.effect, all = (S.cfg.classes[cls] || {}).allSkills || {};
+    if (e.grant) return (all[e.grant] || [])[2] || 'strike';
+    if (e.skill) return (all[Object.keys(e.skill)[0]] || [])[2] || 'strike';
     if (e.type) return Object.keys(e.type)[0];
-    if (e.skill) return ((S.cfg.classes[cls] || {}).allSkills || {})[Object.keys(e.skill)[0]]?.[2] || 'strike';
     if (e.kin) return 'groupheal';
     if (e.cost) return 'buff';
     if (e.stat) return STAT_GLYPH[Object.keys(e.stat)[0]] || 'buff';
     if (e.attr) return ATTR_GLYPH[S.cfg.attributes[Object.keys(e.attr)[0]][1]] || 'buff';
     return 'buff';
   }
-  const KIND = { root: 'Root', minor: 'Minor', notable: 'Notable', capstone: 'Capstone' };
-  // State of a node for the hero: learned, open (can be learned now), next (path is open, needs points) or locked.
-  function nodeState(tree, have, n, free, culture) {
-    const r = have[n.id] || 0;
-    if (r >= n.max) return 'full';
-    const reqOk = !n.req || (have[n.req] || 0) > 0, cultureOk = n.culture === null || n.culture === culture;
-    if (!reqOk || !cultureOk) return r ? 'part' : 'locked';
-    const spent = Object.values(have).reduce((a, b) => a + b, 0);
-    if (spent < n.need) return r ? 'part' : 'gated';
-    return free > 0 ? (r ? 'part open' : 'open') : r ? 'part' : 'next';
+  const KIND = { root: 'Root', minor: 'Minor', notable: 'Notable', capstone: 'Capstone', keystone: 'Keystone' };
+  const learned = (have, id) => (have[id] || 0) > 0;
+  const cultureOk = (n, culture) => n.culture === null || n.culture === culture;
+  // Open: can be learned right now (touches something learned, or is the root of an empty map).
+  function nodeOpen(tree, have, id, culture) {
+    const n = tree.nodes[id];
+    if (learned(have, id) || !cultureOk(n, culture)) return false;
+    return id === tree.root ? true : n.links.some((l) => learned(have, l));
   }
+  // The shortest run of unlearned nodes from what is learned to the target (TreeMap::path on the server).
+  function mapPath(tree, have, target, culture) {
+    if (!tree.nodes[target]) return null;
+    if (learned(have, target)) return [];
+    const prev = new Map(), queue = Object.keys(have).filter((id) => learned(have, id) && tree.nodes[id]);
+    queue.forEach((id) => prev.set(id, false));
+    if (!queue.length) { if (target === tree.root) return [tree.root]; prev.set(tree.root, false); queue.push(tree.root); }
+    for (let i = 0; i < queue.length; i++) {
+      for (const l of tree.nodes[queue[i]].links) {
+        if (prev.has(l) || !cultureOk(tree.nodes[l], culture)) continue;
+        prev.set(l, queue[i]);
+        if (l === target) { const p = []; for (let x = l; x !== false && !learned(have, x); x = prev.get(x)) p.push(x); return p.reverse(); }
+        queue.push(l);
+      }
+    }
+    return null;
+  }
+
+  // Maps hold over a thousand nodes, so each is drawn once into an SVG that is kept between renders and only
+  // repainted: classes change, the DOM does not. Pan by dragging, zoom with the wheel, pinch or the buttons.
+  const MAPS = {};
+  async function loadMap(kind, key) {
+    const id = kind + ':' + key;
+    if (MAPS[id] || MAPS[id + '?']) return;
+    MAPS[id + '?'] = true;
+    try { MAPS[id] = buildMap(kind, await get('/tree/' + kind + '/' + key + '?v=' + (S.st.hero.treeVersion || 1))); } catch (e) { toast(e.message); } finally { delete MAPS[id + '?']; }
+    render();
+  }
+  const SHAPE = {
+    root: (c) => '<circle r="26" class="mb"/>',
+    minor: () => '<circle r="7" class="mb"/>',
+    notable: () => '<circle r="12" class="mb"/>',
+    capstone: () => '<polygon class="mb" points="' + Array.from({ length: 6 }, (_, k) => { const t = (Math.PI / 3) * k + Math.PI / 6; return (Math.cos(t) * 18).toFixed(1) + ',' + (Math.sin(t) * 18).toFixed(1); }).join(' ') + '"/>',
+    keystone: () => '<rect class="mb" x="-12" y="-12" width="24" height="24" rx="3" transform="rotate(45)"/>',
+  };
+  const ICON = { root: 30, notable: 15, capstone: 22, keystone: 18 };
+  function buildMap(kind, tree) {
+    const size = tree.size, cls = S.st.hero.cls, col = { root: '#ffd25a' }, branchOf = {};
+    tree.branches.forEach((b) => b[5].forEach((id) => { col[id] = b[3]; branchOf[id] = b; }));
+    const shape = S.cfg.treeShape[kind], nb = tree.branches.length;
+    let deco = '', edges = '', nodes = '', labels = '';
+    for (let d = shape.hub; d <= shape.depth; d += shape.hub) deco += '<circle class="mring" r="' + (70 + 34 * d) + '"/>';
+    tree.branches.forEach((b, k) => {
+      const a = -Math.PI / 2 + (k * 2 * Math.PI) / nb, half = Math.PI / nb, r0 = 60, r1 = size - 40;
+      const p = (r, t) => (Math.cos(t) * r).toFixed(0) + ' ' + (Math.sin(t) * r).toFixed(0);
+      deco += '<path class="mwedge" style="--c:' + b[3] + '" d="M' + p(r0, a - half) + ' L' + p(r1, a - half) + ' A' + r1 + ' ' + r1 + ' 0 0 1 ' + p(r1, a + half) + ' L' + p(r0, a + half) + ' A' + r0 + ' ' + r0 + ' 0 0 0 ' + p(r0, a - half) + 'Z" data-tint="' + b[0] + '"/>';
+      const lr = size - 22, lx = Math.cos(a) * lr, ly = Math.sin(a) * lr;
+      labels += '<text class="mlab" x="' + lx.toFixed(0) + '" y="' + (ly + 8).toFixed(0) + '" style="--c:' + b[3] + '" data-branch="' + b[0] + '">' + esc(b[1]) + '</text>';
+    });
+    const edgeList = [];
+    for (const [id, n] of Object.entries(tree.nodes)) {
+      for (const l of n.links) {
+        if (id > l) continue;
+        const m = tree.nodes[l];
+        edgeList.push([id, l]);
+        edges += '<line class="me" x1="' + n.x + '" y1="' + n.y + '" x2="' + m.x + '" y2="' + m.y + '" style="--c:' + (col[l] || col[id]) + '"/>';
+      }
+      const ic = ICON[n.kind];
+      nodes += '<g class="mn ' + n.kind + '" data-id="' + id + '" transform="translate(' + n.x + ' ' + n.y + ')" style="--c:' + col[id] + '"><title>' + esc(n.name + ': ' + n.desc) + '</title>' + SHAPE[n.kind]() +
+        (ic ? '<image href="' + ITA.skill(nodeGlyph(n, kind === 'talent' ? cls : null)) + '" x="' + -ic / 2 + '" y="' + -ic / 2 + '" width="' + ic + '" height="' + ic + '"/>' : '') + '</g>';
+    }
+    const host = document.createElement('div');
+    host.innerHTML = '<svg class="msvg" viewBox="' + -size + ' ' + -size + ' ' + 2 * size + ' ' + 2 * size + '" role="group" aria-label="' + (kind === 'talent' ? 'Talent map' : 'Heritage map') + '">' +
+      '<defs><radialGradient id="mglow-' + kind + '"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".20"/><stop offset=".5" stop-color="#ff8a2a" stop-opacity=".05"/><stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/></radialGradient></defs>' +
+      '<g class="vp"><circle r="' + size + '" fill="url(#mglow-' + kind + ')"/>' + deco + '<g class="medges">' + edges + '</g><g class="mnodes">' + nodes + '</g>' + labels + '</g></svg>';
+    const svg = host.firstChild, map = { kind, tree, svg, vp: svg.querySelector('.vp'), size, branchOf, view: { x: 0, y: 0, z: 2.4 }, els: {}, edges: [] };
+    svg.querySelectorAll('.mn').forEach((g) => { map.els[g.dataset.id] = g; });
+    svg.querySelectorAll('.me').forEach((el, k) => map.edges.push([el, ...edgeList[k]]));
+    map.tints = {}; svg.querySelectorAll('[data-tint]').forEach((el) => { map.tints[el.dataset.tint] = el; });
+    wireMap(map);
+    applyView(map);
+    return map;
+  }
+  function applyView(map) {
+    const v = map.view;
+    map.vp.setAttribute('transform', 'translate(' + v.x.toFixed(1) + ' ' + v.y.toFixed(1) + ') scale(' + v.z.toFixed(3) + ')');
+    map.svg.classList.toggle('far', v.z < 1.6);
+  }
+  function zoomAt(map, sx, sy, f) {
+    const v = map.view, z = Math.min(9, Math.max(0.9, v.z * f));
+    v.x = sx - ((sx - v.x) * z) / v.z; v.y = sy - ((sy - v.y) * z) / v.z; v.z = z;
+    applyView(map);
+  }
+  function centerOn(map, id, z) {
+    const n = map.tree.nodes[id];
+    if (!n) return;
+    if (z) map.view.z = z;
+    map.view.x = -n.x * map.view.z; map.view.y = -n.y * map.view.z;
+    applyView(map);
+  }
+  function svgPoint(map, cx, cy) {
+    const m = map.svg.getScreenCTM();
+    if (!m) return { x: 0, y: 0 };
+    const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
+    return { x: p.x, y: p.y };
+  }
+  function wireMap(map) {
+    const svg = map.svg, pts = new Map();
+    let moved = 0, down = null, pinch = null;
+    svg.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, svgPoint(map, e.clientX, e.clientY));
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* old browsers */ }
+      if (pts.size === 1) { moved = 0; down = e.target.closest('[data-id],[data-branch]'); }
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: map.view.z }; }
+      S.mapDrag = true;
+    });
+    svg.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      const p = svgPoint(map, e.clientX, e.clientY), last = pts.get(e.pointerId);
+      pts.set(e.pointerId, p);
+      if (pts.size === 1) {
+        map.view.x += p.x - last.x; map.view.y += p.y - last.y; moved += Math.abs(p.x - last.x) + Math.abs(p.y - last.y);
+        applyView(map);
+      } else if (pts.size === 2 && pinch) {
+        const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+        zoomAt(map, (a.x + b.x) / 2, (a.y + b.y) / 2, (pinch.z * d) / pinch.d / map.view.z);
+        moved += 99;
+      }
+    });
+    const up = (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = null;
+      if (pts.size) return;
+      S.mapDrag = false;
+      // Units are the map's own, so the click allowance grows when zoomed out.
+      if (moved < 12 && down && e.type === 'pointerup') {
+        if (down.dataset.id) mapSelect(map, down.dataset.id);
+        else if (down.dataset.branch) { const b = map.tree.branches.find((x) => x[0] === down.dataset.branch); if (b) { mapSelect(map, b[5][0]); centerOn(map, b[5][0], 2.6); } }
+      } else if (S.renderPending) render();
+      down = null;
+    };
+    svg.addEventListener('pointerup', up);
+    svg.addEventListener('pointercancel', up);
+    svg.addEventListener('wheel', (e) => { e.preventDefault(); const p = svgPoint(map, e.clientX, e.clientY); zoomAt(map, p.x, p.y, Math.exp(-e.deltaY * 0.0016)); }, { passive: false });
+  }
+  function mapSelect(map, id) {
+    if (map.kind === 'talent') S.tsel = id; else S.hsel = id;
+    render();
+  }
+  // Classes from the hero's state: learned, open, on the planned path, a search hit, another culture, selected.
+  function paintMap(map, have, culture, sel, path, query) {
+    const tree = map.tree, onPath = new Set(path || []), q = (query || '').trim().toLowerCase(), hits = [];
+    for (const [id, g] of Object.entries(map.els)) {
+      const n = tree.nodes[id], on = learned(have, id);
+      let c = 'mn ' + n.kind + (on ? ' on' : nodeOpen(tree, have, id, culture) ? ' open' : '') + (onPath.has(id) ? ' path' : '') + (id === sel ? ' sel' : '') + (cultureOk(n, culture) ? '' : ' oc');
+      if (q && (n.name.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q))) { c += ' hit'; hits.push(id); }
+      if (g.getAttribute('class') !== c) g.setAttribute('class', c);
+    }
+    for (const [el, a, b] of map.edges) {
+      const la = learned(have, a), lb = learned(have, b);
+      const c = 'me' + (la && lb ? ' lit' : (la || onPath.has(a)) && (lb || onPath.has(b)) ? ' path' : '');
+      if (el.getAttribute('class') !== c) el.setAttribute('class', c);
+    }
+    for (const [bid, el] of Object.entries(map.tints)) el.classList.toggle('oc', !!map.tree.branches.find((b) => b[0] === bid && b[4] !== null && b[4] !== culture));
+    map.svg.classList.toggle('searching', !!q);
+    return hits;
+  }
+  // Puts the kept SVG into the freshly rendered page.
+  function mountMaps() {
+    const host = $('#maphost');
+    if (!host) return;
+    const map = MAPS[host.dataset.map];
+    if (!map) return;
+    const h = S.st.hero, talent = map.kind === 'talent', have = (talent ? h.talents : h.heritage) || {}, sel = talent ? S.tsel : S.hsel;
+    const path = sel && !learned(have, sel) ? mapPath(map.tree, have, sel, talent ? null : h.culture) : null;
+    map.hits = paintMap(map, have, talent ? null : h.culture, sel, path, S.mapQuery && S.mapQuery[map.kind]);
+    host.appendChild(map.svg);
+    if (!map.placed) {
+      map.placed = true;
+      const any = Object.keys(have).find((id) => learned(have, id) && id !== map.tree.root);
+      centerOn(map, sel && map.tree.nodes[sel] ? sel : 'root', any ? 2.4 : 2.0);
+    }
+    if (S.mapFocus && map.tree.nodes[S.mapFocus]) { centerOn(map, S.mapFocus, Math.max(map.view.z, 2.6)); S.mapFocus = null; }
+    const cnt = $('#mapHits');
+    if (cnt) cnt.textContent = S.mapQuery && S.mapQuery[map.kind] ? map.hits.length + ' found' : '';
+  }
+
   function grantText(n) {
     const sk = n.effect.grant && S.cfg.classes[S.st.hero.cls].allSkills[n.effect.grant];
     if (!sk) return '';
     const o = { name: sk[0], type: sk[2], mult: sk[3], cost: sk[4], cd: sk[5], opts: sk[6] };
     return '<div class="row" style="margin-top:8px;gap:10px;align-items:flex-start">' + skillIcon(o) + '<div class="small"><b>' + esc(o.name) + '</b> · ' + cap(o.type) + (o.cost ? ' · ' + o.cost + ' ' + S.cfg.classes[S.st.hero.cls].resource : '') + (o.cd ? ' · ' + o.cd + 's cooldown' : '') + '<br>' + esc(skillText(o)) + '</div></div>';
   }
-  function nodeDetail(tree, have, id, free, culture, kindLabel, act, glyphCls) {
-    const n = tree.nodes[id], r = have[id] || 0, st = nodeState(tree, have, n, free, culture);
-    const spent = Object.values(have).reduce((a, b) => a + b, 0);
-    const why = st.includes('open') ? '' : r >= n.max ? 'Fully learned.' : n.req && !(have[n.req] > 0) ? 'Learn ' + esc(tree.nodes[n.req].name) + ' first.' : n.culture !== null && n.culture !== culture ? 'Follow this culture to learn it.' : spent < n.need ? 'Opens after ' + n.need + ' points in this tree (' + spent + ' now).' : 'No points left.';
-    return '<div class="tdetail"><div class="row" style="gap:12px;align-items:center"><span class="tmedal ' + n.kind + ' ' + st + '" style="--c:' + (glyphCls || 'var(--ember)') + '"><img alt="" src="' + ITA.skill(nodeGlyph(n, S.st.hero.cls)) + '"></span><div><div class="eyebrow">' + KIND[n.kind] + (kindLabel ? ' · ' + esc(kindLabel) : '') + '</div><h3>' + esc(n.name) + '</h3></div></div>' +
-      '<p style="margin-top:10px">' + esc(n.desc) + '.</p>' + grantText(n) +
-      (n.max > 1 ? '<div class="row" style="margin-top:8px"><span class="pips">' + Array.from({ length: n.max }, (_, k) => '<i class="' + (k < r ? 'on' : '') + '"></i>').join('') + '</span><span class="tiny muted">Rank ' + r + '/' + n.max + '</span></div>' : '') +
-      (why ? '<p class="small muted" style="margin-top:8px">' + (r >= n.max ? ico('star') : ico('lock')) + ' ' + why + '</p>' : '') +
-      (r < n.max ? '<button class="primary" style="margin-top:12px;width:100%" data-act="' + act + '" data-id="' + id + '" ' + (st.includes('open') ? '' : 'disabled') + '>' + (r ? 'Learn rank ' + (r + 1) : 'Learn') + '</button>' : '') + '</div>';
+  // The selected node: what it does, and the button that learns it (or the whole path to it).
+  function nodeDetail(map, have, id, free, culture, act) {
+    const tree = map.tree, n = tree.nodes[id], b = map.branchOf[id], col = b ? b[3] : '#ffd25a', on = learned(have, id);
+    const path = on ? [] : mapPath(tree, have, id, culture);
+    let why = '', btn = '';
+    if (on) why = ico('star') + ' Learned.';
+    else if (!cultureOk(n, culture)) why = ico('lock') + ' Follow ' + esc(tree.cultures[n.culture][0]) + ' to learn this.';
+    else if (!path) why = ico('lock') + ' Out of reach.';
+    else {
+      const need = path.length;
+      btn = '<button class="primary" style="margin-top:12px;width:100%" data-act="' + act + '" data-ids="' + path.join(' ') + '" ' + (need <= free ? '' : 'disabled') + '>' + (need === 1 ? 'Learn · 1 point' : 'Learn the path · ' + need + ' points') + '</button>';
+      if (need > free) why = ico('lock') + ' ' + (need === 1 ? 'Needs a point' : 'The path takes ' + need + ' points') + '; you have ' + free + '.';
+      else if (need > 1) why = 'Lights the ' + (need - 1) + ' node' + (need === 2 ? '' : 's') + ' on the way, shown on the map.';
+    }
+    return '<div class="tdetail"><div class="row" style="gap:12px;align-items:center"><span class="tmedal ' + n.kind + (on ? ' full' : path && path.length === 1 ? ' open' : '') + '" style="--c:' + col + '"><img alt="" src="' + ITA.skill(nodeGlyph(n, map.kind === 'talent' ? S.st.hero.cls : null)) + '"></span><div style="min-width:0"><div class="eyebrow">' + KIND[n.kind] + ' · ' + esc(b ? b[1] : 'Where every branch starts') + '</div><h3>' + esc(n.name) + '</h3></div></div>' +
+      '<p style="margin-top:10px">' + esc(n.desc) + '.</p>' + grantText(n) + (why ? '<p class="small muted" style="margin-top:8px">' + why + '</p>' : '') + btn +
+      '<button class="small" style="margin-top:8px" data-act="mapCenter" data-id="' + id + '">Show on map</button></div>';
   }
+  function mapPanel(kind, key, legend, detail) {
+    const q = (S.mapQuery && S.mapQuery[kind]) || '';
+    return '<div class="panel mapwrap"><div class="mapbar"><input id="mapq" data-map="' + kind + '" placeholder="Find: block, threat, Fireball…" value="' + esc(q) + '" aria-label="Find on the map"><span class="tiny muted" id="mapHits"></span>' +
+      '<button class="small" data-act="mapNext" data-map="' + kind + '" aria-label="Next match">Next</button><span style="flex:1"></span><button class="small" data-act="mapZoom" data-f="1.4" aria-label="Zoom in">+</button><button class="small" data-act="mapZoom" data-f="0.7" aria-label="Zoom out">−</button><button class="small" data-act="mapHome">Center</button></div>' +
+      '<div class="maphost" id="maphost" data-map="' + kind + ':' + key + '">' + (MAPS[kind + ':' + key] ? '' : '<div class="boot">Drawing the map…</div>') + (detail ? '<div class="mapdetail">' + detail + '</div>' : '') + '</div>' +
+      '<div class="maplegend tiny muted">' + legend + '</div></div>';
+  }
+  const LEGEND = '<span><i class="lg minor"></i>Minor</span><span><i class="lg notable"></i>Notable</span><span><i class="lg capstone"></i>Capstone</span><span><i class="lg on"></i>Learned</span><span><i class="lg open"></i>Can learn now</span><span><i class="lg path"></i>Path to the selected node</span>';
 
   function talentsView() {
-    const h = S.st.hero, cfg = S.cfg, tree = cfg.talentTrees[h.cls], have = h.talents || {}, free = h.talentPoints.free;
-    const sel = tree.nodes[S.tsel] ? S.tsel : 'root';
-    const STEP = [0, 118, 178, 240, 304];
-    const nb = tree.branches.length, pos = {}, branchOf = {};
-    pos.root = [0, 0];
-    tree.branches.forEach(([bid, , , col, ids], k) => {
-      const a = -Math.PI / 2 + (k * 2 * Math.PI) / nb;
-      ids.forEach((id, j) => { pos[id] = [Math.cos(a) * STEP[j + 1], Math.sin(a) * STEP[j + 1]]; branchOf[id] = k; });
-    });
-    let lines = '', nodes = '', labels = '';
-    tree.branches.forEach(([bid, name, , col, ids], k) => {
-      let prev = 'root';
-      ids.forEach((id) => {
-        const lit = (have[id] || 0) > 0, [x1, y1] = pos[prev], [x2, y2] = pos[id];
-        lines += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" class="tl' + (lit ? ' lit' : '') + '" style="--c:' + col + '"/>';
-        prev = id;
-      });
-      const a = -Math.PI / 2 + (k * 2 * Math.PI) / nb, lx = Math.cos(a) * 342, ly = Math.sin(a) * 342 + 6;
-      const pts = ids.reduce((t, id) => t + (have[id] || 0), 0);
-      labels += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" class="tlab" text-anchor="' + (Math.abs(lx) < 30 ? 'middle' : lx > 0 ? 'start' : 'end') + '" style="fill:' + (pts ? col : '') + '" data-act="tsel" data-id="' + ids[0] + '">' + esc(name) + (pts ? ' · ' + pts : '') + '</text>';
-    });
-    for (const [id, n] of Object.entries(tree.nodes)) {
-      const [x, y] = pos[id], col = id === 'root' ? '#ffd25a' : tree.branches[branchOf[id]][3], st = nodeState(tree, have, n, free, null), r = have[id] || 0;
-      const size = { root: 34, minor: 19, notable: 22, capstone: 27 }[n.kind];
-      const shape = n.kind === 'minor' || n.kind === 'root' ? '<circle r="' + size + '" class="tn"/>' : n.kind === 'notable' ? '<rect x="' + -size * 0.8 + '" y="' + -size * 0.8 + '" width="' + size * 1.6 + '" height="' + size * 1.6 + '" rx="4" transform="rotate(45)" class="tn"/>' : '<polygon points="' + Array.from({ length: 6 }, (_, k) => { const t = (Math.PI / 3) * k + Math.PI / 6; return (Math.cos(t) * size).toFixed(1) + ',' + (Math.sin(t) * size).toFixed(1); }).join(' ') + '" class="tn"/>';
-      const icon = size * 1.05;
-      nodes += '<g class="tnode ' + n.kind + ' ' + st + (sel === id ? ' sel' : '') + '" transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')" style="--c:' + col + '" data-act="tsel" data-id="' + id + '" tabindex="0" role="button" aria-label="' + esc(n.name) + '">' +
-        '<title>' + esc(n.name + ': ' + n.desc) + '</title>' + (st.includes('open') ? '<circle r="' + (size + 7) + '" class="halo"/>' : '') + shape +
-        '<image href="' + ITA.skill(nodeGlyph(n, h.cls)) + '" x="' + -icon / 2 + '" y="' + -icon / 2 + '" width="' + icon + '" height="' + icon + '"/>' +
-        (n.max > 1 ? '<text y="' + (size + 13) + '" class="trk">' + r + '/' + n.max + '</text>' : '') + '</g>';
+    const h = S.st.hero, cfg = S.cfg, have = h.talents || {}, free = h.talentPoints.free, map = MAPS['talent:' + h.cls];
+    if (!map) loadMap('talent', h.cls);
+    const spent = Object.values(have).reduce((a, b) => a + b, 0), count = map ? Object.keys(map.tree.nodes).length : 0;
+    const sel = map && map.tree.nodes[S.tsel] ? S.tsel : 'root';
+    let side = '', detail = '';
+    if (map) {
+      const branchList = map.tree.branches.map(([bid, name, theme, col, , ids]) => {
+        const pts = ids.reduce((t, id) => t + (learned(have, id) ? 1 : 0), 0);
+        return '<button class="tbranch' + (map.branchOf[sel] && map.branchOf[sel][0] === bid ? ' on' : '') + '" style="--c:' + col + '" data-act="mapBranch" data-id="' + ids[0] + '"><i></i><span><b>' + esc(name) + '</b><span class="tiny muted">' + esc(theme) + '</span></span><span class="num small">' + pts + '/' + ids.length + '</span></button>';
+      }).join('');
+      detail = nodeDetail(map, have, sel, free, null, 'talent');
+      side = '<div class="panel tight"><h3 style="margin-bottom:6px">Your talents</h3><p class="small">' + (spent ? esc(h.talentTotal) + '.' : 'Nothing learned yet. Start at the root in the middle.') + '</p></div>' +
+        '<div class="panel tight"><h3 style="margin-bottom:8px">Branches</h3><div class="tbranches">' + branchList + '</div></div>';
     }
-    const svg = '<svg class="ttree" viewBox="-480 -372 960 744" role="group" aria-label="Talent tree"><defs><radialGradient id="tglow"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".22"/><stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/></radialGradient></defs>' +
-      '<circle r="330" fill="url(#tglow)"/>' + [118, 178, 240, 304].map((rr) => '<circle r="' + rr + '" class="ring"/>').join('') + lines + nodes + labels + '</svg>';
-    const selNode = tree.nodes[sel], branch = selNode.branch ? tree.branches.find((b) => b[0] === selNode.branch) : null;
-    const branchList = tree.branches.map(([bid, name, theme, col, ids]) => {
-      const pts = ids.reduce((t, id) => t + (have[id] || 0), 0), max = ids.reduce((t, id) => t + tree.nodes[id].max, 0);
-      const next = ids.find((id) => (have[id] || 0) < tree.nodes[id].max) || ids[ids.length - 1];
-      return '<button class="tbranch' + (branch && branch[0] === bid ? ' on' : '') + '" style="--c:' + col + '" data-act="tsel" data-id="' + next + '"><i></i><span><b>' + esc(name) + '</b><span class="tiny muted">' + esc(theme) + '</span></span><span class="num small">' + pts + '/' + max + '</span></button>';
-    }).join('');
-    const spent = Object.values(have).reduce((a, b) => a + b, 0);
-    return '<div class="stack"><div class="panel"><div class="head"><h2>' + esc(cfg.classes[h.cls].name) + ' talents</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + free + '</span> <span class="muted small">talent points · ' + spent + ' spent</span></span><button class="small" data-act="resetTalents" ' + (spent ? '' : 'disabled') + '>Reset (' + fmt(h.talentPoints.total ? h.talentResetCost : 0) + 'g)</button></div></div>' +
-      '<p class="small muted">One point per level from level 2. Everything grows out of the root: ten branches, each with two minor nodes, a notable after ' + cfg.talentNeed.notable + ' points in the tree and a capstone after ' + cfg.talentNeed.capstone + '. Many capstones teach a new skill for your loadout.</p></div>' +
-      '<div class="tgrid"><div class="panel ttree-wrap">' + svg + '</div><div class="stack"><div class="panel" style="border-color:' + (branch ? branch[3] : 'var(--gold)') + '80">' + nodeDetail(tree, have, sel, free, null, branch ? branch[1] : 'Where every branch starts', 'talent', branch ? branch[3] : '#ffd25a') + '</div>' +
-      '<div class="panel tight"><h3 style="margin-bottom:8px">Branches</h3><div class="tbranches">' + branchList + '</div></div></div></div></div>';
+    return '<div class="stack"><div class="panel"><div class="head"><h2>' + esc(cfg.classes[h.cls].name) + ' talents</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + free + '</span> <span class="muted small">talent points · ' + spent + ' of ' + fmt(count) + ' learned</span></span><button class="small" data-act="resetTalents" ' + (spent ? '' : 'disabled') + '>Reset (' + fmt(h.talentResetCost) + 'g)</button></div></div>' +
+      '<p class="small muted">Two points per level from level 2. Everything grows out of the root: ten branches, each a spine with six lanes forking off it. A node opens once a node linked to it is learned, and every fifth ring lanes and branches link across. Halfway out each spine teaches a skill or holds a capstone, and the outer lanes end in keystones: big, with a cost. Pick any node and learn the whole path to it at once.</p></div>' +
+      '<div class="tgrid">' + mapPanel('talent', h.cls, LEGEND + '<span><i class="lg keystone"></i>Keystone: big, with a cost</span>', detail) + '<div class="stack">' + side + '</div></div></div>';
   }
 
   function heritageView() {
-    const h = S.st.hero, cfg = S.cfg, tree = cfg.heritageTrees[h.race], have = h.heritage || {}, rn = h.renown, free = rn.free;
-    const race = cfg.races[h.race], sel = tree.nodes[S.hsel] ? S.hsel : 'root';
-    const medal = (id, col) => {
-      const n = tree.nodes[id], st = nodeState(tree, have, n, free, h.culture), r = have[id] || 0;
-      return '<button class="hnode ' + st + (sel === id ? ' sel' : '') + '" data-act="hsel" data-id="' + id + '" title="' + esc(n.name + ': ' + n.desc) + '"><span class="tmedal ' + n.kind + ' ' + st + '" style="--c:' + col + '"><img alt="" src="' + ITA.skill(nodeGlyph(n, null)) + '"></span><span class="hn"><b>' + esc(n.name) + '</b><span class="tiny muted">' + esc(n.desc) + '</span></span>' + (n.max > 1 ? '<span class="tiny num">' + r + '/' + n.max + '</span>' : r ? '<span class="tiny gold">' + ico('star') + '</span>' : '') + '</button>';
-    };
-    const pct = Math.min(100, (100 * (rn.total - rn.from)) / Math.max(1, rn.to - rn.from));
+    const h = S.st.hero, cfg = S.cfg, have = h.heritage || {}, rn = h.renown, free = rn.free, map = MAPS['heritage:' + h.race];
+    if (!map) loadMap('heritage', h.race);
+    const race = cfg.races[h.race], tree = map && map.tree, sel = tree && tree.nodes[S.hsel] ? S.hsel : 'root';
+    const pctDone = Math.min(100, (100 * (rn.total - rn.from)) / Math.max(1, rn.to - rn.from));
     const p = S.st.party, kinList = p ? p.members.filter((m) => m.id !== h.id && m.race === h.race) : [];
     const kinText = !p ? 'You are not in a group yet.' : rn.kin ? kinList.map((m) => esc(m.name) + (h.culture && m.culture === h.culture ? ' (same culture, counts twice)' : '')).join(', ') + (kinList.length === 1 ? ' shares' : ' share') + ' your heritage: every run pays ' + (cfg.renown.alone + cfg.renown.perKin * rn.kin) + ' Renown per reward unit instead of ' + cfg.renown.alone + '.' : 'Nobody in your group is ' + esc(race.name) + ', so runs only pay a trickle of Renown (' + cfg.renown.alone + ' per reward unit). Each ' + esc(race.name) + ' groupmate adds ' + cfg.renown.perKin + ', twice that if they follow your culture.';
-    const cultures = Object.entries(tree.cultures).map(([cid, [name, theme, col, ids]]) => {
-      const mine = h.culture === cid;
-      const btn = mine ? '<span class="chip solid">' + ico('star') + 'Your culture</span>' : '<button class="small" data-act="culture" data-id="' + cid + '" ' + ((have.root || 0) ? '' : 'disabled') + '>' + (h.culture ? 'Follow (' + fmt(cfg.renown.swapGold * h.level) + 'g)' : 'Follow') + '</button>';
-      return '<div class="culture' + (mine ? ' mine' : h.culture ? ' other' : '') + '" style="--c:' + col + '"><div class="ccrest"><span class="cpennant"><img alt="" src="' + ITA.ui('heritage') + '"></span><div><h3>' + esc(name) + '</h3><div class="small muted">' + esc(theme) + '</div></div></div><div class="row" style="margin:8px 0 10px">' + btn + '</div><div class="hcol">' + ids.map((id) => medal(id, col)).join('') + '</div></div>';
-    }).join('');
-    const selNode = tree.nodes[sel], selCol = selNode.culture ? tree.cultures[selNode.culture][2] : '#ffd25a';
-    return '<div class="stack"><div class="panel heritage-top"><div class="hbadge"><span class="eyebrow">Heritage rank</span><span class="big num">' + rn.rank + '</span></div><div style="flex:1;min-width:0"><div class="eyebrow">' + esc(race.name) + (h.culture ? ' · ' + esc(tree.cultures[h.culture][0]) : '') + '</div><h2>' + esc(tree.nodes.root.name) + '</h2>' +
-      '<div class="small muted" style="margin:6px 0 4px">' + fmt(rn.total) + ' Renown · ' + fmt(rn.to - rn.total) + ' to rank ' + (rn.rank + 1) + '</div><div class="bar"><i class="renf" style="width:' + pct + '%"></i></div>' +
+    let cultures = '', side = '', detail = '';
+    if (tree) {
+      cultures = Object.entries(tree.cultures).map(([cid, [name, theme, col, bids]]) => {
+        const mine = h.culture === cid, ids = tree.branches.filter((b) => bids.includes(b[0])).flatMap((b) => b[5]), pts = ids.filter((id) => learned(have, id)).length;
+        const btn = mine ? '<span class="chip solid">' + ico('star') + 'Your culture</span>' : '<button class="small" data-act="culture" data-id="' + cid + '" ' + (learned(have, 'root') ? '' : 'disabled') + '>' + (h.culture ? 'Follow (' + fmt(cfg.renown.swapGold * h.level) + 'g)' : 'Follow') + '</button>';
+        return '<div class="culture' + (mine ? ' mine' : h.culture ? ' other' : '') + '" style="--c:' + col + '"><div class="ccrest"><span class="cpennant"><img alt="" src="' + ITA.ui('heritage') + '"></span><div style="min-width:0"><h3>' + esc(name) + '</h3><div class="small muted">' + esc(theme) + '</div></div></div>' +
+          '<div class="row" style="margin-top:8px;justify-content:space-between">' + btn + '<span class="num small muted">' + pts + '/' + fmt(ids.length) + '</span></div>' +
+          '<div class="tiny muted" style="margin-top:6px">' + tree.branches.filter((b) => bids.includes(b[0])).map((b) => '<a href="#/heritage" data-act="mapBranch" data-id="' + b[5][0] + '">' + esc(b[1]) + '</a>').join(' · ') + '</div></div>';
+      }).join('');
+      detail = nodeDetail(map, have, sel, free, h.culture, 'heritage');
+      side = '<div class="panel tight"><h3 style="margin-bottom:6px">Your heritage</h3><p class="small">' + (Object.keys(have).length ? esc(h.heritageTotal) + '.' : 'Nothing learned yet. The root in the middle is free at rank 1.') + '</p></div>';
+    }
+    const count = tree ? Object.keys(tree.nodes).length : 0;
+    return '<div class="stack"><div class="panel heritage-top"><div class="hbadge"><span class="eyebrow">Heritage rank</span><span class="big num">' + rn.rank + '</span></div><div style="flex:1;min-width:0"><div class="eyebrow">' + esc(race.name) + (h.culture && tree ? ' · ' + esc(tree.cultures[h.culture][0]) : '') + '</div><h2>' + esc(race.name) + ' Heritage</h2>' +
+      '<div class="small muted" style="margin:6px 0 4px">' + fmt(rn.total) + ' Renown · ' + fmt(rn.to - rn.total) + ' to rank ' + (rn.rank + 1) + '</div><div class="bar"><i class="renf" style="width:' + pctDone + '%"></i></div>' +
       '<p class="small" style="margin-top:8px">' + ico('group') + ' ' + kinText + '</p></div><div class="num" style="font-size:1.2rem;align-self:center"><span class="gold">' + free + '</span> <span class="muted small">points</span></div></div>' +
-      '<p class="small muted">Renown grows by running dungeons with groupmates of your race. Each Heritage rank gives one point. Learn the root, then follow one of three cultures: only its branch can be learned, and kin who follow it too count twice, for Renown and for the kinship bonus in battle.</p>' +
-      '<div class="panel"><div class="hgrid"><div class="htrunk">' + medal('root', '#ffd25a') + tree.trunk.map((id) => medal(id, '#ffd25a')).join('') + '</div>' +
-      '<div class="hsel" style="border-color:' + selCol + '80">' + nodeDetail(tree, have, sel, free, h.culture, selNode.culture ? tree.cultures[selNode.culture][0] : race.name, 'heritage', selCol) + '</div></div><div class="cultures">' + cultures + '</div></div></div>';
+      '<p class="small muted">Renown grows by running dungeons with groupmates of your race. Every Heritage rank gives two points to spend on a map of ' + fmt(count) + ' nodes: three trunk branches every ' + esc(race.name) + ' shares, and three cultures of three branches each. Follow one culture: only its branches can be learned, and kin who follow it too count twice, for Renown and for the kinship bonus in battle.</p>' +
+      (cultures ? '<div class="cultures">' + cultures + '</div>' : '') +
+      '<div class="tgrid">' + mapPanel('heritage', h.race, LEGEND + '<span><i class="lg oc"></i>Another culture</span>', detail) + '<div class="stack">' + side + '</div></div></div>';
   }
 
   // ------------------------------------------------------------------ gear
@@ -719,7 +892,7 @@
   function kinChip(m) {
     const h = S.st && S.st.hero;
     if (!h || m.id === h.id || m.race !== h.race) return '';
-    const twice = h.culture && m.culture === h.culture, cult = m.culture ? S.cfg.heritageTrees[m.race].cultures[m.culture][0] : null;
+    const twice = h.culture && m.culture === h.culture, cult = m.culture ? S.cfg.cultures[m.race][m.culture] : null;
     return '<span class="chip kin" title="' + esc((cult ? cult + '. ' : '') + 'Same race: more Renown from every run together' + (twice ? ', twice for your culture' : '')) + '">' + ico('heritage') + (twice ? 'Kin ×2' : 'Kin') + '</span>';
   }
   function memberCard(m, extra) {
@@ -837,12 +1010,23 @@
     rankUp: (d) => act(() => post('/hero/act', { action: 'rankUp', skill: d.id })),
     resetRanks: () => confirmBox('Reset all skill ranks for ' + 10 * S.st.hero.level + ' gold?', () => act(() => post('/hero/act', { action: 'resetRanks' }))),
     tsel: (d) => { S.tsel = d.id; render(); },
-    tjump: (d) => { S.tsel = d.id; location.hash = '#/talents'; },
-    talent: (d) => act(() => post('/hero/act', { action: 'talent', node: d.id })),
+    tjump: (d) => { S.tsel = d.id; S.mapFocus = d.id; location.hash = '#/talents'; },
+    talent: (d) => act(() => post('/hero/act', { action: 'talent', nodes: d.ids.split(' ') }), d.ids.includes(' ') ? 'Learned ' + d.ids.split(' ').length + ' talents.' : null),
+    mapCenter: (d) => { const m = MAPS[$('#maphost').dataset.map]; if (m) centerOn(m, d.id, Math.max(m.view.z, 2.6)); },
+    mapBranch: (d) => { const m = MAPS[$('#maphost').dataset.map]; if (m) { centerOn(m, d.id, 2.6); mapSelect(m, d.id); } },
+    mapZoom: (d) => { const m = MAPS[$('#maphost').dataset.map]; if (m) zoomAt(m, 0, 0, +d.f); },
+    mapHome: () => { const m = MAPS[$('#maphost').dataset.map]; if (m) centerOn(m, 'root', 2.0); },
+    mapNext: () => {
+      const m = MAPS[$('#maphost').dataset.map];
+      if (!m || !m.hits || !m.hits.length) return;
+      m.hitAt = ((m.hitAt ?? -1) + 1) % m.hits.length;
+      const id = m.hits[m.hitAt];
+      S.mapFocus = id; mapSelect(m, id);
+    },
     resetTalents: () => confirmBox('Reset all talents for ' + fmt(S.st.hero.talentResetCost) + ' gold? Skills they taught leave your loadout.', () => act(() => post('/hero/act', { action: 'resetTalents' }), 'Talents reset.')),
     hsel: (d) => { S.hsel = d.id; render(); },
-    heritage: (d) => act(() => post('/hero/act', { action: 'heritage', node: d.id })),
-    culture: (d) => { const t = S.cfg.heritageTrees[S.st.hero.race].cultures[d.id][0]; confirmBox(S.st.hero.culture ? 'Follow the ways of <b>' + esc(t) + '</b> for ' + fmt(S.cfg.renown.swapGold * S.st.hero.level) + ' gold? Points in your old culture come back.' : 'Follow the ways of <b>' + esc(t) + '</b>? You can change later for gold.', () => act(() => post('/hero/act', { action: 'culture', culture: d.id }), 'You follow the ways of ' + t + '.')); },
+    heritage: (d) => act(() => post('/hero/act', { action: 'heritage', nodes: d.ids.split(' ') })),
+    culture: (d) => { const t = MAPS['heritage:' + S.st.hero.race].tree.cultures[d.id][0]; confirmBox(S.st.hero.culture ? 'Follow the ways of <b>' + esc(t) + '</b> for ' + fmt(S.cfg.renown.swapGold * S.st.hero.level) + ' gold? Points in your old culture come back.' : 'Follow the ways of <b>' + esc(t) + '</b>? You can change later for gold.', () => act(() => post('/hero/act', { action: 'culture', culture: d.id }), 'You follow the ways of ' + t + '.')); },
     slot: (d) => { let l = S.st.hero.loadout.slice(); l = l.includes(d.id) ? l.filter((x) => x !== d.id) : [...l, d.id]; if (l.length > S.cfg.loadoutSize) { toast('Your loadout holds ' + S.cfg.loadoutSize + ' skills. Take one out first.'); return; } act(() => post('/hero/act', { action: 'loadout', skills: l })); },
     // gear
     sel: async (d) => { S.sel = +d.id; if (S.view !== 'gear') location.hash = '#/gear'; if (!S.craftCost) S.craftCost = await get('/craft/cost').catch(() => null); render(); },
@@ -886,6 +1070,14 @@
     const fn = handlers[el.dataset.act];
     if (fn) { e.preventDefault(); fn(el.dataset); }
   });
+  // Finding on a map repaints it in place, so typing stays smooth.
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'mapq') return;
+    const host = $('#maphost'), map = host && MAPS[host.dataset.map];
+    (S.mapQuery = S.mapQuery || {})[e.target.dataset.map] = e.target.value;
+    if (map) { map.hitAt = -1; mountMaps(); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.target.id === 'mapq' && e.key === 'Enter') { e.preventDefault(); handlers.mapNext(); } });
   document.addEventListener('change', (e) => {
     const el = e.target;
     const a = el.dataset.actChange;

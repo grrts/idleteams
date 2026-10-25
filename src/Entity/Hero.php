@@ -147,7 +147,7 @@ class Hero
 
     public function heritagePoints(): int
     {
-        return $this->heritageRank() - array_sum($this->heritage);
+        return Heritage::points($this->heritageRank()) - array_sum($this->heritage);
     }
 
     public function skillPoints(): int

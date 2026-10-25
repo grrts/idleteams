@@ -8,7 +8,9 @@ use Random\Randomizer;
 /**
  * The reference group: a sensible party at a dungeon level, wearing rare gear of that level and spending points
  * and talents the suggested way (no Heritage: kin bonuses are a reward on top). Enemies are tuned against it, so
- * balance holds at every level without hand-written tables.
+ * balance holds at every level without hand-written tables. Enemy health follows the group's damage with talents;
+ * enemy hits follow its health, armor and healing without them, so a tank or healer who learns defensive talents
+ * gets tougher instead of making every enemy hit the rest of the group harder.
  */
 final class Reference
 {
@@ -20,7 +22,7 @@ final class Reference
      * What a group at this level is expected to wear. Level 1 is exactly the starter kit; drops (about one item per
      * hero every two levels, at up to twice the level) fill the other slots and replace the kit over time.
      */
-    public static function build(string $cls, int $level, ?string $quality = null): array
+    public static function build(string $cls, int $level, ?string $quality = null, bool $talents = true): array
     {
         $c = Rules::CLASSES[$cls];
         $points = ($level - 1) * Rules::POINTS_PER_LEVEL;
@@ -51,7 +53,7 @@ final class Reference
 
         return [
             'race' => 'human', 'cls' => $cls, 'origin' => 'anvil', 'level' => $level, 'spent' => $spent, 'path' => null, 'keystones' => [], 'items' => $items,
-            'talents' => Talents::auto($cls, Talents::points($level)),
+            'talents' => $talents ? Talents::auto($cls, Talents::points($level)) : [],
         ];
     }
 
@@ -63,7 +65,7 @@ final class Reference
         }
         $s = [];
         foreach (self::COMP as $cls) {
-            $s[$cls] = Stats::derive(self::build($cls, $level));
+            $s[$cls] = Stats::derive(self::build($cls, $level, null, false));
         }
         $party = [];
         foreach (self::COMP as $n => $cls) {
@@ -74,7 +76,7 @@ final class Reference
         $dps = (new Simulator())->measureDps($party);
         $tank = $s['guardian'];
         // Healing is the average of both healer classes, so neither one is the only healer that keeps up.
-        $druid = Stats::derive(self::build('druid', $level));
+        $druid = Stats::derive(self::build('druid', $level, null, false));
         $hps = ($s['cleric']['spirit'] * $s['cleric']['haste'] + $druid['spirit'] * $druid['haste']) / 2 * 1.3;
         $hp = array_sum(array_map(fn ($x) => $x['maxHp'], $s)) / 5;
 

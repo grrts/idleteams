@@ -35,43 +35,80 @@
     },
   });
 
-  // ---------- Talents and Heritage (src/Game/Talents.php, Heritage.php); trees come prebuilt in data.js
-  const T = (E.Talents = {
-    points: (level) => Math.max(0, level - 1),
-    tree: (cls) => D.TALENT_TREES[cls],
-    grants(cls, talents) {
+  // ---------- Talent and Heritage maps (src/Game/TreeMap.php, Talents.php, Heritage.php); maps come prebuilt in data.js
+  const round4 = (v) => Math.round(v * 1e4) / 1e4;
+  const TM = (E.TreeMap = {
+    merge(...effects) {
       const out = {};
-      for (const [id, n] of Object.entries(T.tree(cls).nodes)) if ((talents[id] || 0) > 0 && n.effect.grant) out[n.effect.grant] = id;
+      for (const e of effects) for (const [k, v] of Object.entries(e)) {
+        if (k === 'grant') out.grant = v;
+        else if (v && typeof v === 'object') { out[k] = out[k] || {}; for (const [x, n] of Object.entries(v)) out[k][x] = round4((out[k][x] || 0) + n); }
+        else out[k] = round4((out[k] || 0) + v);
+      }
       return out;
     },
     check(tree, have, id, free, culture = null) {
       const n = tree.nodes[id];
       if (!n) return 'Unknown talent.';
-      if ((have[id] || 0) >= n.max) return 'That talent is at its highest rank.';
-      if (n.req && (have[n.req] || 0) < 1) return 'Learn ' + tree.nodes[n.req].name + ' first.';
-      if (n.culture !== null && n.culture !== culture) return 'That belongs to another culture. Choose it first.';
-      if (sum(Object.values(have)) < n.need) return 'Spend ' + n.need + ' points in this tree first.';
+      if ((have[id] || 0) >= n.max) return 'You already have that.';
+      if (n.culture !== null && n.culture !== culture) return 'That belongs to another culture. Follow it first.';
+      if (id !== tree.root && !n.links.some((l) => (have[l] || 0) > 0)) return 'Connect it to something you have learned first.';
       if (free < 1) return 'No points left.';
       return null;
     },
-    auto(cls, points, offset = 0) {
-      const tree = T.tree(cls), have = {};
-      let order = tree.branches.map((b) => b[4]);
-      if (offset) { const k = offset % 3; order = [...order.slice(k, k + 1), ...order.slice(0, k), ...order.slice(k + 1)]; }
-      while (points > 0) {
-        if (!keys(have).length) { have.root = 1; --points; continue; }
-        let learned = false;
-        for (const ids of order) {
-          for (const id of ids) {
-            if ((have[id] || 0) >= tree.nodes[id].max) continue;
-            if (T.check(tree, have, id, points) === null) { have[id] = (have[id] || 0) + 1; --points; learned = true; }
-            break;
-          }
-          if (learned) break;
+    path(tree, have, target, culture = null) {
+      if (!tree.nodes[target]) return null;
+      if ((have[target] || 0) > 0) return [];
+      const ok = (id) => tree.nodes[id].culture === null || tree.nodes[id].culture === culture, prev = new Map(), queue = [];
+      for (const [id, r] of Object.entries(have)) if (r > 0 && tree.nodes[id]) { prev.set(id, false); queue.push(id); }
+      if (!queue.length) { prev.set('root', false); queue.push('root'); if (target === 'root') return ['root']; }
+      for (let i = 0; i < queue.length; i++) {
+        for (const l of tree.nodes[queue[i]].links) {
+          if (prev.has(l) || !ok(l)) continue;
+          prev.set(l, queue[i]);
+          if (l === target) { const path = []; for (let x = l; x !== false && !((have[x] || 0) > 0); x = prev.get(x)) path.push(x); return path.reverse(); }
+          queue.push(l);
         }
-        if (!learned) break;
       }
+      return null;
+    },
+    auto(tree, plan, points, culture = null) {
+      const have = {};
+      for (const id of plan) { if (points < 1) break; if (TM.check(tree, have, id, points, culture) === null) { have[id] = 1; --points; } }
       return have;
+    },
+    clean: (tree, have) => Object.fromEntries(Object.entries(have || {}).filter(([id, r]) => r > 0 && tree.nodes[id])),
+  });
+  const plans = {};
+  const T = (E.Talents = {
+    points: (level) => D.TALENT.POINTS_PER_LEVEL * Math.max(0, level - 1),
+    tree: (cls) => D.TALENT_TREES[cls],
+    grants(cls, talents) {
+      const out = {}, nodes = T.tree(cls).nodes;
+      for (const [id, r] of Object.entries(talents)) if (r > 0 && nodes[id] && nodes[id].effect.grant) out[nodes[id].effect.grant] = id;
+      return out;
+    },
+    check: (tree, have, id, free, culture = null) => TM.check(tree, have, id, free, culture),
+    plan(cls, offset = 0) {
+      const key = 't:' + cls + ':' + (offset % 3);
+      if (plans[key]) return plans[key];
+      let order = D.TALENT.BRANCHES[cls];
+      if (offset) { const k = offset % 3; order = [...order.slice(k, k + 1), ...order.slice(0, k), ...order.slice(k + 1)]; }
+      const s = D.TALENT.SHAPE.starts, depth = D.TALENT.SHAPE.depth, at = D.TALENT.SKILL_AT, plan = ['root'];
+      const lane = (bid, j, from, to) => { for (let d = Math.max(from, s[j]); d <= to; d++) plan.push(bid + '.' + j + '.' + d); };
+      for (let g = 0; g < order.length; g += 3) {
+        const group = order.slice(g, g + 3);
+        for (const bid of group) lane(bid, 3, 1, at);
+        for (const bid of group) lane(bid, 3, at + 1, depth);
+        for (const bid of group) for (const j of [2, 4, 1, 5, 0, 6]) lane(bid, j, 1, depth);
+      }
+      return (plans[key] = plan);
+    },
+    auto: (cls, points, offset = 0) => TM.auto(T.tree(cls), T.plan(cls, offset), points),
+    total(tree, have) {
+      const parts = [];
+      for (const [id, r] of Object.entries(have || {})) if (r > 0 && tree.nodes[id]) { const e = { ...tree.nodes[id].effect }; delete e.grant; parts.push(e); }
+      return TM.merge(...parts);
     },
     mods(build) {
       const m = { attrs: [], stat: {}, type: {}, skill: {}, cost: 0, kin: 0, renown: 0 }, sets = [];
@@ -89,23 +126,48 @@
       }
       return m;
     },
+    STAT_TEXT: {
+      dmg: '%s damage', heal: '%s healing', hp: '%s max health', threat: '%s threat', taken: '%s less damage taken', crit: '%s crit chance', critDmg: '%s crit damage', haste: '%s haste', cdr: '%s faster cooldowns',
+      dodge: '%s dodge', block: '%s block', regen: '%s health regen', resRegen: '%s mana and energy regen', rageGain: '%s rage from hits', healRecv: '%s healing received', fortune: '%s gold and materials', xp: '%s XP', lifesteal: '%s lifesteal',
+    },
+    TYPE_TEXT: { strike: 'single-target skills', aoe: 'area skills', heal: 'direct heals', groupheal: 'group heals', hot: 'heals over time', shield: 'shields', wall: 'walls', mark: 'marks', slow: 'slows', dot: 'damage over time', pet: 'companions', buff: 'self buffs' },
+    /** Plain words for an effect (Talents::describe). */
+    describe(e, max = 1, cls = null) {
+      const num = (v) => { const t = (Math.round(Math.abs(v) * 1000 + 1e-7) / 10).toFixed(1); return t.endsWith('.0') ? t.slice(0, -2) : t; };
+      const p = (v) => (v >= 0 ? '+' : '−') + num(v) + '%', u = (v) => num(v) + '%', parts = [], sub = (f, x) => f.replace('%s', x);
+      const LESS = ['threat', 'hp', 'dmg', 'heal', 'haste', 'crit', 'critDmg', 'dodge', 'healRecv', 'xp', 'fortune'];
+      for (const [a, v] of Object.entries(e.attr || {})) parts.push('+' + Math.trunc(v) + ' ' + D.ATTRIBUTES[a][0]);
+      for (const [k, v] of Object.entries(e.stat || {})) {
+        if (k === 'taken') parts.push(v >= 0 ? u(v) + ' less damage taken' : u(v) + ' more damage taken');
+        else if (v < 0 && LESS.includes(k)) parts.push(sub(T.STAT_TEXT[k].replace('%s ', '%s less '), u(v)));
+        else parts.push(sub(T.STAT_TEXT[k] || '%s ' + k, p(v)));
+      }
+      for (const [k, v] of Object.entries(e.type || {})) parts.push(v < 0 ? u(v) + ' less from ' + (T.TYPE_TEXT[k] || k) : p(v) + ' to ' + (T.TYPE_TEXT[k] || k));
+      for (const [k, v] of Object.entries(e.skill || {})) parts.push(p(v) + ' to ' + (cls ? (R.classSkills(cls)[k] || [k])[0] : k));
+      if (e.cost) parts.push('skills cost ' + u(e.cost) + ' less');
+      if (e.kin) parts.push(p(e.kin) + ' damage and healing for each groupmate of your race (twice for your culture)');
+      if (e.renown) parts.push(p(e.renown) + ' Renown from every run');
+      if (e.grant && cls) parts.push('Teaches ' + D.TALENT_SKILLS[cls][e.grant][0]);
+      const text = parts.join(', '), t = text.charAt(0).toUpperCase() + text.slice(1);
+      return max > 1 ? t + ' per rank' : t;
+    },
   });
   const H = (E.Heritage = {
     tree: (race) => D.HERITAGE_TREES[race],
-    renownFor: (rank) => 50 * (rank - 1) * rank,
+    renownFor: (rank) => 20 * (rank - 1) * rank,
+    points: (rank) => Math.max(0, 2 * rank - 1),
     rank(renown) { let r = 1; while (renown >= H.renownFor(r + 1)) ++r; return r; },
     kin(race, culture, others) { let n = 0; for (const [r, c] of others) if (r === race) n += culture !== null && c === culture ? 2 : 1; return n; },
     renownGain: (units, kin, bonus) => Math.round(units * (D.HERITAGE.RENOWN_ALONE + D.HERITAGE.RENOWN_PER_KIN * kin) * (1 + bonus)),
-    auto(race, culture, points) {
-      const tree = H.tree(race), have = {}, order = ['root', ...tree.cultures[culture][3], ...tree.trunk, ...tree.trunk, ...tree.trunk];
-      let guard = 0;
-      while (points > 0 && guard++ < 100) {
-        const id = order.find((x) => T.check(tree, have, x, points, culture) === null);
-        if (!id) break;
-        have[id] = (have[id] || 0) + 1; --points;
-      }
-      return have;
+    plan(race, culture) {
+      const key = 'h:' + race + ':' + culture;
+      if (plans[key]) return plans[key];
+      const tree = H.tree(race), s = D.HERITAGE.SHAPE.starts, depth = D.HERITAGE.SHAPE.depth, mine = [...tree.cultures[culture][3], 'trunk0', 'trunk1', 'trunk2'], plan = ['root'];
+      for (let d = 1; d <= depth; d++) for (const bid of mine) plan.push(bid + '.2.' + d);
+      for (const bid of mine) for (const j of [1, 3, 0, 4]) for (let d = s[j]; d <= depth; d++) plan.push(bid + '.' + j + '.' + d);
+      return (plans[key] = plan);
     },
+    auto: (race, culture, rank) => TM.auto(H.tree(race), H.plan(race, culture), H.points(rank), culture),
   });
 
   // ---------- Items
@@ -182,7 +244,22 @@
       for (const [a, n, from] of T.mods(build).attrs) add(a, n, from);
       if (Object.values(build.keystones || {}).includes('unmovable')) add('resolve', tot.resolve * 0.2, 'Keystone: Unmovable');
       if (build.race === 'draka') add('recovery', tot.recovery * 0.1, 'Ember Heart');
+      // Class twists that let one attribute count as another, read from the totals before any of them apply.
+      const base = { ...tot };
+      for (const [a, tw] of Object.entries(D.TWISTS[build.cls] || {})) for (const [to, f] of Object.entries(tw.as || {})) add(to, base[a] * f, D.CLASSES[build.cls].name + ': ' + D.ATTRIBUTES[a][0]);
       return { total: tot, sources: src };
+    },
+    twistScale(points, level) { const x = Math.max(0, points) / (5 + level); return (2 * x) / (1 + x); },
+    twists(cls, eff, level) {
+      const out = {};
+      for (const [a, tw] of Object.entries(D.TWISTS[cls] || {})) {
+        const x = S.twistScale(eff[a] || 0, level);
+        if (tw.as) { const to = keys(tw.as)[0]; out[a] = [tw, Math.round(tw.as[to] * 100) + '% of it also counts as ' + D.ATTRIBUTES[to][0]]; continue; }
+        const now = {};
+        for (const k of ['stat', 'type']) for (const [key, v] of Object.entries(tw[k] || {})) (now[k] = now[k] || {})[key] = v * x;
+        out[a] = [now, T.describe(tw) + ' at one point per level (up to twice that)'];
+      }
+      return out;
     },
     effective(tot) { const s = Math.max(1, sum(Object.values(tot))), cap = C.SOFT_CAP_SHARE * s, eff = {}; for (const [a, n] of Object.entries(tot)) eff[a] = n <= cap ? n : cap + (n - cap) / 2; return eff; },
     resonance(items) {
@@ -198,18 +275,21 @@
       damage = Math.max(3, damage); if (powers.includes('titanGrip')) damage *= 1.25; health += 30;
       const resource = D.CLASSES[build.cls].resource;
       const [resMax, resRegen] = resource === 'mana' ? [30 * e.wisdom, 0.45 * e.wisdom] : resource === 'energy' ? [12 * e.stamina, 0.9 * e.stamina] : [10 * e.fury, 0];
-      // Talents and Heritage: percentage bonuses on top of what attributes give.
-      const m = T.mods(build), t = (k) => m.stat[k] || 0;
+      // Talents, Heritage and class twists: percentage bonuses on top of what attributes give.
+      const m = T.mods(build);
+      for (const [tw] of Object.values(S.twists(build.cls, e, L))) for (const k of ['stat', 'type']) for (const [key, v] of Object.entries(tw[k] || {})) m[k][key] = (m[k][key] || 0) + v;
+      const t = (k) => m.stat[k] || 0, power = 1 + e.insight / (10 + 4 * L), lore = e.lore / (10 + 4 * L);
       const haste = 1 + S.curve(tot.swiftness, L) + t('haste'), crit = Math.min(S.CAPS.crit, S.curve(tot.precision, L) + t('crit'));
       const maxHp = (health * (1 + e.vitality / 20) + 20 * e.vitality) * (1 + t('hp')), dmg = 1 + t('dmg');
       return {
-        level: L, maxHp, weaponDamage: damage, might: damage * (1 + e.might / 10) * dmg, arcana: damage * (1 + e.arcana / 10) * dmg, spirit: damage * (1 + e.spirit / 10) * (1 + t('heal')),
+        level: L, maxHp, weaponDamage: damage, might: damage * (1 + e.might / 10) * dmg * power, arcana: damage * (1 + e.arcana / 10) * dmg * power, spirit: damage * (1 + e.spirit / 10) * (1 + t('heal')) * power,
         crit, mega: Math.min(S.CAPS.mega, S.curve(tot.ferocity, L) * 0.5), critMult: (2 + e.ferocity / (10 + 4 * L)) * (1 + t('critDmg')), haste,
         cdr: Math.min(S.CAPS.cdr, S.curve(tot.focus, L) + t('cdr')), dodge: Math.min(S.CAPS.dodge, S.curve(tot.agility, L) + t('dodge')), dr: Math.min(S.CAPS.dr, S.curve(tot.guard + armor, L)),
         block: Math.min(S.CAPS.block, S.curve(0.4 * tot.guard + block, L) + t('block')), resist: Math.min(S.CAPS.resist, S.curve(tot.resolve, L)),
         regen: maxHp * 0.0004 * e.recovery * (1 + t('regen')), healRecv: (1 + (0.5 * e.recovery) / (e.recovery + 10 + 2 * L)) * (1 + t('healRecv')), threat: (1 + e.presence / (2 + 0.8 * L)) * Math.max(0.2, 1 + t('threat')),
         command: 1 + e.command / (10 + 4 * L), fortune: (1 + e.fortune / (5 + 2 * L)) * (1 + t('fortune')), resource, resMax, resRegen: resRegen * (1 + t('resRegen')), rageGain: (3 + 0.3 * e.fury) * (1 + t('rageGain')),
-        taken: Math.max(0.5, 1 - t('taken')), costMult: Math.max(0.5, 1 - m.cost), xpBonus: t('xp'), renownBonus: m.renown, kin: m.kin, typeMult: m.type, skillMult: m.skill,
+        taken: Math.max(0.5, (1 - t('taken')) * (1 - 0.5 * S.curve(tot.tenacity, L))), lifesteal: Math.min(0.3, 0.5 * S.curve(tot.hunger, L) + t('lifesteal')),
+        costMult: Math.max(0.5, (1 - m.cost) * (1 - 0.5 * S.curve(tot.thrift, L))), xpBonus: t('xp') + lore, renownBonus: m.renown + lore, kin: m.kin, typeMult: m.type, skillMult: m.skill,
         costScale: resource === 'rage' ? 1 + 0.02 * (L - 1) : resource === 'energy' ? 1 + 0.03 * (L - 1) : 1 + 0.1 * (L - 1),
         powers, resonance: S.resonance(items).tiers,
       };
@@ -324,7 +404,7 @@
     applyKin() {
       for (const h of this.h) {
         if (!(h.s.kin > 0)) continue;
-        const f = 1 + h.s.kin * H.kin(h.race, h.culture, this.h.filter((x) => x !== h).map((x) => [x.race, x.culture]));
+        const f = 1 + Math.min(D.HERITAGE.KIN_CAP, h.s.kin * H.kin(h.race, h.culture, this.h.filter((x) => x !== h).map((x) => [x.race, x.culture])));
         h.s = Object.assign({}, h.s, { might: h.s.might * f, arcana: h.s.arcana * f, spirit: h.s.spirit * f });
       }
     }
@@ -446,7 +526,9 @@
       if (t >= this.mech.rain) {
         this.mech.rain += 9;
         this.emit('mech', -1, -1, 0, 0, { name: 'Magma Rain' });
-        this.h.forEach((h, i) => { if (!h.dead) this.damageHero(i, (((ref.hps * 0.3 * 9) / 5) * f * m) / (1 - ref.avgDr * 0.5), { fire: true, magic: true, src: boss.id, what: 'Magma Rain' }); });
+        // Scaled from healing, but never past a share of a hero's health: big heals must not mean one-shots.
+        const rain = (Math.min((ref.hps * 0.3 * 9) / 5, ref.avgHp * 0.35 * (1 - ref.avgDr * 0.5)) * f * m) / (1 - ref.avgDr * 0.5);
+        this.h.forEach((h, i) => { if (!h.dead) this.damageHero(i, rain, { fire: true, magic: true, src: boss.id, what: 'Magma Rain' }); });
       }
       if (t >= this.mech.shock) {
         this.mech.shock += 30;
@@ -678,6 +760,8 @@
       let burn = crit && h.origin === 'ember' && school === 'arcana' ? 0.3 : 0;
       burn += crit ? 0.2 * this.res(h, 'ember') : 0;
       if (burn > 0) e.dots['burn' + i] = { until: this.t + 4, tick: (dmg * burn) / 4, src: i };
+      // Lifesteal heals quietly: no event per hit, so the timeline stays small.
+      if (h.s.lifesteal > 0 && !h.dead) { const ls = Math.min(h.s.maxHp - h.hp, dmg * h.s.lifesteal * h.s.healRecv); h.hp += ls; this.report[i].healing += ls; }
       const bt = this.ks(h, 'bloodthirst') && crit ? dmg * 0.05 : 0, bc = this.ks(h, 'battleCleric') && !o.auto ? dmg * 0.5 : 0;
       if (bt > 0) this.heal(i, i, bt, false);
       if (bc > 0) this.heal(i, this.lowestAlly(), bc, false);

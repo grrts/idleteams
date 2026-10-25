@@ -30,9 +30,9 @@ class BrowserDataCommand extends Command
             ],
             'CAPS' => Stats::CAPS, 'DUNGEON' => Simulator::DUNGEON, 'DUNGEON_NAME' => Simulator::DUNGEON_NAME, 'BOSSES' => Simulator::BOSSES,
             'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,
-            'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'TALENT_NEED' => Talents::NEED,
-            'HERITAGE_TREES' => Heritage::trees(),
-            'HERITAGE' => ['RENOWN_ALONE' => Heritage::RENOWN_ALONE, 'RENOWN_PER_KIN' => Heritage::RENOWN_PER_KIN, 'CULTURE_SWAP_GOLD' => Heritage::CULTURE_SWAP_GOLD],
+            'TWISTS' => Rules::TWISTS, 'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'HERITAGE_TREES' => Heritage::trees(),
+            'TALENT' => ['POINTS_PER_LEVEL' => Talents::POINTS_PER_LEVEL, 'SHAPE' => Talents::SHAPE, 'SKILL_AT' => Talents::SKILL_AT, 'VERSION' => Talents::VERSION, 'BRANCHES' => array_map(fn ($t) => array_keys($t['branches']), Talents::TREES)],
+            'HERITAGE' => ['RENOWN_ALONE' => Heritage::RENOWN_ALONE, 'RENOWN_PER_KIN' => Heritage::RENOWN_PER_KIN, 'CULTURE_SWAP_GOLD' => Heritage::CULTURE_SWAP_GOLD, 'KIN_CAP' => Heritage::KIN_CAP, 'SHAPE' => Heritage::SHAPE],
         ];
         $file = dirname(__DIR__, 2).'/browser-build/data.js';
         file_put_contents($file, 'window.IT_DATA = '.json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).";\n");

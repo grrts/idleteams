@@ -194,18 +194,28 @@ class HeroActions
         $h->loadout = $ids;
     }
 
-    /** One more rank of a class talent. */
-    public function learnTalent(Hero $h, string $node): void
+    /** Learns class talents in order (a whole path at once): all of them or none. */
+    public function learnTalent(Hero $h, array $nodes): void
     {
-        if ($err = Talents::check(Talents::tree($h->cls), $h->talents, $node, $h->talentPoints())) {
-            throw new GameError($err === 'No points left.' ? 'No talent points left. You get one per level.' : $err);
-        }
+        $tree = Talents::tree($h->cls);
         $t = $h->talents;
-        $t[$node] = ($t[$node] ?? 0) + 1;
+        $free = $h->talentPoints();
+        if (!$nodes) {
+            throw new GameError('Pick a talent.');
+        }
+        foreach ($nodes as $node) {
+            if ($err = Talents::check($tree, $t, (string) $node, $free)) {
+                throw new GameError($err === 'No points left.' ? 'Not enough talent points. You get two per level.' : $err);
+            }
+            $t[$node] = 1;
+            --$free;
+        }
         $h->talents = $t;
-        $n = Talents::tree($h->cls)['nodes'][$node];
-        if ($n['kind'] === 'capstone') {
-            $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s mastered %s.', $h->name, $n['name']), ['type' => 'hero', 'hero' => $h->id]);
+        foreach ($nodes as $node) {
+            $n = $tree['nodes'][$node];
+            if (in_array($n['kind'], ['capstone', 'keystone'], true)) {
+                $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s mastered %s.', $h->name, $n['name']), ['type' => 'hero', 'hero' => $h->id]);
+            }
         }
     }
 
@@ -252,13 +262,22 @@ class HeroActions
         $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s now follows the ways of %s.', $h->name, $tree['cultures'][$culture][0]), ['type' => 'hero', 'hero' => $h->id]);
     }
 
-    public function learnHeritage(Hero $h, string $node): void
+    /** Learns Heritage nodes in order (a whole path at once): all of them or none. */
+    public function learnHeritage(Hero $h, array $nodes): void
     {
-        if ($err = Talents::check(Heritage::tree($h->race), $h->heritage, $node, $h->heritagePoints(), $h->culture)) {
-            throw new GameError($err === 'No points left.' ? 'No Heritage points left. Run dungeons with your own race to earn Renown.' : $err);
-        }
+        $tree = Heritage::tree($h->race);
         $t = $h->heritage;
-        $t[$node] = ($t[$node] ?? 0) + 1;
+        $free = $h->heritagePoints();
+        if (!$nodes) {
+            throw new GameError('Pick a node.');
+        }
+        foreach ($nodes as $node) {
+            if ($err = Talents::check($tree, $t, (string) $node, $free, $h->culture)) {
+                throw new GameError($err === 'No points left.' ? 'Not enough Heritage points. Run dungeons with your own race to earn Renown.' : $err);
+            }
+            $t[$node] = 1;
+            --$free;
+        }
         $h->heritage = $t;
     }
 

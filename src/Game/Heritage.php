@@ -3,11 +3,13 @@
 namespace App\Game;
 
 /**
- * Race trees. Each race has a root, a shared trunk and three cultures. A hero follows one culture at a time, and
- * only that culture's branch can be learned. Points come from Renown, which grows by running dungeons with
- * groupmates of the same race: each one adds Renown to every run, twice as much when they share your culture.
- * Without kin in the group a run still pays a trickle.
+ * Race maps. Each race has a root, three shared trunk branches and three cultures of three branches each: twelve
+ * branches of about 100 nodes, over 1,200 nodes a race. A hero follows one culture at a time, and only that
+ * culture's branches can be learned. Points come from Renown, which grows by running dungeons with groupmates of
+ * the same race: each one adds Renown to every run, twice as much when they share your culture. Without kin in the
+ * group a run still pays a trickle. Every Heritage rank gives two points.
  *
+ * What a node does comes from the handwritten core in TREES, grown the same way as the class maps (see Talents).
  * Effects use the same words as Talents (attr, stat, type, skill, cost, kin, renown).
  */
 final class Heritage
@@ -18,6 +20,9 @@ final class Heritage
 
     /** Gold per level to follow another culture. Points in the old culture come back. */
     public const CULTURE_SWAP_GOLD = 40;
+
+    /** The kinship bonus in battle never goes past this, however many kin are in the group. */
+    public const KIN_CAP = 0.30;
 
     /** race => [root [name, effect], trunk [[name, ranks, effect] x 2], cultures [id => [name, theme, colour, [5 nodes]]]] */
     public const TREES = [
@@ -134,9 +139,17 @@ final class Heritage
     private static array $built = [];
 
     /** Renown needed for a Heritage rank: rank 1 is free, then 100, 300, 600, 1000... */
+    public const SHAPE = ['starts' => [8, 4, 1, 4, 8], 'depth' => 24, 'hub' => 4, 'value' => 0.5];
+
     public static function renownFor(int $rank): int
     {
-        return 50 * ($rank - 1) * $rank;
+        return 20 * ($rank - 1) * $rank;
+    }
+
+    /** Heritage points at a rank: the root at rank 1, then two a rank. */
+    public static function points(int $rank): int
+    {
+        return max(0, 2 * $rank - 1);
     }
 
     public static function rank(int $renown): int
@@ -149,39 +162,76 @@ final class Heritage
         return $r;
     }
 
-    /** A race tree: [root, trunk => ids, cultures => [id => [name, theme, colour, nodeIds]], nodes => [id => node]]. */
+    /** The handwritten core of one branch grown into a spine and four lanes. */
+    private static function branch(string $id, string $name, string $theme, string $colour, ?string $culture, array $a, array $b, array $n, string $nName, array $y, array $z): array
+    {
+        $spine = [
+            'a' => $a, 'b' => $b,
+            'hubs' => [
+                4 => [$nName, $n, 'notable'],
+                8 => [null, TreeMap::merge(TreeMap::scale($a, 3), TreeMap::scale($b, 3)), 'notable'],
+                12 => [null, TreeMap::merge($n, TreeMap::scale($a, 2)), 'capstone'],
+                16 => [null, TreeMap::merge(TreeMap::scale($b, 4), TreeMap::scale($a, 2)), 'notable'],
+                20 => [null, TreeMap::merge(TreeMap::scale($n, 1.25), TreeMap::scale($b, 2)), 'notable'],
+            ],
+            'end' => [$name.' Legacy', TreeMap::merge(TreeMap::scale($n, 1.5), TreeMap::scale($b, 3))],
+        ];
+        [$ya, $za] = [array_key_first($y), array_key_first($z)];
+        $lanes = [
+            1 => ['minor' => $a, 'notable' => TreeMap::merge(TreeMap::scale($a, 3), $b), 'end' => [null, TreeMap::merge(TreeMap::scale($a, 5), TreeMap::scale($n, 0.5)), 'notable']],
+            3 => ['minor' => $b, 'notable' => TreeMap::merge(TreeMap::scale($b, 3), $a), 'end' => [null, TreeMap::merge(TreeMap::scale($b, 5), TreeMap::scale($n, 0.5)), 'notable']],
+            0 => ['minor' => ['attr' => [$ya => 2]], 'notable' => ['attr' => [$ya => 5], 'renown' => 0.01], 'end' => [null, ['attr' => [$ya => 6], 'renown' => 0.05], 'notable']],
+            4 => ['minor' => ['attr' => [$za => 2]], 'notable' => ['attr' => [$za => 5], 'kin' => 0.001], 'end' => [null, ['attr' => [$za => 4], 'kin' => 0.006], 'notable']],
+        ];
+
+        return [$id, $name, $theme, $colour, $culture, $spine, $lanes];
+    }
+
+    /** A race map: [root, branches => [[id, name, theme, colour, culture, nodeIds]], cultures => [id => [name, theme, colour, branchIds]], nodes, size]. */
     public static function tree(string $race): array
     {
         if (isset(self::$built[$race])) {
             return self::$built[$race];
         }
         $t = self::TREES[$race];
-        $nodes = ['root' => Talents::node('root', $t['root'][0], 1, $t['root'][1], null, 0, null, 'root', null)];
-        $trunk = [];
-        $prev = 'root';
-        foreach ($t['trunk'] as $n => [$name, $max, $effect]) {
-            $id = 'trunk'.($n + 1);
-            $nodes[$id] = Talents::node($id, $name, $max, $effect, $prev, 1, null, 'minor', null);
-            $nodes[$id]['need'] = 0;
-            $trunk[] = $id;
-            $prev = $id;
-        }
-        $cultures = [];
-        foreach ($t['cultures'] as $cid => [$name, $theme, $colour, $list]) {
-            $ids = [];
-            $p = 'root';
-            foreach ($list as $n => [$nname, $max, $effect]) {
-                $id = $cid.($n + 1);
-                $kind = $n === 4 ? 'capstone' : ($n % 2 ? 'notable' : 'minor');
-                $nodes[$id] = Talents::node($id, $nname, $max, $effect, $p, 2, $cid, $kind, null, $cid);
-                $nodes[$id]['need'] = $n === 4 ? 10 : 0;
-                $ids[] = $id;
-                $p = $id;
-            }
-            $cultures[$cid] = [$name, $theme, $colour, $ids];
-        }
+        $attrs = array_keys(Rules::ATTRIBUTES);
+        $ri = array_search($race, array_keys(self::TREES), true);
+        $racePts = array_keys(Rules::RACES[$race]['points']);
+        $k = 0;
+        $pick = function () use (&$k, $attrs, $ri) {
+            $y = $attrs[($ri * 5 + $k * 2) % count($attrs)];
+            $z = $attrs[($ri * 5 + $k * 2 + 1) % count($attrs)];
+            ++$k;
 
-        return self::$built[$race] = ['root' => 'root', 'trunk' => $trunk, 'cultures' => $cultures, 'nodes' => $nodes];
+            return [[$y => 1], [$z => 1]];
+        };
+        $trunk = [
+            ['trunk0', $t['trunk'][0][0], 'Shared by every '.Rules::RACES[$race]['name'], Talents::perNode($t['trunk'][0]), ['attr' => [$racePts[0] => 1]], TreeMap::scale($t['trunk'][0][2], 2)],
+            ['trunk1', $t['trunk'][1][0], 'Shared by every '.Rules::RACES[$race]['name'], Talents::perNode($t['trunk'][1]), ['attr' => [$racePts[1] ?? $racePts[0] => 1]], TreeMap::scale($t['trunk'][1][2], 2)],
+            ['trunk2', 'Sagas', 'More Renown from every run', ['renown' => 0.01], TreeMap::scale($t['root'][1], 0.3), ['renown' => 0.04, 'kin' => 0.002]],
+        ];
+        $specs = [];
+        $cultures = [];
+        $c = 0;
+        foreach ($t['cultures'] as $cid => [$name, $theme, $colour, [$m1, $m2, $m3, $m4, $m5]]) {
+            $subs = [
+                [$cid.'0', $m1[0], $theme, Talents::perNode($m1), Talents::perNode($m2), $m2[2], $m2[0]],
+                [$cid.'1', $m3[0], $theme, Talents::perNode($m3), Talents::perNode($m4), $m4[2], $m4[0]],
+                [$cid.'2', $name.' Kinship', 'Fight beside your own', Talents::perNode($m5, 0.5), ['kin' => 0.002], $m5[2], $m5[0]],
+            ];
+            foreach ($subs as [$bid, $bname, $btheme, $a, $b, $n, $nName]) {
+                [$y, $z] = $pick();
+                $specs[] = self::branch($bid, $bname, $btheme, $colour, $cid, $a, $b, $n, $nName, $y, $z);
+            }
+            $cultures[$cid] = [$name, $theme, $colour, array_column($subs, 0)];
+            [$tid, $tname, $ttheme, $ta, $tb, $tn] = $trunk[$c++];
+            [$y, $z] = $pick();
+            $specs[] = self::branch($tid, $tname, $ttheme, '#ffd25a', null, $ta, $tb, $tn, $tname.' Heart', $y, $z);
+        }
+        $map = TreeMap::build($t['root'], $specs, self::SHAPE);
+        $map['cultures'] = $cultures;
+
+        return self::$built[$race] = $map;
     }
 
     public static function trees(): array
@@ -216,28 +266,35 @@ final class Heritage
         return (int) round($units * (self::RENOWN_ALONE + self::RENOWN_PER_KIN * $kin) * (1 + $bonus));
     }
 
-    /** Heritage points a demo hero spends: root, its culture, then the trunk. Deterministic. */
-    public static function auto(string $race, string $culture, int $points): array
+    /** The order demo heroes learn in: the root, their culture's spines, the trunk, then the lanes. Deterministic. */
+    public static function plan(string $race, string $culture): array
     {
+        $key = 'p:'.$race.':'.$culture;
+        if (isset(self::$built[$key])) {
+            return self::$built[$key];
+        }
         $tree = self::tree($race);
-        $have = [];
-        $order = ['root', ...$tree['cultures'][$culture][3], ...$tree['trunk'], ...$tree['trunk'], ...$tree['trunk']];
-        $guard = 0;
-        while ($points > 0 && $guard++ < 100) {
-            $learned = false;
-            foreach ($order as $id) {
-                if (Talents::check($tree, $have, $id, $points, $culture) === null) {
-                    $have[$id] = ($have[$id] ?? 0) + 1;
-                    --$points;
-                    $learned = true;
-                    break;
-                }
+        [$s, $depth] = [self::SHAPE['starts'], self::SHAPE['depth']];
+        $mine = [...$tree['cultures'][$culture][3], 'trunk0', 'trunk1', 'trunk2'];
+        $plan = ['root'];
+        for ($d = 1; $d <= $depth; ++$d) {
+            foreach ($mine as $bid) {
+                $plan[] = $bid.'.2.'.$d;
             }
-            if (!$learned) {
-                break;
+        }
+        foreach ($mine as $bid) {
+            foreach ([1, 3, 0, 4] as $j) {
+                for ($d = $s[$j]; $d <= $depth; ++$d) {
+                    $plan[] = $bid.'.'.$j.'.'.$d;
+                }
             }
         }
 
-        return $have;
+        return self::$built[$key] = $plan;
+    }
+
+    public static function auto(string $race, string $culture, int $rank): array
+    {
+        return TreeMap::auto(self::tree($race), self::plan($race, $culture), self::points($rank), $culture);
     }
 }
