@@ -82,6 +82,10 @@ class Hero
     #[ORM\Column(length: 16, nullable: true)]
     public ?string $backstory = null;
 
+    /** The life story written at creation: [answers => [question => answer], notes]. See LifeStory. */
+    #[ORM\Column(type: 'json')]
+    public array $story = [];
+
     /** Earned by running dungeons with groupmates of the same race. Sets the Heritage rank. */
     #[ORM\Column]
     public int $renown = 0;

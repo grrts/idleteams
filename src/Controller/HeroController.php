@@ -48,7 +48,7 @@ class HeroController extends ApiController
             'talent' => $actions->learnTalent($h, array_map('strval', (array) ($in['nodes'] ?? [$in['node'] ?? '']))),
             'resetTalents' => $actions->resetTalents($h),
             'culture' => $actions->chooseCulture($h, (string) ($in['culture'] ?? '')),
-            'backstory' => $actions->chooseBackstory($h, (string) ($in['backstory'] ?? '')),
+            'story' => $actions->writeStory($h, $in['story'] ?? null),
             'heritage' => $actions->learnHeritage($h, array_map('strval', (array) ($in['nodes'] ?? [$in['node'] ?? '']))),
             default => throw new \App\Service\GameError('Unknown action.'),
         };

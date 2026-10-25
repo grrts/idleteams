@@ -6,6 +6,7 @@ use App\Entity\Hero;
 use App\Entity\Item;
 use App\Game\Combatants;
 use App\Game\Heritage;
+use App\Game\LifeStory;
 use App\Game\Items;
 use App\Game\Rules;
 use App\Game\Talents;
@@ -59,6 +60,7 @@ class Bots
         $cultures = array_keys(Heritage::TREES[$h->race]['cultures']);
         $h->culture ??= $cultures[$h->id % count($cultures)];
         $h->backstory ??= array_key_first(array_filter(Heritage::backstories($h->race), fn ($b) => $b[1] === $h->culture));
+        $h->story = $h->story ?: LifeStory::example($h->race, $h->backstory, $h->id);
         $h->heritage = Heritage::auto($h->race, $h->culture, $h->heritageRank());
         $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $h->path, $h->talents);
         $i = 0;

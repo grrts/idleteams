@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Game\Combatants;
 use App\Game\Heritage;
 use App\Game\Items;
+use App\Game\LifeStory;
 use App\Game\Rules;
 use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -53,9 +54,10 @@ class HeroActions
                 throw new GameError("Pick a $k.");
             }
         }
-        $story = Heritage::backstories($in['race'])[$in['backstory'] ?? ''] ?? null;
-        if ($story === null) {
-            throw new GameError('Pick a backstory.');
+        try {
+            $story = LifeStory::clean($in['race'], $in['story'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            throw new GameError($e->getMessage());
         }
         $look = [];
         foreach (self::LOOK as $k) {
@@ -70,7 +72,8 @@ class HeroActions
         $h->race = $in['race'];
         $h->cls = $in['cls'];
         $h->origin = $in['origin'];
-        $this->startBackstory($h, $in['backstory']);
+        $h->story = $story;
+        $this->startBackstory($h, $story['answers']['youth']);
         $h->look = $look;
         $h->createdAt = time();
         $this->em->persist($h);
@@ -252,23 +255,27 @@ class HeroActions
     }
 
     /**
-     * Heroes made before backstories pick one once. They get the Renown head start and follow its culture; their
-     * learned nodes stay if they are in that culture or the trunk, and the rest come back as points.
+     * Heroes made before life stories write theirs once. They get the Renown head start and follow the culture that
+     * raised them; learned nodes stay if they are in that culture or the trunk, and the rest come back as points.
      */
-    public function chooseBackstory(Hero $h, string $backstory): void
+    public function writeStory(Hero $h, mixed $input): void
     {
-        $story = Heritage::backstories($h->race)[$backstory] ?? null;
-        if ($story === null) {
-            throw new GameError('Unknown backstory.');
+        if ($h->story) {
+            throw new GameError('Your story is already written.');
         }
-        if ($h->backstory !== null) {
-            throw new GameError('Your backstory is already written.');
+        try {
+            $story = LifeStory::clean($h->race, $input);
+        } catch (\InvalidArgumentException $e) {
+            throw new GameError($e->getMessage());
         }
+        $culture = $story['answers']['home'];
         $tree = Heritage::tree($h->race);
-        $h->backstory = $backstory;
-        $h->culture = $story[1];
+        $h->story = $story;
+        $h->backstory = $story['answers']['youth'];
+        $h->culture = $culture;
         $h->renown += Heritage::BACKSTORY_RENOWN;
-        $h->heritage = array_filter($h->heritage, fn ($id) => isset($tree['nodes'][$id]) && in_array($tree['nodes'][$id]['culture'], [null, $story[1]], true), ARRAY_FILTER_USE_KEY);
+        $h->heritage = array_filter($h->heritage, fn ($id) => isset($tree['nodes'][$id]) && in_array($tree['nodes'][$id]['culture'], [null, $culture], true), ARRAY_FILTER_USE_KEY);
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s told the tavern their life story.', $h->name), ['type' => 'hero', 'hero' => $h->id]);
     }
 
     /** Follow one culture of your race. Switching later costs gold and gives back the points in the old culture. */

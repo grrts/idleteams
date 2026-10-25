@@ -154,6 +154,49 @@
       return max > 1 ? t + ' per rank' : t;
     },
   });
+  // ---------- Life story (src/Game/LifeStory.php)
+  const LS = (E.LifeStory = {
+    ids: () => Object.values(D.LIFE_STORY.CHAPTERS).flatMap((c) => c[1]),
+    clean(race, story) {
+      const q = D.LIFE_STORY.QUESTIONS[race], answers = story && typeof story.answers === 'object' && story.answers ? story.answers : {}, out = {};
+      if (!q) throw new Error('Pick a race.');
+      for (const id of LS.ids()) {
+        const a = answers[id];
+        if (id === 'home') { if (typeof a !== 'string' || !D.HERITAGE_TREES[race].cultures[a]) throw new Error('Tell your story: ' + q.home); }
+        else if (id === 'youth') { const b = typeof a === 'string' ? H.backstories(race)[a] : null; if (!b || b[1] !== out.home) throw new Error('Tell your story: ' + q.youth); }
+        else if (!Number.isInteger(a) || !q[id][1][a]) throw new Error('Tell your story: ' + q[id][0]);
+        out[id] = a;
+      }
+      const notes = String((story && typeof story.notes === 'string' && story.notes) || '').replace(/<[^>]*>/g, '').replace(/\s+/gu, ' ').trim();
+      return { answers: out, notes: [...notes].slice(0, D.LIFE_STORY.NOTES_MAX).join('') };
+    },
+    lean(race, story) {
+      const count = new Map();
+      for (const [id, a] of Object.entries(story.answers || {})) { const o = Number.isInteger(a) && D.LIFE_STORY.QUESTIONS[race][id] ? D.LIFE_STORY.QUESTIONS[race][id][1][a] : null; if (o) count.set(o[2], (count.get(o[2]) || 0) + 1); }
+      const order = [...count.keys()];
+      return Object.fromEntries([...count.entries()].sort((x, y) => y[1] - x[1] || order.indexOf(x[0]) - order.indexOf(y[0])).slice(0, D.LIFE_STORY.LEAN_ATTRS).map(([a]) => [a, D.LIFE_STORY.LEAN_POINTS]));
+    },
+    biography(race, name, story) {
+      const q = D.LIFE_STORY.QUESTIONS[race], cult = D.HERITAGE_TREES[race].cultures, out = [];
+      for (const [title, ids] of Object.values(D.LIFE_STORY.CHAPTERS)) {
+        const lines = [];
+        for (const id of ids) {
+          const a = (story.answers || {})[id];
+          if (id === 'home' && typeof a === 'string' && cult[a]) lines.push(name + ' was raised among the ' + cult[a][0] + ': ' + cult[a][1].charAt(0).toLowerCase() + cult[a][1].slice(1) + '.');
+          else if (id === 'youth' && typeof a === 'string' && H.backstories(race)[a]) { const b = H.backstories(race)[a]; lines.push('Everyone in ' + cult[b[1]][0] + ' knew ' + name + ' as the ' + b[0] + '. ' + b[3]); }
+          else if (Number.isInteger(a) && q[id] && q[id][1][a]) lines.push(q[id][1][a][1].split('{name}').join(name));
+        }
+        if (lines.length) out.push([title, lines.join(' ')]);
+      }
+      if (story.notes) out.push(['In their own words', story.notes]);
+      return out;
+    },
+    example(race, backstory, seed = 0) {
+      const answers = {};
+      LS.ids().forEach((id, i) => { answers[id] = id === 'home' ? H.backstories(race)[backstory][1] : id === 'youth' ? backstory : (seed + i * 3) % 4; });
+      return { answers, notes: '' };
+    },
+  });
   const H = (E.Heritage = {
     tree: (race) => D.HERITAGE_TREES[race],
     renownFor: (rank) => 20 * (rank - 1) * rank,
@@ -246,6 +289,7 @@
       const race = D.RACES[build.race]; for (const [a, n] of Object.entries(race.points)) add(a, n, race.name);
       const cls = D.CLASSES[build.cls]; for (const [a, n] of Object.entries(cls.points)) add(a, n, cls.name);
       const origin = D.ORIGINS[build.origin]; add(origin[1], C.ORIGIN_POINTS, 'Origin: ' + origin[0]);
+      if (build.story && build.story.answers) for (const [a, n] of Object.entries(E.LifeStory.lean(build.race, build.story))) add(a, n, 'Life story');
       for (const [a, n] of Object.entries(build.spent || {})) add(a, n, 'Your points');
       for (const item of build.items || []) {
         const t = S.temperMult(item);

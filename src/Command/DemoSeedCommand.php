@@ -6,6 +6,7 @@ use App\Entity\Hero;
 use App\Entity\User;
 use App\Game\Heritage;
 use App\Game\Items;
+use App\Game\LifeStory;
 use App\Service\Bots;
 use App\Service\Game;
 use App\Service\HeroActions;
@@ -79,7 +80,7 @@ final class DemoSeedCommand extends Command
                 'metal' => $pick(['#b8c2cc', '#e0b04a', '#c58a5a']),
             ];
             $made[$name] = $this->heroes->create($u, ['name' => $name, 'race' => $race, 'cls' => $cls, 'origin' => $origin, 'look' => $look,
-                'backstory' => array_keys(Heritage::backstories($race))[$n * 4 % 9]]);
+                'story' => LifeStory::example($race, array_keys(Heritage::backstories($race))[$n * 4 % 9], $n)]);
         }
         $this->em->flush();
 

@@ -12,6 +12,7 @@ use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
 use App\Game\Combatants;
 use App\Game\Heritage;
+use App\Game\LifeStory;
 use App\Game\Items;
 use App\Game\Rules;
 use App\Game\Simulator;
@@ -44,8 +45,10 @@ class Present
             'dungeon' => ['name' => Simulator::DUNGEON_NAME, 'plan' => Simulator::DUNGEON], 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
+            'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
             'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],
             'backstories' => Heritage::backstoryInfo(), 'backstoryNodes' => Heritage::BACKSTORY_NODES, 'backstoryRenown' => Heritage::BACKSTORY_RENOWN,
+            'lifeStory' => ['chapters' => LifeStory::CHAPTERS, 'questions' => LifeStory::QUESTIONS, 'notesMax' => LifeStory::NOTES_MAX, 'lean' => [LifeStory::LEAN_ATTRS, LifeStory::LEAN_POINTS]],
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }
@@ -118,6 +121,7 @@ class Present
             'twists' => $twists,
             'talents' => (object) $h->talents, 'talentPoints' => ['total' => Talents::points($L), 'free' => $h->talentPoints()],
             'talentTotal' => Talents::describe(Talents::total(Talents::tree($h->cls), $h->talents), 1, $h->cls),
+            'story' => $h->story ?: null, 'biography' => $h->story ? LifeStory::biography($h->race, $h->name, $h->story) : [],
             'heritageTotal' => Talents::describe(Talents::total(Heritage::tree($h->race), $h->heritage)),
             'treeVersion' => Talents::VERSION,
             'talentResetCost' => HeroActions::talentResetCost($h),

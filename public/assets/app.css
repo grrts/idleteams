@@ -201,8 +201,21 @@ details.run summary b { font-family: var(--f-display); font-weight: 400; font-si
 .choice b { font-family: var(--f-display); font-weight: 400; font-size: 1.1rem; }
 .choice.on { border-color: var(--ember); background: linear-gradient(160deg, rgba(255,138,42,.18), var(--panel2) 60%); box-shadow: 0 0 0 1px var(--ember); }
 .choice.locked { cursor: default; }
-.stories { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-.storygroup .eyebrow { margin-bottom: 6px; }
+/* Life story: questions on the left, the biography writing itself on the right. */
+.storyhead { margin: 10px 0; gap: 8px; flex-wrap: wrap; }
+.storycols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 16px; align-items: start; }
+.storybio { position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
+.storybio.short, .storyview .storybio { position: static; max-height: none; }
+.biopara { margin-bottom: 10px; } .biopara p { margin: 2px 0 0; line-height: 1.5; }
+.storychapter h3 { margin: 14px 0 6px; }
+.storyq { margin-bottom: 12px; }
+.storyq .qtext { font-weight: 700; margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
+.storyq .qtext i { font-style: normal; color: var(--gold); font-size: .8rem; min-width: 18px; }
+.storyq textarea { width: 100%; }
+.storyopts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
+.storyopt { display: flex; flex-direction: column; gap: 2px; text-align: left; font-weight: 400; padding: 8px 10px; white-space: normal; }
+.storyopt b { font-weight: 700; } .storyopt span, .storyopt small { font-family: Nunito, system-ui, sans-serif; letter-spacing: 0; text-shadow: none; } .storyopt span { font-size: .8rem; opacity: .85; } .storyopt small { font-size: .74rem; opacity: .7; }
+@media (max-width: 900px) { .storycols { grid-template-columns: 1fr; } .storybio { position: static; max-height: none; } }
 canvas.curve { width: 100%; height: 110px; border-radius: 8px; background: #120812; border: 1px solid var(--line); }
 
 /* ---------- skills ---------- */

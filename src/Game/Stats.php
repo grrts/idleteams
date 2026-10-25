@@ -88,6 +88,11 @@ final class Stats
         }
         $origin = Rules::ORIGINS[$build['origin']];
         $add($origin[1], Rules::ORIGIN_POINTS, 'Origin: '.$origin[0]);
+        if (!empty($build['story'])) {
+            foreach (LifeStory::lean($build['race'], $build['story']) as $a => $n) {
+                $add($a, $n, 'Life story');
+            }
+        }
         foreach ($build['spent'] ?? [] as $a => $n) {
             $add($a, $n, 'Your points');
         }

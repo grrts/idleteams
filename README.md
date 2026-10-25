@@ -21,10 +21,13 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   capstone) at ring 15 and ends in a mastery at ring 30; the outer lanes end in twenty trade-off keystones.
   Learn any node next to one you have, or learn the whole path to a far node in one go. The map pans, zooms
   and searches. Resetting costs gold.
-- Backstory: picked at creation, after race. Each race has nine, one for every branch of its three cultures (for
-  example Forge Apprentice, Hall Cook or Deep Delver for dwarves). It sets the culture you follow, starts you at
-  Heritage rank 3 with the first steps of its branch learned, and gives a small lasting edge plus 10% more Renown
-  while you follow its culture. Kin who share your backstory count three times. Heroes made earlier pick one once.
+- Life story: written at creation, right after race. Seventeen questions in five chapters (family, childhood,
+  coming of age, setting out, who you are), worded differently for every race, with four answers each and an
+  optional note in your own words. The answers become a biography on the hero sheet. Where you were raised sets
+  your culture; what you were known for (nine per race, one per culture branch) starts you at Heritage rank 3
+  with the first steps of that branch learned, a small lasting edge and 10% more Renown while you follow that
+  culture; the story leans to the three attributes it names most, +2 each. Kin who share your upbringing count
+  three times. Heroes made earlier write theirs once from the Heritage page.
 - Heritage: every race has a map of 1,201 nodes: three trunk branches and three cultures (for example Ironhold,
   Brewhall and Runedeep for dwarves) of three branches each, five lanes twenty-four rings deep. Follow one
   culture to open its branches. Heritage ranks come from Renown, which runs pay mostly for kin: every other hero
@@ -110,6 +113,7 @@ a database and cron.
 | Where | What |
 | --- | --- |
 | `src/Game/Rules.php` | All static game data: attributes, races, classes, Origins, skills, Keystones, slots, glyphs, powers |
+| `src/Game/LifeStory.php` | The life story questions for every race, the biography and how the answers feed Heritage |
 | `src/Game/TreeMap.php` | Builds the radial node maps, checks them and finds paths |
 | `src/Game/Talents.php`, `Heritage.php` | The class talent maps and the race and culture Heritage maps, with Renown. The client loads a map from `GET /api/tree/{talent\|heritage}/{key}` |
 | `src/Game/Stats.php` | Build → attributes (with sources) → combat stats; the percentage curve and soft cap |

@@ -28,7 +28,7 @@
   /** Saves from before talents and Heritage get the new fields; saves from the small trees get their points back. */
   function migrate() {
     for (const h of db.heroes) {
-      h.talents = TM.clean(T.tree(h.cls), h.talents); h.heritage = TM.clean(H.tree(h.race), h.heritage); h.culture = h.culture || null; h.renown = h.renown || 0; h.backstory = h.backstory || null;
+      h.talents = TM.clean(T.tree(h.cls), h.talents); h.heritage = TM.clean(H.tree(h.race), h.heritage); h.culture = h.culture || null; h.renown = h.renown || 0; h.backstory = h.backstory || null; h.story = h.story && h.story.answers ? h.story : null;
       if (!keys(h.talents).length) { const avail = Cb.available(h.cls, h.level, h.path); h.loadout = (h.loadout || []).filter((id) => avail[id]); }
     }
   }
@@ -62,7 +62,7 @@
   // ------------------------------------------------------------------ Game
 
   const equipped = (h) => db.items.filter((i) => i.owner === h.id && i.equipped);
-  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, keystones: h.keystones, talents: h.talents, heritage: h.heritage, culture: h.culture, backstory: h.backstory, items: equipped(h).map(I.spec) });
+  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, keystones: h.keystones, talents: h.talents, heritage: h.heritage, culture: h.culture, backstory: h.backstory, story: h.story, items: equipped(h).map(I.spec) });
   function loadout(h) {
     const avail = Cb.available(h.cls, h.level, h.path, h.talents);
     const ids = h.loadout.filter((id) => avail[id]);
@@ -258,6 +258,8 @@
       dungeon: { name: D.DUNGEON_NAME, plan: D.DUNGEON }, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
+      cultureInfo: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, [x[0], x[1]]]))])),
+      lifeStory: { chapters: D.LIFE_STORY.CHAPTERS, questions: D.LIFE_STORY.QUESTIONS, notesMax: D.LIFE_STORY.NOTES_MAX, lean: [D.LIFE_STORY.LEAN_ATTRS, D.LIFE_STORY.LEAN_POINTS] },
       backstories: D.HERITAGE.BACKSTORY_INFO, backstoryNodes: D.HERITAGE.BACKSTORY_NODES, backstoryRenown: D.HERITAGE.BACKSTORY_RENOWN,
       renown: { alone: D.HERITAGE.RENOWN_ALONE, perKin: D.HERITAGE.RENOWN_PER_KIN, swapGold: D.HERITAGE.CULTURE_SWAP_GOLD },
     };
@@ -293,6 +295,7 @@
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
+      story: h.story || null, biography: h.story ? E.LifeStory.biography(h.race, h.name, h.story) : [],
       talentTotal: T.describe(T.total(T.tree(h.cls), h.talents), 1, h.cls), heritageTotal: T.describe(T.total(H.tree(h.race), h.heritage)), treeVersion: D.TALENT.VERSION,
       renown: { total: h.renown, rank, from: H.renownFor(rank), to: H.renownFor(rank + 1), free: heritagePoints(h), kin: H.kin(h.race, h.culture, others, h.backstory) },
     });
@@ -353,14 +356,16 @@
     if (!/^[\p{L}][\p{L}' -]{2,19}$/u.test(name)) fail('Names are 3 to 20 letters (spaces, hyphens and apostrophes are fine).');
     if (db.heroes.some((h) => h.name === name)) fail('That name is taken.');
     for (const [k, list] of [['race', D.RACES], ['cls', D.CLASSES], ['origin', D.ORIGINS]]) if (!list[input[k]]) fail('Pick a ' + k + '.');
-    if (!H.backstories(input.race)[input.backstory]) fail('Pick a backstory.');
+    let story;
+    try { story = E.LifeStory.clean(input.race, input.story); } catch (e) { fail(e.message); }
     const lk = {};
     for (const k of LOOK) { const v = (input.look || {})[k]; if ((typeof v === 'string' && /^[#a-zA-Z0-9]{1,16}$/.test(v)) || typeof v === 'number') lk[k] = v; }
     const h = ins('heroes', {
       user: u.id, name, race: input.race, cls: input.cls, origin: input.origin, path: null, oathTaken: false, look: lk, level: 1, xp: 0, spent: {}, carved: {}, skillRanks: {},
       loadout: [], keystones: {}, talents: {}, heritage: {}, culture: null, renown: 0, codex: [], marks: [], career: {}, gold: 0, materials: 0, essence: 0, lootPolicy: 'upgrades', party: null, guild: null, guildRank: 'member', createdAt: time(),
     });
-    startBackstory(h, input.backstory);
+    h.story = story;
+    startBackstory(h, story.answers.youth);
     // Starter kit: plain commons in the class's own style. Everything after this drops, gets crafted or traded.
     const c = D.CLASSES[h.cls], r = new Rng(E.crc(name));
     for (const [slot, base] of Object.entries(c.kit)) {
@@ -444,16 +449,18 @@
     h.renown = Math.max(h.renown, D.HERITAGE.BACKSTORY_RENOWN);
     h.heritage = H.backstoryStart(h.race, id);
   }
-  /** Heroes made before backstories pick one once; nodes outside its culture and the trunk come back as points. */
-  function chooseBackstory(h, id) {
-    const story = H.backstories(h.race)[id];
-    if (!story) fail('Unknown backstory.');
-    if (h.backstory !== null) fail('Your backstory is already written.');
-    const tree = H.tree(h.race);
-    h.backstory = id;
-    h.culture = story[1];
+  /** Heroes made before life stories write theirs once; nodes outside the culture that raised them and the trunk come back as points. */
+  function writeStory(h, input) {
+    if (h.story) fail('Your story is already written.');
+    let story;
+    try { story = E.LifeStory.clean(h.race, input); } catch (e) { fail(e.message); }
+    const tree = H.tree(h.race), culture = story.answers.home;
+    h.story = story;
+    h.backstory = story.answers.youth;
+    h.culture = culture;
     h.renown += D.HERITAGE.BACKSTORY_RENOWN;
-    h.heritage = Object.fromEntries(Object.entries(h.heritage).filter(([n]) => tree.nodes[n] && [null, story[1]].includes(tree.nodes[n].culture)));
+    h.heritage = Object.fromEntries(Object.entries(h.heritage).filter(([n]) => tree.nodes[n] && [null, culture].includes(tree.nodes[n].culture)));
+    post(heroChannel(h), h.name + ' told the tavern their life story.', { type: 'hero', hero: h.id });
   }
   function chooseCulture(h, culture) {
     const tree = H.tree(h.race);
@@ -732,6 +739,7 @@
     const cultures = keys(H.tree(h.race).cultures);
     h.culture = h.culture || cultures[h.id % cultures.length];
     h.backstory = h.backstory || Object.entries(H.backstories(h.race)).find(([, b]) => b[1] === h.culture)[0];
+    h.story = h.story || E.LifeStory.example(h.race, h.backstory, h.id);
     h.heritage = H.auto(h.race, h.culture, heritageRank(h));
     h.loadout = Cb.defaultLoadout(h.cls, h.level, h.path, h.talents);
     let i = 0;
@@ -766,7 +774,7 @@
         acc: pick(['none', 'none', 'glasses', 'eyepatch']), build: pick([0.92, 1, 1.1]), height: pick([0.95, 1, 1.05]), dye1: pick(['#c0392b', '#2f6fd0', '#3aa655', '#5b3fa8', '#e67e22']),
         dye2: pick(['#ece4d4', '#3d3a44', '#f1c40f']), metal: pick(['#b8c2cc', '#e0b04a', '#c58a5a']),
       };
-      made[name] = createHero(u, { name, race, cls, origin, look: lk, backstory: keys(H.backstories(race))[(n * 4) % 9] });
+      made[name] = createHero(u, { name, race, cls, origin, look: lk, story: E.LifeStory.example(race, keys(H.backstories(race))[(n * 4) % 9], n) });
     }
     const leader = made.Brannoc; leader.gold = 500;
     const guild = createGuild(leader, { name: 'Lantern Keepers', tag: 'LANT', motto: 'Nobody adventures alone.' });
@@ -834,7 +842,7 @@
       keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')),
       resetRanks: () => resetRanks(h), loadout: () => setLoadout(h, [].concat(input.skills || [])), lootPolicy: () => setLootPolicy(h, String(input.policy || '')),
       talent: () => learnTalent(h, [].concat(input.nodes || input.node || []).map(String)), resetTalents: () => resetTalents(h),
-      culture: () => chooseCulture(h, String(input.culture || '')), backstory: () => chooseBackstory(h, String(input.backstory || '')), heritage: () => learnHeritage(h, [].concat(input.nodes || input.node || []).map(String)),
+      culture: () => chooseCulture(h, String(input.culture || '')), story: () => writeStory(h, input.story), heritage: () => learnHeritage(h, [].concat(input.nodes || input.node || []).map(String)),
     };
     (acts[input.action] || (() => fail('Unknown action.')))();
     return presentHero(h);
