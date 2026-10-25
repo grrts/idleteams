@@ -314,3 +314,66 @@ canvas.curve { width: 100%; height: 110px; border-radius: 8px; background: #1208
 .camp.wipe { border-color: rgba(255,90,90,.45); background: radial-gradient(60% 70% at 50% 100%, rgba(255,60,60,.22), transparent 70%), linear-gradient(#170a12, #24101a 70%, #2e1a20 70%); }
 .camp.wipe h1 { color: #ffb0a0; display: flex; gap: 10px; align-items: center; justify-content: center; }
 .seat.down img.spr { filter: grayscale(.7) brightness(.75); }
+
+/* ------------------------------------------------------------------ game skin
+   Pixel frames, bevelled buttons and stone textures, generated in art.js (--ui-* variables) and shown at 2x.
+   Everything below only restyles existing classes, so a screen built from them picks the skin up. */
+:root { --f-pixel: 'Pixelify Sans', 'Lilita One', system-ui, sans-serif; --r: 2px; }
+body { image-rendering: pixelated; background: linear-gradient(180deg, rgba(10,4,14,.55), rgba(10,4,14,.82)), var(--ui-wall, none) 0 0 / 128px 96px, var(--bg); background-attachment: fixed; }
+h1, h2, h3, .nav a, .steps button, .chat-tabs button { font-family: var(--f-pixel); font-weight: 600; letter-spacing: .02em; }
+h1 { text-shadow: 0 3px 0 #0c0610, 0 0 18px rgba(255,138,42,.25); }
+.panel h2, .panel h3, .camp h1 { color: #ffe3a0; text-shadow: 0 2px 0 #0c0610; }
+.panel > h2:first-child::before, .panel > h3:first-child::before, .panel > .head:first-child h2::before, .panel > .head:first-child h3::before { content: ''; display: inline-block; width: 22px; height: 14px; margin: 0 8px 2px 0; vertical-align: middle; background: var(--ui-ornament) center / 22px 14px no-repeat; }
+
+/* panels: bevelled stone frame with gold studs */
+.panel { border: 0; border-radius: 0; padding: 20px 22px; background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.18)), var(--ui-panel, none) 0 0 / 64px 64px, var(--panel); border-image: var(--ui-frame) 8 / 16px / 0 round; box-shadow: 0 6px 0 rgba(0,0,0,.35); }
+.panel.tight { padding: 14px 16px; }
+.panel[style*="border-color"] { border-image: var(--ui-frame-gold) 8 / 16px / 0 round; }
+.panel .panel { border-image: var(--ui-frame) 8 / 12px / 0 round; box-shadow: none; background: rgba(0,0,0,.18); }
+.steps { margin: -20px -22px 18px; }
+
+/* buttons: chunky pixel slabs */
+button { border: 0; border-radius: 0; background: none; border-image: var(--ui-btn) 4 fill / 8px round; padding: 8px 16px 10px; font-family: var(--f-pixel); font-weight: 600; font-size: .95rem; color: #f4ead8; text-shadow: 0 2px 0 #0c0610; transition: transform .06s; }
+button:hover:not(:disabled) { border-image-source: var(--ui-btn-hover); }
+button:active:not(:disabled) { transform: translateY(2px); }
+button.primary { border-image-source: var(--ui-btn-primary); color: #fff7e0; text-shadow: 0 2px 0 #5a1e06; }
+button.primary:hover:not(:disabled) { border-image-source: var(--ui-btn-primary-hover); }
+button.on, .seg button.on { border-image-source: var(--ui-btn-on); color: #2a1604; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+button.small { padding: 4px 10px 6px; font-size: .82rem; border-image-width: 6px; }
+button.ghost, .steps button, .chat-tabs button { border-image: none; }
+.steps button.on { color: #ffe3a0; }
+.steps button i { border-radius: 0; }
+
+/* inputs sit in carved slots */
+input, select, textarea { border: 0; border-radius: 0; background: none; border-image: var(--ui-slot) 4 fill / 8px round; padding: 9px 12px; }
+input:focus, select:focus, textarea:focus { border-image-source: var(--ui-frame-ember); border-image-slice: 8 fill; }
+
+/* top bar and navigation */
+.top { background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.25)), var(--ui-panel2, none) 0 0 / 64px 64px, #1f1428; border-bottom: 0; box-shadow: 0 3px 0 #0c0610, 0 4px 0 #6a4a2a, 0 8px 0 rgba(0,0,0,.35); }
+.nav { background: rgba(8,3,12,.45); border-right: 0; box-shadow: inset -3px 0 0 #0c0610, inset -4px 0 0 #4a3a5a; gap: 6px; }
+.nav a { border: 0; border-radius: 0; border-image: var(--ui-btn) 4 fill / 8px round; padding: 9px 12px 11px; text-shadow: 0 2px 0 #0c0610; }
+.nav a:hover { background: none; border-image-source: var(--ui-btn-hover); }
+.nav a.on { background: none; border-image-source: var(--ui-btn-on); color: #2a1604; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+.badge, .chip { border-radius: 2px; }
+.side { background: rgba(8,3,12,.5); border-left: 0; box-shadow: inset 3px 0 0 #0c0610, inset 4px 0 0 #4a3a5a; }
+
+/* the battle stage, camp and frames */
+.arena { border: 0; border-radius: 0; border-image: var(--ui-frame-gold) 8 / 16px / 0 round; padding: 10px; background: #0c0610; box-shadow: 0 8px 0 rgba(0,0,0,.4); }
+.camp { border: 0; border-radius: 0; border-image: var(--ui-frame-ember) 8 / 16px / 0 round; }
+.camp.wipe { border-image-source: var(--ui-frame); }
+.frame { border: 0; border-radius: 0; border-image: var(--ui-frame) 8 / 12px / 0 round; padding: 10px 12px; background: var(--ui-panel, none) 0 0 / 64px 64px, var(--panel); }
+.track .node { border-radius: 0; }
+.bar, .meter { border-radius: 0; }
+
+/* cards, choices and slots */
+.choice, .race, .item, .member .por, .portrait, .doll .stage, .post { border-radius: 0; }
+.choice, .race { border: 0; border-image: var(--ui-frame) 8 / 12px / 0 round; padding: 14px; }
+.choice.on, .race.on { border-image-source: var(--ui-frame-ember); box-shadow: none; }
+.item { border: 0; border-image: var(--ui-frame) 8 / 12px / 0 round; padding: 12px 14px; }
+.tile { border-radius: 0; border-width: 3px; box-shadow: inset 0 0 0 2px #0c0610, inset 0 -6px 0 rgba(0,0,0,.25); }
+.tile.empty { border-style: solid; border-color: #2a1f38; }
+.sk { border-radius: 0; box-shadow: inset 0 0 0 2px #0c0610, 0 3px 0 rgba(0,0,0,.4); }
+.portrait, .doll .stage { border: 0; border-image: var(--ui-frame-gold) 8 / 16px / 0 round; }
+.toast { border-radius: 0; border: 0; border-image: var(--ui-frame-gold) 8 / 12px / 0 round; }
+.sfx-toggle { position: fixed; left: 14px; bottom: 14px; z-index: 40; font-size: 1.1rem; line-height: 1; padding: 8px 10px 10px; }
+@media (max-width: 720px) { .sfx-toggle { left: auto; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); } }

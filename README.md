@@ -112,11 +112,11 @@ designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 ## Browser build
 
 `browser-build/` runs the whole game inside one page with no server: `data.js`, `engine.js` and `server.js` stand in
-for the Symfony API, and the page saves to the browser. To assemble it, copy `pixel.js`, `art.js`, `arena.js`, `app.js`
+for the Symfony API, and the page saves to the browser. To assemble it, copy `pixel.js`, `sfx.js`, `art.js`, `arena.js`, `app.js`
 and `app.css` from `public/assets/` next to `browser-build/index.html` and open that page from any static host.
 
 ## Art
 
 Everything is drawn in code at runtime, so there are no image files to keep in sync. `pixel.js` draws heroes,
 `art.js` draws item icons, UI and skill icons, monsters and the dungeon scenery, and `arena.js` plays back a
-battle on a canvas with hit numbers, projectiles, mechanics and the boss HUD.
+battle on a canvas with hit numbers, projectiles, mechanics and the boss HUD. `art.js` also draws the interface skin (pixel frames, buttons, textures) that `app.css` uses through `--ui-*` variables, and `sfx.js` synthesises every sound with Web Audio, with a mute toggle.

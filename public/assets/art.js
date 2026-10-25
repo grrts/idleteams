@@ -138,7 +138,7 @@
     top: {
       plate: [['M-15 -11 Q-11 -15.5 -6 -12 L-7 -4 L-15 -5 Z', 'metal', 'metal'], ['M15 -11 Q11 -15.5 6 -12 L7 -4 L15 -5 Z', 'metal', 'metal'], ['M-10 -12 L10 -12 L11.5 -3 L10 9 Q0 14 -10 9 L-11.5 -3 Z', 'metal', 'metal'], ['M-10.6 6 L10.6 6 L10.4 9.4 Q0 13.6 -10.4 9.4 Z', 'trim', 'metal']],
       leather: [['M-11 -12 L-3.5 -12 L0 -5 L3.5 -12 L11 -12 L12.5 13 L-12.5 13 Z', LEATHER, 'leather'], ['M-12 -12 L-3.5 -12 L-2 -9 L-11 -6 Z', 'cloth', 'cloth'], ['M12 -12 L3.5 -12 L2 -9 L11 -6 Z', 'cloth', 'cloth'], ['M-12.4 7 L12.4 7 L12.5 10 L-12.5 10 Z', '#3d2a1e', 'leather']],
-      robe: [['M-6.5 -14 L6.5 -14 L9.5 -8 L14 15 L-14 15 L-9.5 -8 Z', 'cloth', 'cloth'], ['M-9.5 -8 L-15 4 L-11 6 L-7 -3 Z', 'cloth', 'cloth'], ['M9.5 -8 L15 4 L11 6 L7 -3 Z', 'cloth', 'cloth'], ['M-1.8 -14 L1.8 -14 L2.6 15 L-2.6 15 Z', 'trim', 'cloth'], ['M-10 -1 L10 -1 L10.4 2.4 L-10.4 2.4 Z', 'trim', 'cloth']],
+      robe: [['M-8.5 -11 Q-13.5 -8 -15.5 2.5 Q-12.5 5 -9.5 3.5 Q-9.5 -3 -7.5 -6 Z', 'cloth', 'cloth'], ['M8.5 -11 Q13.5 -8 15.5 2.5 Q12.5 5 9.5 3.5 Q9.5 -3 7.5 -6 Z', 'cloth', 'cloth'], ['M-6 -14 L6 -14 Q9 -12 9.5 -8 L7.5 -1 Q11 6 13.5 13 Q10 15.2 6.5 13.6 Q3 15.6 0 14.2 Q-3 15.6 -6.5 13.6 Q-10 15.2 -13.5 13 Q-11 6 -7.5 -1 L-9.5 -8 Q-9 -12 -6 -14 Z', 'cloth', 'cloth'], ['M-13.5 13 Q-10 15.2 -6.5 13.6 Q-3 15.6 0 14.2 Q3 15.6 6.5 13.6 Q10 15.2 13.5 13 L12.8 10.8 Q10 12.8 6.5 11.4 Q3 13.2 0 12 Q-3 13.2 -6.5 11.4 Q-10 12.8 -12.8 10.8 Z', 'trim', 'cloth'], ['M-15.5 2.5 Q-12.5 5 -9.5 3.5 L-9.6 1.4 Q-12.4 2.8 -15 0.6 Z', 'trim', 'cloth'], ['M15.5 2.5 Q12.5 5 9.5 3.5 L9.6 1.4 Q12.4 2.8 15 0.6 Z', 'trim', 'cloth'], ['M-4.6 -14 L0 -6 L4.6 -14 L2.6 -14 L0 -9.4 L-2.6 -14 Z', 'trim', 'cloth'], ['M-7.9 -2.8 Q0 -0.8 7.9 -2.8 L7.9 0.6 Q0 2.6 -7.9 0.6 Z', 'trim', 'cloth'], ['M0.6 0.4 L3.4 0.4 L4.6 7.5 L1.8 7.5 Z', 'trim', 'cloth']],
       tunic: [['M-12 -11 L-4 -13.5 Q0 -10 4 -13.5 L12 -11 L15.5 -2 L11 0 L10.5 13 L-10.5 13 L-11 0 L-15.5 -2 Z', 'cloth', 'cloth'], ['M-4 -13.5 Q0 -6 4 -13.5 L2.4 -13.5 Q0 -9 -2.4 -13.5 Z', 'trim', 'cloth'], ['M-10.8 6 L10.8 6 L10.7 9 L-10.7 9 Z', LEATHER, 'leather'], ['M-2 5.4 L2 5.4 L2 9.6 L-2 9.6 Z', 'trim', 'metal']],
       sweater: [['M-12 -11 L-4.5 -13 Q0 -11 4.5 -13 L12 -11 L15.5 -1 L11 1 L10.5 13 L-10.5 13 L-11 1 L-15.5 -1 Z', 'cloth', 'cloth'], ['M-5 -13.4 Q0 -10.6 5 -13.4 L5 -11 Q0 -8.4 -5 -11 Z', 'trim', 'cloth'], ['M-10.6 10 L10.6 10 L10.5 13.5 L-10.5 13.5 Z', 'trim', 'cloth']],
     },
@@ -212,7 +212,7 @@
       case 'top':
         if (base === 'plate') { for (let y = 6; y <= 20; y++) dot(16, y, mix(col('metal'), '#ffffff', 0.45)); [[9, 7], [23, 7], [7, 18], [25, 18]].forEach(([x, y]) => rivet(x, y, 'metal')); gem(16, 11, 2); for (let x = 7; x <= 25; x += 3) dot(x, 23, trimLight); }
         else if (base === 'leather') { for (let y = 13; y <= 21; y += 2) { dot(15, y, '#e6d2a8'); dot(17, y + 1, '#e6d2a8'); } stitch(5, 6, 4, 22, '#c99a6a'); stitch(27, 6, 28, 22, '#c99a6a'); { b.next(); b.mats[b.part] = 'leather'; b.rect(6, 15, 5, 4, mix(LEATHER, '#140a22', 0.2)); } dot(8, 15, '#e6d2a8'); gem(16, 24, 1.4, T.gem || '#c0c6d0'); }
-        else if (base === 'robe') { for (let x = 4; x <= 28; x += 3) dot(x, 30, trimLight); [[16, 6], [16, 22]].forEach(([x, y]) => gem(x, y, 1.6)); }
+        else if (base === 'robe') { for (const [x1, x2] of [[13, 9], [19, 23], [16, 16]]) for (let y = 19; y <= 26; y++) dot(Math.round(x1 + ((x2 - x1) * (y - 19)) / 7), y, clothDark); for (const [x1, x2] of [[5, 3], [27, 29]]) for (let y = 9; y <= 14; y++) dot(Math.round(x1 + ((x2 - x1) * (y - 9)) / 5), y, clothDark); gem(16, 8, 1.4); gem(16, 16.5, 1.6); }
         else if (base === 'tunic') { gem(16, 4, 1.3); }
         else { [12, 13, 19, 20].forEach((y) => { for (let x = 6; x <= 26; x++) if (b.m[y * 32 + x] !== null) dot(x, y, y % 7 === 5 || y % 7 === 6 ? col('trim') : col('trim')); }); for (let x = 7; x <= 25; x += 2) dot(x, 25, clothDark); [1, 2].forEach((k) => { dot(2 + k, 15, col('trim')); dot(29 - k, 15, col('trim')); }); }
         break;
@@ -440,34 +440,164 @@
   A.WINGS = WINGS;
   const rnd = (seed) => { let s = seed >>> 0 || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
 
+  // Three parallax strips per wing, 640 x 180 pixels, shown at 3x. They tile sideways, so anything that
+  // crosses the edge is drawn again on the other side. Layer 0 is the far cave, 1 the pillars and props,
+  // 2 the floor.
   function layer(w, which) {
     const W = 640, H = 180, c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'), r = rnd(which * 97 + w * 13 + 5), P2 = WINGS[w];
-    const px = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(ww), Math.round(hh)); };
+    const px = (x, y, ww, hh, col) => { g.fillStyle = col; x = Math.round(x); y = Math.round(y); ww = Math.round(ww); hh = Math.round(hh); g.fillRect(x, y, ww, hh); if (x + ww > W) g.fillRect(x - W, y, ww, hh); if (x < 0) g.fillRect(x + W, y, ww, hh); };
+    const poly = (pts, col) => { [0, -W, W].forEach((o) => { g.fillStyle = col; g.beginPath(); pts.forEach(([x, y], k) => (k ? g.lineTo(x + o, y) : g.moveTo(x + o, y))); g.closePath(); g.fill(); }); };
+    const halo = (x, y, rad, col, a) => [0, -W, W].forEach((o) => { const gr = g.createRadialGradient(x + o, y, 0, x + o, y, rad); gr.addColorStop(0, hexA(col, a)); gr.addColorStop(1, hexA(col, 0)); g.fillStyle = gr; g.fillRect(x + o - rad, y - rad, rad * 2, rad * 2); });
+    const dk = (col, k) => mix(col, '#05020a', k), lt = (col, k) => mix(col, '#fff1d0', k);
+    // a stone block with a lit top-left edge, a dark bottom-right edge and the odd crack
+    const block = (x, y, ww, hh, col) => { px(x, y, ww, hh, col); px(x, y, ww, 1, lt(col, 0.14)); px(x, y, 1, hh, lt(col, 0.08)); px(x, y + hh - 1, ww, 1, dk(col, 0.35)); px(x + ww - 1, y, 1, hh, dk(col, 0.3)); if (r() < 0.25) { let cx = x + 2 + r() * (ww - 4), cy = y + 1; for (let k = 0; k < hh - 2; k++) { px(cx, cy + k, 1, 1, dk(col, 0.45)); cx += r() < 0.3 ? (r() < 0.5 ? -1 : 1) : 0; } } };
     if (which === 0) {
-      // far wall: gradient, brick courses and hanging stalactites
-      const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, P2.sky[0]); gr.addColorStop(1, P2.sky[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
-      for (let y = 18; y < 130; y += 9) for (let x = (y / 9) % 2 ? -10 : 0; x < W; x += 20) if (r() < 0.55) px(x + 1, y, 18, 7, mix(P2.rock, P2.sky[0], 0.45 + r() * 0.2));
-      for (let x = 0; x < W; x += 6 + r() * 14) { const h = 8 + r() * 26, wv = 4 + r() * 8; g.fillStyle = mix(P2.rock, '#000000', 0.35); g.beginPath(); g.moveTo(x, 0); g.lineTo(x + wv, 0); g.lineTo(x + wv / 2, h); g.closePath(); g.fill(); }
+      // banded, dithered gradient: deep at the top, warm toward the floor
+      const bands = [dk(P2.sky[0], 0.3), P2.sky[0], mix(P2.sky[0], P2.sky[1], 0.5), P2.sky[1], mix(P2.sky[1], P2.glow, 0.12)];
+      for (let y = 0; y < H; y++) { const f = (y / H) * (bands.length - 1), i = Math.floor(f), fr = f - i; for (let x = 0; x < W; x++) if (fr < 0.5 || (x + y) % 2) { g.fillStyle = bands[i]; g.fillRect(x, y, 1, 1); } else { g.fillStyle = bands[Math.min(bands.length - 1, i + 1)]; g.fillRect(x, y, 1, 1); } }
+      // two ranges of far rock, the nearer one darker and lit from below
+      [[0.5, 70, 40], [0.25, 95, 34]].forEach(([k, base, amp], n) => {
+        const col = mix(P2.rock, P2.sky[1], k), pts = [[0, H]];
+        for (let x = 0; x <= W; x += 8) pts.push([x, base + Math.sin((x / W) * Math.PI * 2 * (3 + n)) * amp * 0.4 + (r() - 0.5) * amp * 0.5]);
+        pts[pts.length - 1][1] = pts[1][1]; pts.push([W, H]);
+        g.fillStyle = col; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill();
+        for (let x = 0; x < W; x += 2) { const y = pts[Math.min(pts.length - 2, 1 + Math.floor(x / 8))][1]; px(x, y, 2, 1, lt(col, 0.12)); }
+      });
+      if (P2.prop === 'lava') {
+        // ruined arches against a lava-lit horizon
+        halo(320, 175, 260, P2.glow, 0.28);
+        for (let n = 0; n < 3; n++) { const x = 60 + n * 220 + r() * 40, top = 52 + r() * 14, col = mix(P2.rock, P2.sky[1], 0.15); px(x, top, 12, 120, col); px(x + 58, top + 8, 12, 112, col); for (let a = 0; a <= 20; a++) { const t = (a / 20) * Math.PI, ax = x + 35 - Math.cos(t) * 29, ay = top + 8 - Math.sin(t) * 20; px(ax - 4, ay, 8, 8, col); } px(x - 2, top - 3, 16, 4, lt(col, 0.1)); if (r() < 0.7) px(x + 58, top + 3, 14, 6, col); }
+      } else if (P2.prop === 'crystal') {
+        // glowing crystals hanging in the dark and mist over the pools
+        for (let n = 0; n < 14; n++) { const x = r() * W, len = 14 + r() * 34, wv = 3 + r() * 5; poly([[x - wv, 0], [x + wv, 0], [x, len]], mix(P2.accent, P2.sky[0], 0.55)); px(x - 1, len * 0.4, 1, len * 0.4, mix(P2.accent, '#ffffff', 0.2)); if (r() < 0.5) halo(x, len, 18, P2.accent, 0.18); }
+        for (let k = 0; k < 3; k++) { const y = 120 + k * 16; for (let x = 0; x < W; x += 4) if ((x / 4 + k) % 3) px(x, y + Math.sin(x / 40 + k) * 3, 4, 1, hexA('#a8d8ff', 0.08 + k * 0.03)); }
+      } else {
+        // the forge: huge cogs and lit furnace windows far off
+        halo(320, 150, 280, P2.glow, 0.2);
+        for (let n = 0; n < 3; n++) { const cx = 90 + n * 210 + r() * 40, cy = 60 + r() * 30, R = 26 + r() * 16, col = mix(P2.rock, P2.sky[1], 0.2); for (let a = 0; a < 12; a++) { const t = (a / 12) * Math.PI * 2; px(cx + Math.cos(t) * (R + 3) - 3, cy + Math.sin(t) * (R + 3) - 3, 7, 7, col); } [0, -W, W].forEach((o) => { g.fillStyle = col; g.beginPath(); g.arc(cx + o, cy, R, 0, Math.PI * 2); g.fill(); g.fillStyle = P2.sky[1]; g.beginPath(); g.arc(cx + o, cy, R * 0.35, 0, Math.PI * 2); g.fill(); }); }
+        for (let n = 0; n < 9; n++) { const x = r() * W, y = 96 + r() * 30; px(x, y, 6, 9, dk(P2.rock, 0.3)); px(x + 1, y + 1, 4, 7, mix(P2.glow, '#ffe0a0', 0.3)); px(x + 1, y + 4, 4, 1, dk(P2.rock, 0.3)); halo(x + 3, y + 5, 14, P2.glow, 0.25); }
+      }
+      // stalactites along the ceiling with a lit edge
+      for (let x = 0; x < W; x += 6 + r() * 16) { const h = 10 + r() * 30, wv = 5 + r() * 9, col = dk(P2.rock, 0.25); poly([[x, 0], [x + wv, 0], [x + wv * 0.45, h]], col); poly([[x, 0], [x + 2, 0], [x + wv * 0.45, h]], lt(col, 0.1)); }
     } else if (which === 1) {
-      // middle: pillars and wing props
+      // pillars of fitted stone with capitals, bases and per-block shading
+      for (let n = 0; n < 4; n++) {
+        const x = n * 160 + 16 + r() * 60, pw = 22 + Math.round(r() * 8), col = P2.rock2;
+        for (let y = 10, row = 0; y < 140; y += 10, row++) { const off = row % 2 ? pw / 2 : 0; block(x + off - (off ? pw / 2 : 0), y, off ? pw / 2 : pw, 10, mix(col, '#000000', r() * 0.08)); if (off) block(x + pw / 2, y, pw / 2, 10, mix(col, '#000000', r() * 0.08)); }
+        block(x - 5, 2, pw + 10, 9, lt(col, 0.05)); block(x - 3, 0, pw + 6, 3, dk(col, 0.1));
+        block(x - 6, 138, pw + 12, 10, dk(col, 0.05)); block(x - 3, 134, pw + 6, 5, col);
+        px(x + pw, 10, 3, 124, hexA('#000000', 0.25));
+        // wing touches on the pillars
+        if (P2.prop === 'crystal' && r() < 0.8) { const cx = x + (r() < 0.5 ? -4 : pw + 2), cy = 40 + r() * 60; for (let k = 0; k < 4; k++) poly([[cx, cy + k * 3], [cx + (k % 2 ? 9 : -9), cy - 6 + k * 5], [cx + (k % 2 ? 4 : -4), cy + 6 + k * 3]], mix(P2.accent, '#ffffff', k * 0.12)); halo(cx, cy + 4, 24, P2.accent, 0.25); }
+        if (P2.prop !== 'crystal') {
+          // a torch in an iron bracket, flame and warm halo
+          const tx = x + pw / 2, ty = 62 + (n % 2) * 14;
+          halo(tx, ty - 4, 46, P2.glow, 0.32);
+          px(tx - 4, ty + 4, 8, 3, '#2a2228'); px(tx - 1, ty, 2, 8, '#4a3a2a'); px(tx - 2, ty - 2, 4, 3, '#2a2228');
+          px(tx - 2, ty - 8, 4, 6, P2.glow); px(tx - 1, ty - 11, 2, 4, mix(P2.glow, '#ffe080', 0.5)); px(tx - 1, ty - 6, 2, 3, '#fff2b0');
+        }
+      }
+      // banners and chains between the pillars
+      for (let n = 0; n < 4; n++) {
+        const x = n * 160 + 100 + r() * 30;
+        if (P2.prop === 'forge') { for (let y = 0; y < 50 + r() * 40; y += 4) { px(x + (y / 4) % 2, y, 3, 3, '#5a5058'); px(x + (y / 4) % 2, y, 1, 1, '#8a8088'); } px(x - 2, 94, 7, 3, '#5a5058'); px(x + 3, 97, 2, 5, '#5a5058'); }
+        else { const bw = 18, bh = 44 + r() * 14, cl = w === 0 ? '#7a1e22' : '#1e3a6a'; px(x - 2, 14, bw + 4, 3, '#5a3a24'); poly([[x, 17], [x + bw, 17], [x + bw, 17 + bh], [x + bw / 2, 17 + bh - 8], [x, 17 + bh]], cl); px(x, 17, 2, bh - 2, lt(cl, 0.15)); px(x + bw - 2, 17, 2, bh - 2, dk(cl, 0.3)); poly([[x + bw / 2, 30], [x + bw / 2 + 5, 38], [x + bw / 2, 46], [x + bw / 2 - 5, 38]], '#f0c23a'); px(x + bw / 2 - 1, 36, 2, 4, '#fff0b0'); }
+      }
+      // ground props in front of the wall
       for (let n = 0; n < 5; n++) {
-        const x = n * 128 + 20 + r() * 50, w2 = 16 + r() * 10;
-        px(x, 0, w2, 150, P2.rock2); px(x + w2 - 4, 0, 4, 150, mix(P2.rock2, '#000000', 0.3)); px(x, 0, 3, 150, mix(P2.rock2, '#ffffff', 0.08));
-        for (let y = 8; y < 150; y += 14) px(x, y, w2, 2, mix(P2.rock2, '#000000', 0.2));
-        px(x - 3, 142, w2 + 6, 8, mix(P2.rock2, '#000000', 0.15));
-        if (P2.prop === 'crystal') { const cx = x + w2 + 14 + r() * 20; for (let k = 0; k < 3; k++) { g.fillStyle = mix(P2.accent, '#ffffff', k * 0.15); g.beginPath(); g.moveTo(cx + k * 5, 150); g.lineTo(cx + k * 5 + 3, 128 - k * 6 - r() * 8); g.lineTo(cx + k * 5 + 6, 150); g.fill(); } }
-        if (P2.prop === 'forge' && n % 2 === 0) { const cx = x + w2 + 20; px(cx, 136, 22, 6, '#2a2020'); px(cx + 4, 130, 14, 6, '#4a4048'); px(cx + 7, 142, 8, 8, '#2a2020'); g.strokeStyle = '#5a5058'; g.beginPath(); g.moveTo(cx + 11, 0); g.lineTo(cx + 11, 40 + r() * 30); g.stroke(); }
-        if (P2.prop === 'lava' && n % 2 === 1) { px(x + w2 + 6, 120, 30, 30, mix(P2.rock, '#000000', 0.2)); px(x + w2 + 9, 116, 24, 6, mix(P2.rock, '#000000', 0.1)); }
+        const x = r() * W;
+        if (P2.prop === 'lava') { poly([[x, 150], [x + 6, 126 + r() * 6], [x + 22, 120 + r() * 6], [x + 36, 132], [x + 40, 150]], dk(P2.rock, 0.1)); px(x + 8, 128, 10, 1, lt(P2.rock, 0.1)); }
+        else if (P2.prop === 'crystal') { for (let k = 0; k < 4; k++) { const cx = x + k * 6, ht = 12 + r() * 20; poly([[cx, 150], [cx + 3, 150 - ht], [cx + 6, 150]], mix(P2.accent, '#0a1430', 0.25 + k * 0.08)); px(cx + 2, 150 - ht + 4, 1, ht * 0.5, mix(P2.accent, '#ffffff', 0.4)); } halo(x + 12, 140, 30, P2.accent, 0.2); }
+        else { px(x, 136, 26, 6, '#2a2020'); px(x + 4, 130, 18, 6, '#4a4048'); px(x + 4, 130, 18, 1, '#6a6068'); px(x + 9, 142, 8, 8, '#2a2020'); if (r() < 0.5) { px(x + 34, 128, 14, 22, '#3a2c22'); px(x + 34, 128, 14, 2, '#5a4632'); px(x + 36, 134, 10, 1, '#2a2018'); px(x + 36, 142, 10, 1, '#2a2018'); } }
       }
     } else {
-      // floor: tiles with cracks; lava seams glow in wing 1 and 3
-      px(0, 0, W, H, 'rgba(0,0,0,0)');
-      for (let y = 150; y < H; y += 6) for (let x = ((y - 150) / 6) % 2 ? -8 : 0; x < W; x += 16) { px(x, y, 15, 5, (x / 16 + y / 6) % 3 ? P2.floor : P2.floor2); px(x, y, 15, 1, mix(P2.floor2, '#ffffff', 0.08)); }
-      px(0, 148, W, 3, mix(P2.floor2, '#000000', 0.35));
-      for (let k = 0; k < 14; k++) { const x = r() * W, y = 154 + r() * 22; g.fillStyle = mix(P2.glow, '#ffffff', 0.1); for (let i = 0; i < 6 + r() * 10; i++) g.fillRect(Math.round(x + i), Math.round(y + Math.sin(i * 1.3 + k) * 1.5), 1, 1); }
+      // the floor: a lit lip, then uneven flagstones with cracks, pebbles and the wing's seams
+      const ledge = mix(P2.floor2, '#000000', 0.2);
+      px(0, 146, W, 4, ledge); px(0, 146, W, 1, lt(ledge, 0.2)); px(0, 150, W, 2, dk(ledge, 0.5));
+      for (let y = 152, row = 0; y < H; row++) {
+        const hh = 7 + row * 2; let x = -r() * 20;
+        while (x < W) { const ww = 14 + Math.round(r() * 18) + row * 3, col = r() < 0.3 ? P2.floor2 : mix(P2.floor, P2.floor2, r() * 0.5); block(x, y, ww - 1, hh - 1, col); x += ww; }
+        y += hh;
+      }
+      for (let k = 0; k < 40; k++) { const x = r() * W, y = 154 + r() * 24; px(x, y, 2, 1, lt(P2.floor2, 0.15)); px(x, y + 1, 2, 1, dk(P2.floor, 0.4)); }
+      if (P2.prop === 'lava' || P2.prop === 'forge') for (let k = 0; k < 10; k++) { const x = r() * W, y = 156 + r() * 20, len = 8 + r() * 18; for (let i = 0; i < len; i++) { const yy = y + Math.round(Math.sin(i * 0.7 + k) * 1.2); px(x + i, yy, 1, 1, mix(P2.glow, '#ffe080', 0.3)); } halo(x + len / 2, y, 12, P2.glow, 0.22); }
+      if (P2.prop === 'crystal') for (let k = 0; k < 6; k++) { const x = r() * W, y = 158 + r() * 16, ww = 22 + r() * 30; px(x + 2, y, ww - 4, 1, hexA('#9ad8ff', 0.4)); px(x, y + 1, ww, 3, hexA('#2a4a7a', 0.7)); px(x + 3, y + 1, ww * 0.4, 1, hexA('#cfeaff', 0.6)); }
+      if (P2.prop === 'forge') for (let k = 0; k < 3; k++) { const x = r() * W; px(x, 160, 30, 12, '#2a2226'); for (let i = 2; i < 30; i += 4) px(x + i, 162, 2, 8, mix(P2.glow, '#000000', 0.4)); px(x, 160, 30, 1, '#5a5058'); }
     }
     return c;
   }
+  function hexA(hex, a) { if (hex.startsWith('rgba')) return hex; const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + Math.max(0, Math.min(1, a)).toFixed(3) + ')'; }
   A.layer = (wing, which) => memo('L:' + wing + ':' + which, () => layer(wing, which));
+
+  // ------------------------------------------------------------------ UI skin
+
+  // Pixel frames, buttons and textures for the interface, drawn once and handed to the stylesheet as CSS
+  // variables (--ui-*). Frames are 9-slice images: app.css shows them at 2x through border-image.
+  function canvasOf(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y, ww, hh); }); return c.toDataURL(); }
+  // frame: outline, bevelled rim, inner shadow line and studs in the corners
+  function frame(size, rim, stud, inner) {
+    return canvasOf(size, size, (g, px) => {
+      const s = size, e = s - 1;
+      px(0, 0, s, s, '#0c0610');
+      px(1, 1, s - 2, s - 2, rim);
+      px(1, 1, s - 2, 1, mix(rim, '#fff1d0', 0.35)); px(1, 1, 1, s - 2, mix(rim, '#fff1d0', 0.2));
+      px(1, e - 1, s - 2, 1, mix(rim, '#05020a', 0.45)); px(e - 1, 1, 1, s - 2, mix(rim, '#05020a', 0.35));
+      px(2, 2, s - 4, 1, mix(rim, '#fff1d0', 0.12)); px(2, 3, s - 4, 1, rim);
+      px(4, 4, s - 8, s - 8, '#0c0610');
+      px(5, 5, s - 10, 1, mix(inner, '#05020a', 0.5));
+      g.clearRect(5, 6, s - 10, s - 11); g.clearRect(6, 5, s - 12, 1);
+      if (stud) [[1, 1], [e - 5, 1], [1, e - 5], [e - 5, e - 5]].forEach(([x, y]) => { px(x, y, 5, 5, '#0c0610'); px(x + 1, y + 1, 3, 3, stud); px(x + 1, y + 1, 2, 1, mix(stud, '#ffffff', 0.55)); px(x + 3, y + 3, 1, 1, mix(stud, '#05020a', 0.45)); });
+      // keep the four corner pixels empty for a softer, chipped look
+      [[0, 0], [e, 0], [0, e], [e, e]].forEach(([x, y]) => g.clearRect(x, y, 1, 1));
+    });
+  }
+  // button: 12 px 9-slice, filled, lighter top half, dark lip under it
+  function button(face, edge) {
+    return canvasOf(12, 12, (g, px) => {
+      px(1, 0, 10, 12, '#0c0610'); px(0, 1, 12, 10, '#0c0610');
+      px(1, 1, 10, 9, face); px(1, 1, 10, 4, mix(face, '#fff1d0', 0.18)); px(1, 1, 10, 1, mix(face, '#fff1d0', 0.5));
+      px(1, 9, 10, 2, edge); px(1, 1, 1, 8, mix(face, '#fff1d0', 0.3)); px(10, 1, 1, 8, mix(face, '#05020a', 0.25));
+    });
+  }
+  // stone wall for the page and a dark, slightly mottled panel fill
+  function wall() {
+    return canvasOf(64, 48, (g, px) => {
+      const r = rnd(4242);
+      px(0, 0, 64, 48, '#120a17');
+      for (let y = 0, row = 0; y < 48; y += 12, row++) for (let x = row % 2 ? -16 : 0; x < 64; x += 32) {
+        const col = mix('#1d1226', '#251830', r());
+        px(x + 1, y + 1, 30, 10, col); px(x + 1, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 1, y + 10, 30, 1, mix(col, '#05020a', 0.35));
+        if (x < 0) { px(x + 65, y + 1, 30, 10, col); px(x + 65, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 65, y + 10, 30, 1, mix(col, '#05020a', 0.35)); }
+        for (let k = 0; k < 6; k++) px(x + 2 + Math.floor(r() * 28), y + 2 + Math.floor(r() * 8), 1, 1, mix(col, r() < 0.5 ? '#05020a' : '#fff1d0', 0.12));
+      }
+    });
+  }
+  function grain(base) {
+    return canvasOf(32, 32, (g, px) => { const r = rnd(77); px(0, 0, 32, 32, base); for (let k = 0; k < 90; k++) px(Math.floor(r() * 32), Math.floor(r() * 32), 1, 1, mix(base, r() < 0.5 ? '#05020a' : '#fff1d0', 0.05 + r() * 0.04)); });
+  }
+  // a small gold ornament for headings
+  function ornament() {
+    return canvasOf(11, 7, (g, px) => { px(5, 0, 1, 7, '#0c0610'); px(4, 1, 3, 5, '#0c0610'); px(3, 2, 5, 3, '#0c0610'); px(0, 3, 11, 1, '#0c0610'); px(5, 1, 1, 5, '#ffd25a'); px(4, 2, 3, 3, '#ffd25a'); px(5, 2, 1, 1, '#fff4c0'); px(1, 3, 2, 1, '#c9952a'); px(8, 3, 2, 1, '#c9952a'); });
+  }
+  A.applyTheme = () => {
+    const vars = {
+      '--ui-frame': frame(24, '#4a3a5a', '#c9952a', '#1d1226'),
+      '--ui-frame-gold': frame(24, '#8a6a2a', '#ffd25a', '#1d1226'),
+      '--ui-frame-ember': frame(24, '#8a3a1a', '#ffb340', '#1d1226'),
+      '--ui-slot': frame(12, '#3a2c4a', null, '#140c18'),
+      '--ui-btn': button('#4a3a5e', '#2a1f38'),
+      '--ui-btn-hover': button('#5a4870', '#2a1f38'),
+      '--ui-btn-primary': button('#e86a1e', '#8a3410'),
+      '--ui-btn-primary-hover': button('#ff8a2a', '#8a3410'),
+      '--ui-btn-on': button('#d9a53a', '#7a5414'),
+      '--ui-wall': wall(),
+      '--ui-panel': grain('#1d1226'),
+      '--ui-panel2': grain('#271a33'),
+      '--ui-ornament': ornament(),
+    };
+    const st = document.documentElement.style;
+    Object.entries(vars).forEach(([k, v]) => st.setProperty(k, 'url("' + v + '")'));
+  };
+  try { A.applyTheme(); } catch (e) { /* the plain theme still works without the skin */ }
 })();
