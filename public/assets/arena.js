@@ -78,8 +78,8 @@
             this.hurtAt[e.dst] = t;
             if (e.src != null && e.src >= 0) this.enemyAct[e.src] = t;
             if (fresh && e.amt > 0) {
-              sfx(e.flags & 1 ? 'block' : 'hurt', { big: e.flags & 2 });
               const p = this.heroPos(e.dst);
+              sfx(e.flags & 1 ? 'block' : 'hurt', { big: e.flags & 2, pan: p[0] / 480 - 1 });
               this.num(p[0] + rand(-12, 12), p[1] - 130, '-' + fmt(e.amt), e.flags & 4 ? '#ffa04a' : '#ff6464', e.flags & 2 ? 34 : 22);
               if (e.flags & 2) { this.shake = Math.max(this.shake, 14); this.burst(p[0], p[1] - 70, '#ffd25a', 22, 260); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff5a3a', t, life: 0.45, r: 90, w: 6 }); }
               else if (e.flags & 4) this.burst(p[0], p[1] - 50, '#ff8a2a', 8, 140, -80);
@@ -138,15 +138,15 @@
       const to = this.enemyPos(en), crit = e.flags & 1, mega = e.flags & 2, dot = e.flags & 16, pet = e.flags & 8;
       const size = mega ? 44 : crit ? 32 : dot ? 16 : e.flags & 4 ? 18 : 22, col = mega ? '#ff5cf0' : crit ? '#ffd040' : dot ? '#ffa04a' : '#ffffff';
       const tx = to[0] + rand(-24, 24), ty = to[1] + rand(-30, 30), text = (mega ? 'MEGA ' : '') + fmt(e.amt) + (crit && !mega ? '!' : '');
-      if (dot) { sfx('dot'); this.num(tx, ty, text, col, size); this.burst(tx, ty + 20, '#ff8a2a', 2, 60, -60); return; }
+      if (dot) { sfx('dot', { pan: tx / 480 - 1 }); this.num(tx, ty, text, col, size); this.burst(tx, ty + 20, '#ff8a2a', 2, 60, -60); return; }
       const hero = cur.roster[e.src], kind = pet ? 'paw' : hero ? RANGED[hero.cls] : null;
       if (kind && kind !== 'paw') {
         const from = this.heroPos(e.src);
         sfx(kind);
-        this.projs.push({ kind, x0: from[0] + 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { sfx(mega ? 'mega' : crit ? 'crit' : 'hit', { vol: 0.6 }); this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
+        this.projs.push({ kind, x0: from[0] + 30, y0: from[1] - 95, x1: tx, y1: ty, t, dur: kind === 'arrow' ? 0.22 : 0.3, col: CLASS_COL[hero.cls], done: () => { sfx(mega ? 'mega' : crit ? 'crit' : 'hit', { vol: 0.6, pan: tx / 480 - 1 }); this.num(tx, ty, text, col, size); this.impact(tx, ty, CLASS_COL[hero.cls], crit || mega); if (mega) this.megaHit(tx, ty); } });
       } else {
         this.rings.push({ x: tx, y: ty, col: pet ? '#c89a6a' : '#ffffff', t, life: 0.18, r: crit ? 46 : 32, w: 4, slash: true, a: rand(-0.6, 0.6) });
-        sfx(mega ? 'mega' : crit ? 'crit' : 'hit'); this.num(tx, ty, text, col, size); this.impact(tx, ty, '#ffffff', crit || mega); if (mega) this.megaHit(tx, ty);
+        sfx(mega ? 'mega' : crit ? 'crit' : 'hit', { pan: tx / 480 - 1 }); this.num(tx, ty, text, col, size); this.impact(tx, ty, '#ffffff', crit || mega); if (mega) this.megaHit(tx, ty);
       }
     }
     impact(x, y, col, big) { this.burst(x, y, col, big ? 12 : 5, big ? 260 : 150); if (big) this.shake = Math.max(this.shake, 5); }
@@ -173,7 +173,7 @@
 
     draw(cur, tl, simT, snap) {
       const g = this.g, t = this.now(), dt = Math.min(0.05, t - (this.lastDraw || t)); this.lastDraw = t;
-      if (window.ITS) window.ITS.ambient();
+      if (window.ITS) window.ITS.scene(Object.values(this.enemies).some((en) => en.kind === 'boss' && !en.dead) ? 'boss' : 'battle');
       if (snap) snap[3].forEach(([id, hp]) => { if (this.enemies[id] && !this.enemies[id].dead) this.enemies[id].hp = hp; });
       g.save();
       g.imageSmoothingEnabled = false;

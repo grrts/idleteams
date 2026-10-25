@@ -375,5 +375,6 @@ input:focus, select:focus, textarea:focus { border-image-source: var(--ui-frame-
 .sk { border-radius: 0; box-shadow: inset 0 0 0 2px #0c0610, 0 3px 0 rgba(0,0,0,.4); }
 .portrait, .doll .stage { border: 0; border-image: var(--ui-frame-gold) 8 / 16px / 0 round; }
 .toast { border-radius: 0; border: 0; border-image: var(--ui-frame-gold) 8 / 12px / 0 round; }
-.sfx-toggle { position: fixed; left: 14px; bottom: 14px; z-index: 40; font-size: 1.1rem; line-height: 1; padding: 8px 10px 10px; }
+.sfx-toggle { position: fixed; left: 14px; bottom: 14px; z-index: 40; display: flex; gap: 6px; }
+.sfx-toggle button { font-size: 1.1rem; line-height: 1; padding: 8px 10px 10px; min-width: 40px; }
 @media (max-width: 720px) { .sfx-toggle { left: auto; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); } }
