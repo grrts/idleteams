@@ -48,7 +48,7 @@ class Present
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
             'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],
             'backstories' => Heritage::backstoryInfo(), 'backstoryNodes' => Heritage::BACKSTORY_NODES, 'backstoryRenown' => Heritage::BACKSTORY_RENOWN,
-            'lifeStory' => ['chapters' => LifeStory::CHAPTERS, 'questions' => LifeStory::QUESTIONS, 'notesMax' => LifeStory::NOTES_MAX, 'lean' => [LifeStory::LEAN_ATTRS, LifeStory::LEAN_POINTS]],
+            'lifeStory' => ['chapters' => LifeStory::CHAPTERS, 'questions' => LifeStory::QUESTIONS, 'scenes' => LifeStory::SCENES, 'tale' => LifeStory::TALE, 'notesMax' => LifeStory::NOTES_MAX, 'lean' => [LifeStory::LEAN_ATTRS, LifeStory::LEAN_POINTS]],
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }

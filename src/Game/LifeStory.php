@@ -27,6 +27,62 @@ final class LifeStory
     /** Free words of the player's own at the end of the story. */
     public const NOTES_MAX = 600;
 
+    /** race => chapter => the scene that opens it in the creator: where and how this part of life happens. */
+    public const SCENES = [
+        'human' => [
+            'family' => 'Every human tale starts at a kitchen table. Bread on the board, a fire that smokes when the wind turns, and old voices arguing about who your people were and what they owed the world.',
+            'childhood' => 'The streets were muddy, the summers too short, and every grown-up had an opinion about what you would become. The kingdom was big, but your world was one town wide.',
+            'age' => 'Somewhere between the last game of tag and the first real blade, the world stopped waiting for you to grow up. It began to ask what you were made of.',
+            'setting' => 'Roads lead out of every town. Most people never take them. One grey morning you did, with a pack on your back and a reason you only half understood.',
+            'self' => 'Now the road is long behind you and the tavern fire is warm. When strangers ask who you are, these are the things you do not say out loud.',
+        ],
+        'elf' => [
+            'family' => 'Elven families are counted in centuries, not generations. Before your first breath the silver trees already knew your family\'s songs, and they hummed them while you slept.',
+            'childhood' => 'An elven childhood lasts longer than a human life. The forest taught you patience before it taught you names, and the stars stayed in the same places for all of it.',
+            'age' => 'Then came the restless century, when even the oldest grove feels too small and every elf wonders what lies beyond the last tree.',
+            'setting' => 'Few elves leave the forest. Fewer come back the same. You walked out under the boughs with the moon at your back, and did not look round.',
+            'self' => 'You have seen more winters than the city you now sleep in. Some things you still carry from the forest, and some things you fear will outlive you.',
+        ],
+        'dwarf' => [
+            'family' => 'Deep under the mountain, where the forges never cool, every dwarf\'s story begins with a name carved in stone above a clan door, and with the grudges and glories that came with it.',
+            'childhood' => 'You grew up in halls of stone and lamplight, where the walls hum with hammers and every tunnel has a story someone is happy to tell you, twice.',
+            'age' => 'A dwarf is a beardling until the clan says otherwise. Those were the years of burnt fingers, first ale and first blood in the dark.',
+            'setting' => 'The great gate opens rarely, and the sky outside is far too big. You walked through it anyway, with a hammer on your belt and the clan\'s eyes on your back.',
+            'self' => 'Up here the sky goes on forever and the ale is thin. But a dwarf keeps their hold inside them, and with it the things they would never trade.',
+        ],
+        'orc' => [
+            'family' => 'On the red steppe the drums remember what the books forget. Around the fire at night the old ones beat out the names of the clan, and yours was among them before you could stand.',
+            'childhood' => 'You grew up under a huge sky, in tents that moved with the herds, where whelps fight for scraps and for the right to be noticed.',
+            'age' => 'Every orc faces the blood trial. Some face it gladly, some with dread, and a few find another path entirely. All of them come out changed.',
+            'setting' => 'The steppe is wide, but some roads lead off it. One day you took one, and the drums of your clan grew quieter behind you.',
+            'self' => 'Far from the steppe, among softer peoples, you still feel the drums sometimes. They beat loudest for the things you keep close.',
+        ],
+        'felkin' => [
+            'family' => 'Felkin families purr their stories rather than write them down. Curled in a warm pile, kits hear the old tales of their kin, each one a little taller in every telling.',
+            'childhood' => 'Your world was rooftops and sunlit sills, market smells and night-time chases, with the whole village watching and pretending not to.',
+            'age' => 'Young claws itch. Those were the years of daring leaps, small thefts, first loves and the first time you landed badly.',
+            'setting' => 'Curiosity is the felkin curse and the felkin gift. Sooner or later every felkin follows it past the last rooftop, and you were no different.',
+            'self' => 'You have nine lives, or so the stories say. But you only have one heart, and the things it holds you never let anyone see.',
+        ],
+        'draka' => [
+            'family' => 'In the high peaks where the draka nest, the ember-songs carry each flight\'s memory from one clutch to the next. Your egg was warmed while they were sung.',
+            'childhood' => 'Hatchlings live close to the fire. Your first days smelled of smoke and stone, and every cliff was a dare.',
+            'age' => 'Then came the molting years: wings too big, temper too hot, and a fire inside you that was not yet tame.',
+            'setting' => 'The peaks are home, but the sky goes everywhere. One morning you spread your wings and let the wind take you off the mountain.',
+            'self' => 'Far from the great forge, your inner fire still burns. Some things fan it, and some things threaten to put it out.',
+        ],
+    ];
+
+    /** race => [prologue, epilogue] of the written biography, with {name} and {culture}. */
+    public const TALE = [
+        'human' => ['This is the tale of {name}, a child of the kingdom, raised among the {culture}.', 'And so {name} came to the tavern, looking for a group to stand beside, and for a story still worth telling.'],
+        'elf' => ['This is the tale of {name} of the {culture}, told as the elves tell it: slowly, and from the beginning.', 'And so {name} came among the short-lived, to fight beside them while they last.'],
+        'dwarf' => ['This is the saga of {name} of {culture}, as it will one day be carved above a clan door.', 'And so {name} came up into the open air, looking for deeds worth carving in stone.'],
+        'orc' => ['Beat the drums for {name} of the {culture}. This is their story, as it will be told around the fire.', 'And so {name} came to the tavern, far from the steppe, looking for a war-band worth fighting for.'],
+        'felkin' => ['Curl up and listen: this is the tale of {name} of the {culture}, mostly true.', 'And so {name} padded into the tavern, curious as ever, with lives to spare.'],
+        'draka' => ['Sing it like an ember-song: the tale of {name} of the {culture}, from the egg to the open sky.', 'And so {name} landed at the tavern, wings folded, fire still burning, ready for what comes next.'],
+    ];
+
     /** race => [home question, youth question, question id => [question, [[answer, sentence, attribute] x 4]]]. */
     public const QUESTIONS = 
     [
@@ -921,11 +977,29 @@ final class LifeStory
         return array_fill_keys(array_slice(array_keys($count), 0, self::LEAN_ATTRS), self::LEAN_POINTS);
     }
 
+    /**
+     * A backstory's blurb ("Knows every barrel in Brewhall by its smell.") told about the hero: ", who knows every
+     * barrel...". Blurbs that have their own subject stay a sentence of their own.
+     */
+    public static function epithet(string $blurb): string
+    {
+        $s = preg_replace(['/\byour\b/', '/\byou (could|can|were|are|had|have|did)\b/', '/\byou\b/'], ['their', 'they $1', 'them'], $blurb);
+        $first = strtok($s, ' ,');
+        if (in_array($first, ['Every', 'Everyone'], true)) {
+            return '. '.$s;
+        }
+        $was = in_array($first, ['Raised', 'Born', 'Fostered', 'Hatched', 'Sworn', 'Bound', 'Heir', 'Once', 'One'], true) ? 'was ' : '';
+
+        return ', who '.$was.lcfirst($s);
+    }
+
     /** The story as prose: [[chapter title, paragraph], ...]. */
     public static function biography(string $race, string $name, array $story): array
     {
         $q = self::QUESTIONS[$race];
-        $out = [];
+        $home = $story['answers']['home'] ?? null;
+        $tale = fn (string $t) => strtr($t, ['{name}' => $name, '{culture}' => Heritage::TREES[$race]['cultures'][$home][0] ?? Rules::RACES[$race]['name']]);
+        $out = [['', $tale(self::TALE[$race][0])]];
         foreach (self::CHAPTERS as [$title, $ids]) {
             $lines = [];
             foreach ($ids as $id) {
@@ -934,7 +1008,7 @@ final class LifeStory
                     [$cname, $theme] = Heritage::TREES[$race]['cultures'][$a];
                     $lines[] = sprintf('%s was raised among the %s: %s.', $name, $cname, lcfirst($theme));
                 } elseif ($id === 'youth' && is_string($a) && ($b = Heritage::backstories($race)[$a] ?? null)) {
-                    $lines[] = sprintf('Everyone in %s knew %s as the %s. %s', Heritage::TREES[$race]['cultures'][$b[1]][0], $name, $b[0], $b[3]);
+                    $lines[] = sprintf('Everyone in %s knew %s as the %s%s', Heritage::TREES[$race]['cultures'][$b[1]][0], $name, $b[0], self::epithet($b[3]));
                 } elseif (is_int($a) && isset($q[$id][1][$a])) {
                     $lines[] = str_replace('{name}', $name, $q[$id][1][$a][1]);
                 }
@@ -943,6 +1017,7 @@ final class LifeStory
                 $out[] = [$title, implode(' ', $lines)];
             }
         }
+        $out[] = ['', $tale(self::TALE[$race][1])];
         if (($story['notes'] ?? '') !== '') {
             $out[] = ['In their own words', $story['notes']];
         }

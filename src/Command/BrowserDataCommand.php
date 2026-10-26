@@ -37,7 +37,7 @@ class BrowserDataCommand extends Command
                 'BACKSTORIES' => Heritage::BACKSTORIES, 'BACKSTORY_INFO' => Heritage::backstoryInfo(),
                 'BACKSTORY_BASE' => array_map(fn ($list) => array_map(fn ($b) => (object) Heritage::backstoryEffect($b[0], $b[1], null), $list), array_map(fn ($race) => array_map(fn ($id) => [$race, $id], array_combine(array_keys(Heritage::backstories($race)), array_keys(Heritage::backstories($race)))), array_combine(array_keys(Heritage::TREES), array_keys(Heritage::TREES)))), 'BACKSTORY_RENOWN' => Heritage::BACKSTORY_RENOWN,
                 'BACKSTORY_NODES' => Heritage::BACKSTORY_NODES, 'BACKSTORY_RENOWN_BONUS' => Heritage::BACKSTORY_RENOWN_BONUS],
-            'LIFE_STORY' => ['CHAPTERS' => LifeStory::CHAPTERS, 'QUESTIONS' => LifeStory::QUESTIONS, 'NOTES_MAX' => LifeStory::NOTES_MAX, 'LEAN_ATTRS' => LifeStory::LEAN_ATTRS, 'LEAN_POINTS' => LifeStory::LEAN_POINTS],
+            'LIFE_STORY' => ['CHAPTERS' => LifeStory::CHAPTERS, 'QUESTIONS' => LifeStory::QUESTIONS, 'SCENES' => LifeStory::SCENES, 'TALE' => LifeStory::TALE, 'NOTES_MAX' => LifeStory::NOTES_MAX, 'LEAN_ATTRS' => LifeStory::LEAN_ATTRS, 'LEAN_POINTS' => LifeStory::LEAN_POINTS],
         ];
         $file = dirname(__DIR__, 2).'/browser-build/data.js';
         file_put_contents($file, 'window.IT_DATA = '.json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).";\n");

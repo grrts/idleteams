@@ -259,7 +259,7 @@
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
       cultureInfo: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, [x[0], x[1]]]))])),
-      lifeStory: { chapters: D.LIFE_STORY.CHAPTERS, questions: D.LIFE_STORY.QUESTIONS, notesMax: D.LIFE_STORY.NOTES_MAX, lean: [D.LIFE_STORY.LEAN_ATTRS, D.LIFE_STORY.LEAN_POINTS] },
+      lifeStory: { chapters: D.LIFE_STORY.CHAPTERS, questions: D.LIFE_STORY.QUESTIONS, scenes: D.LIFE_STORY.SCENES, tale: D.LIFE_STORY.TALE, notesMax: D.LIFE_STORY.NOTES_MAX, lean: [D.LIFE_STORY.LEAN_ATTRS, D.LIFE_STORY.LEAN_POINTS] },
       backstories: D.HERITAGE.BACKSTORY_INFO, backstoryNodes: D.HERITAGE.BACKSTORY_NODES, backstoryRenown: D.HERITAGE.BACKSTORY_RENOWN,
       renown: { alone: D.HERITAGE.RENOWN_ALONE, perKin: D.HERITAGE.RENOWN_PER_KIN, swapGold: D.HERITAGE.CULTURE_SWAP_GOLD },
     };

@@ -136,6 +136,7 @@ class MapsTest extends TestCase
         }
         $bio = LifeStory::biography('elf', 'Arwen', ['notes' => 'I still dream of the sea.'] + $story);
         $this->assertSame('In their own words', end($bio)[0]);
-        $this->assertStringContainsString('Silverwood', $bio[1][1]);
+        $this->assertStringContainsString('Silverwood', $bio[0][1]);
+        $this->assertStringContainsString('Silverwood', $bio[2][1]);
     }
 }

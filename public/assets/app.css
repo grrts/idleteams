@@ -201,21 +201,49 @@ details.run summary b { font-family: var(--f-display); font-weight: 400; font-si
 .choice b { font-family: var(--f-display); font-weight: 400; font-size: 1.1rem; }
 .choice.on { border-color: var(--ember); background: linear-gradient(160deg, rgba(255,138,42,.18), var(--panel2) 60%); box-shadow: 0 0 0 1px var(--ember); }
 .choice.locked { cursor: default; }
-/* Life story: questions on the left, the biography writing itself on the right. */
-.storyhead { margin: 10px 0; gap: 8px; flex-wrap: wrap; }
-.storycols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 16px; align-items: start; }
-.storybio { position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
-.storybio.short, .storyview .storybio { position: static; max-height: none; }
-.biopara { margin-bottom: 10px; } .biopara p { margin: 2px 0 0; line-height: 1.5; }
-.storychapter h3 { margin: 14px 0 6px; }
-.storyq { margin-bottom: 12px; }
-.storyq .qtext { font-weight: 700; margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
-.storyq .qtext i { font-style: normal; color: var(--gold); font-size: .8rem; min-width: 18px; }
-.storyq textarea { width: 100%; }
-.storyopts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
-.storyopt { display: flex; flex-direction: column; gap: 2px; text-align: left; font-weight: 400; padding: 8px 10px; white-space: normal; }
-.storyopt b { font-weight: 700; } .storyopt span, .storyopt small { font-family: Nunito, system-ui, sans-serif; letter-spacing: 0; text-shadow: none; } .storyopt span { font-size: .8rem; opacity: .85; } .storyopt small { font-size: .74rem; opacity: .7; }
-@media (max-width: 900px) { .storycols { grid-template-columns: 1fr; } .storybio { position: static; max-height: none; } }
+/* Life story: told one moment at a time, like turning the pages of a book. */
+.biopara { margin-bottom: 10px; } .biopara p { margin: 2px 0 0; line-height: 1.55; }
+.biopara.tale p { font-style: italic; color: #ffe3a0; }
+.storybio.short { max-height: none; }
+.storybio.book { font-size: 1rem; max-width: 66ch; margin-top: 8px; }
+.storyq { margin: 14px 0; } .storyq .qtext { font-weight: 700; margin-bottom: 6px; } .storyq textarea { width: 100%; }
+.tell { margin-top: 12px; }
+.tellbar .bar > i, .creator .cprogress > i { background: linear-gradient(90deg, #ffb340, var(--gold)); }
+.tellbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .tellbar .bar { flex: 1; min-width: 120px; height: 6px; }
+.tellpage { margin-top: 14px; max-width: 760px; }
+.tellpage .scene { font-family: Georgia, 'Times New Roman', serif; font-size: 1.12rem; line-height: 1.65; font-style: italic; color: #f3e6cf; margin: 8px 0 14px; padding-left: 14px; border-left: 3px solid var(--gold); }
+.tellpage .prevbeat { color: var(--muted, #b7a9c4); font-style: italic; margin: 4px 0 10px; }
+.tellq { font-size: 1.45rem; margin: 10px 0 12px; }
+.beats { display: grid; gap: 8px; }
+.beat { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; white-space: normal; font-weight: 400; }
+.beat b { font-weight: 700; }
+.beat span { font-family: Georgia, 'Times New Roman', serif; font-size: .98rem; line-height: 1.45; letter-spacing: 0; text-shadow: none; opacity: .92; }
+.beat small { font-family: Nunito, system-ui, sans-serif; font-size: .74rem; opacity: .7; letter-spacing: 0; text-shadow: none; }
+.tellnav { margin-top: 14px; gap: 8px; }
+.tell.enter { animation: cin-fade .28s ease-out; }
+/* creator frame */
+.creator .cside { display: flex; flex-direction: column; gap: 14px; }
+.creator .cside .portrait { aspect-ratio: 4/4.4; }
+.creator .cname-show { font-size: 1.35rem; color: #ffe3a0; }
+.creator .cprogress { display: block; height: 4px; margin: -12px 0 14px; }
+.steps button.done i { border-color: var(--gold); color: var(--gold); }
+.creator .cnav { margin-top: 18px; gap: 10px; }
+.creator .cnav .big { padding: 12px 26px; font-size: 1.05rem; }
+.creator .bigname { width: 100%; font-size: 1.7rem; padding: 12px 14px; margin-top: 10px; }
+.creator .summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.cbody.enter.fwd { animation: cin-fwd .24s ease-out; } .cbody.enter.back { animation: cin-back .24s ease-out; }
+@keyframes cin-fwd { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes cin-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes cin-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 900px) {
+  .creator .cside { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 12px; }
+  .creator .cside .portrait { aspect-ratio: auto; height: 132px; }
+  .creator .cside .portrait img, .creator .cside .portrait canvas { width: 80px; height: auto; }
+  .creator .startwrap { display: none; }
+  .tellpage .scene { font-size: 1.02rem; } .tellq { font-size: 1.2rem; }
+}
+@media (max-width: 640px) { .steps button:not(.on) span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cbody.enter, .tell.enter { animation: none !important; } }
 canvas.curve { width: 100%; height: 110px; border-radius: 8px; background: #120812; border: 1px solid var(--line); }
 
 /* ---------- skills ---------- */

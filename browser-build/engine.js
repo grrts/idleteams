@@ -177,19 +177,27 @@
       return Object.fromEntries([...count.entries()].sort((x, y) => y[1] - x[1] || order.indexOf(x[0]) - order.indexOf(y[0])).slice(0, D.LIFE_STORY.LEAN_ATTRS).map(([a]) => [a, D.LIFE_STORY.LEAN_POINTS]));
     },
     biography(race, name, story) {
-      const q = D.LIFE_STORY.QUESTIONS[race], cult = D.HERITAGE_TREES[race].cultures, out = [];
+      const q = D.LIFE_STORY.QUESTIONS[race], cult = D.HERITAGE_TREES[race].cultures, home = (story.answers || {}).home;
+      const tale = (t) => t.split('{name}').join(name).split('{culture}').join(cult[home] ? cult[home][0] : D.RACES[race].name);
+      const out = [['', tale(D.LIFE_STORY.TALE[race][0])]];
       for (const [title, ids] of Object.values(D.LIFE_STORY.CHAPTERS)) {
         const lines = [];
         for (const id of ids) {
           const a = (story.answers || {})[id];
           if (id === 'home' && typeof a === 'string' && cult[a]) lines.push(name + ' was raised among the ' + cult[a][0] + ': ' + cult[a][1].charAt(0).toLowerCase() + cult[a][1].slice(1) + '.');
-          else if (id === 'youth' && typeof a === 'string' && H.backstories(race)[a]) { const b = H.backstories(race)[a]; lines.push('Everyone in ' + cult[b[1]][0] + ' knew ' + name + ' as the ' + b[0] + '. ' + b[3]); }
+          else if (id === 'youth' && typeof a === 'string' && H.backstories(race)[a]) { const b = H.backstories(race)[a]; lines.push('Everyone in ' + cult[b[1]][0] + ' knew ' + name + ' as the ' + b[0] + LS.epithet(b[3])); }
           else if (Number.isInteger(a) && q[id] && q[id][1][a]) lines.push(q[id][1][a][1].split('{name}').join(name));
         }
         if (lines.length) out.push([title, lines.join(' ')]);
       }
+      out.push(['', tale(D.LIFE_STORY.TALE[race][1])]);
       if (story.notes) out.push(['In their own words', story.notes]);
       return out;
+    },
+    epithet(blurb) {
+      const s = blurb.replace(/\byour\b/g, 'their').replace(/\byou (could|can|were|are|had|have|did)\b/g, 'they $1').replace(/\byou\b/g, 'them'), first = s.split(/[ ,]/)[0];
+      if (['Every', 'Everyone'].includes(first)) return '. ' + s;
+      return ', who ' + (['Raised', 'Born', 'Fostered', 'Hatched', 'Sworn', 'Bound', 'Heir', 'Once', 'One'].includes(first) ? 'was ' : '') + s.charAt(0).toLowerCase() + s.slice(1);
     },
     example(race, backstory, seed = 0) {
       const answers = {};

@@ -140,7 +140,7 @@ class PlayTest extends WebTestCase
         $this->assertEqualsCanonicalizing(['root', 'runedeep1.2.1', 'runedeep1.2.2', 'runedeep1.2.3', 'runedeep1.2.4'], array_keys((array) $sheet['heritage']));
         $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'heritage', 'node' => 'ironhold0.2.1']), 'only your own culture');
         $this->assertArrayHasKey('error', $this->api('POST', '/hero/act', ['action' => 'story', 'story' => LifeStory::example('dwarf', 'smith')]), 'a story is written once');
-        $this->assertCount(5, $sheet['biography']);
+        $this->assertCount(7, $sheet['biography'], 'a prologue, five chapters and an epilogue');
         $this->assertStringContainsString('Durna', $sheet['biography'][0][1]);
 
         // Brannoc in the demo group is a dwarf: running with him pays Renown.

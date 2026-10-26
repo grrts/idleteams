@@ -276,7 +276,10 @@
   }
   // The creator shows the hero in plain clothes: gear comes from play, not from the creator.
   const plain = (c, race) => ({ ...c.look, race: race || c.race, skin: race && race !== c.race ? ITP.RACES[race].skins[1] : c.look.skin, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
-  const STEPS = [['race', 'Race'], ['story', 'Life story'], ['cls', 'Class'], ['origin', 'Origin'], ['look', 'Look']];
+  const STEPS = [['race', 'Race'], ['cls', 'Class'], ['origin', 'Origin'], ['story', 'Life story'], ['look', 'Look'], ['name', 'Name']];
+  // The name field only exists on the last step, so creator actions copy it before re-rendering.
+  const keepName = () => { const el = $('#cname'); if (el && S.creator) S.creator.name = el.value; };
+  const stepDone = (c, s) => (s === 'story' ? storyDone(c.race, c.story) : s === 'name' ? c.name.trim().length >= 3 : !!(S.creatorSeen || {})[s]);
 
   // ------------------------------------------------------------------ life story
 
@@ -300,36 +303,68 @@
   }
   // Same prose as LifeStory::biography.
   function storyBio(race, name, story) {
-    const L = S.cfg.lifeStory, q = L.questions[race], out = [];
+    const L = S.cfg.lifeStory, q = L.questions[race], home = S.cfg.cultureInfo[race][story.answers.home];
+    const tale = (t) => t.split('{name}').join(name).split('{culture}').join(home ? home[0] : S.cfg.races[race].name);
+    const out = [];
+    if (story.answers.home) out.push(['', tale(L.tale[race][0])]);
     Object.values(L.chapters).forEach(([title, ids]) => {
       const lines = [];
       ids.forEach((id) => {
         const a = story.answers[id];
         if (id === 'home' && S.cfg.cultures[race][a]) { const t = S.cfg.cultureInfo[race][a]; lines.push(name + ' was raised among the ' + t[0] + ': ' + t[1].charAt(0).toLowerCase() + t[1].slice(1) + '.'); }
-        else if (id === 'youth' && S.cfg.backstories[race][a]) { const b = S.cfg.backstories[race][a]; lines.push('Everyone in ' + S.cfg.cultures[race][b[1]] + ' knew ' + name + ' as the ' + b[0] + '. ' + b[3]); }
+        else if (id === 'youth' && S.cfg.backstories[race][a]) { const b = S.cfg.backstories[race][a]; lines.push('Everyone in ' + S.cfg.cultures[race][b[1]] + ' knew ' + name + ' as the ' + b[0] + epithet(b[3])); }
         else if (typeof a === 'number' && q[id]) lines.push(q[id][1][a][1].split('{name}').join(name));
       });
       if (lines.length) out.push([title, lines.join(' ')]);
     });
+    if (storyDone(race, story)) out.push(['', tale(L.tale[race][1])]);
     if (story.notes) out.push(['In their own words', story.notes]);
     return out;
   }
-  const bioHtml = (bio) => bio.map(([t, p]) => '<div class="biopara"><div class="eyebrow">' + esc(t) + '</div><p>' + esc(p) + '</p></div>').join('');
+  // Same as LifeStory::epithet.
+  function epithet(blurb) {
+    const s = blurb.replace(/\byour\b/g, 'their').replace(/\byou (could|can|were|are|had|have|did)\b/g, 'they $1').replace(/\byou\b/g, 'them'), first = s.split(/[ ,]/)[0];
+    if (['Every', 'Everyone'].includes(first)) return '. ' + s;
+    return ', who ' + (['Raised', 'Born', 'Fostered', 'Hatched', 'Sworn', 'Bound', 'Heir', 'Once', 'One'].includes(first) ? 'was ' : '') + s.charAt(0).toLowerCase() + s.slice(1);
+  }
+  const bioHtml = (bio) => bio.map(([t, p]) => '<div class="biopara' + (t ? '' : ' tale') + '">' + (t ? '<div class="eyebrow">' + esc(t) + '</div>' : '') + '<p>' + esc(p) + '</p></div>').join('');
+  // Until the hero has a name the tale says "your hero", capitalised where a sentence starts.
+  function namedBio(race, name, story) {
+    if (name && name.trim()) return storyBio(race, name.trim(), story);
+    return storyBio(race, '\u0001', story).map(([t, p]) => [t, p.replace(/(^|[.!?:]\s+)\u0001/g, '$1Your hero').split('\u0001').join('your hero')]);
+  }
 
-  /** The questionnaire. ctx is 'creator' or 'hero' (an older hero writing theirs once). */
-  function storyForm(race, name, story, ctx) {
-    const qs = storyQuestions(race, story), answered = qs.filter(([id]) => story.answers[id] !== undefined).length, lean = storyLean(race, story);
-    let chapter = '', html = '';
-    qs.forEach(([id, title, text, opts, blocked], n) => {
-      if (title !== chapter) { html += (chapter ? '</div>' : '') + '<div class="storychapter"><h3>' + esc(title) + '</h3>'; chapter = title; }
-      html += '<div class="storyq"><div class="qtext"><i>' + (n + 1) + '</i>' + esc(text) + '</div>' + (blocked ? '<div class="small muted">' + esc(blocked) + '</div>' :
-        '<div class="storyopts">' + opts.map(([v, label, sentence, note]) => '<button class="storyopt' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (sentence ? '<span>' + esc(sentence) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>').join('') + '</div>') + '</div>';
-    });
-    html += '</div>';
-    const notes = '<div class="storyq"><div class="qtext"><i>+</i>Anything else, in your own words? (optional)</div><textarea id="storynotes" data-ctx="' + ctx + '" maxlength="' + S.cfg.lifeStory.notesMax + '" rows="3" placeholder="A secret, a name, a promise...">' + esc(story.notes || '') + '</textarea></div>';
-    const bio = storyBio(race, name || 'Your hero', story);
-    return '<div class="storyhead row between"><span class="small"><b class="num">' + answered + '</b> of ' + qs.length + ' answered' + (lean.length ? ' · leans to ' + lean.map((a) => '+' + S.cfg.lifeStory.lean[1] + ' ' + attrName(a)).join(', ') : '') + '</span><button class="small" data-act="storyRandom" data-ctx="' + ctx + '">Answer the rest at random</button></div>' +
-      '<div class="storycols"><div class="storyform">' + html + notes + '</div><div class="storybio panel tight"><div class="eyebrow">The story so far</div>' + (bio.length ? bioHtml(bio) : '<p class="small muted">Answer a question and your story starts writing itself here.</p>') + '</div></div>';
+  /**
+   * The life story, told one question at a time. Each chapter opens with a scene, every answer is a beat of the
+   * tale, and picking one moves on. ctx is 'creator' or 'hero' (an older hero writing theirs once); the position
+   * is S.storyAt[ctx], and one past the last question is the closing page with the whole tale.
+   */
+  function storyWizard(race, name, story, ctx, finish) {
+    const qs = storyQuestions(race, story), at = Math.min((S.storyAt || {})[ctx] || 0, qs.length), L = S.cfg.lifeStory;
+    const answered = qs.filter(([id]) => story.answers[id] !== undefined).length, who = name && name.trim() ? name.trim() : null;
+    const bar = '<div class="tellbar"><span class="bar"><i style="width:' + (100 * answered) / qs.length + '%"></i></span><span class="small muted">' + answered + ' of ' + qs.length + '</span>' +
+      (answered < qs.length ? '<button class="small ghost" data-act="storyRandom" data-ctx="' + ctx + '">Tell the rest for me</button>' : '') + '</div>';
+    const back = at > 0 ? '<button class="small ghost" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at - 1) + '">← Back</button>' : '<span></span>';
+    if (at >= qs.length) {
+      const bio = namedBio(race, who, story), done = storyDone(race, story);
+      return '<div class="tell enter">' + bar + '<div class="tellpage"><div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
+        '<div class="storyq"><div class="qtext">Anything the tale left out? A secret, a name, a promise. (optional)</div><textarea id="storynotes" data-ctx="' + ctx + '" maxlength="' + L.notesMax + '" rows="3">' + esc(story.notes || '') + '</textarea></div>' +
+        (done ? '' : '<p class="small bad">Some of the tale is still untold. Go back and answer the open questions.</p>') +
+        '<div class="row between tellnav">' + back + (done ? finish : '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + qs.findIndex(([id]) => story.answers[id] === undefined) + '">Answer what is left</button>') + '</div></div></div>';
+    }
+    const [id, title, text, opts, blocked] = qs[at], first = at === 0 || qs[at - 1][1] !== title;
+    const chKey = Object.keys(L.chapters).find((k) => L.chapters[k][0] === title), chNo = Object.keys(L.chapters).indexOf(chKey) + 1;
+    const scene = first ? '<p class="scene">' + esc(L.scenes[race][chKey]) + '</p>' : '';
+    const beat = (sentence) => (who ? sentence.split('{name}').join(who) : sentence.replace(/^\{name\}/, 'Your hero').split('{name}').join('your hero'));
+    const prev = !first && story.answers[qs[at - 1][0]] !== undefined ? namedBio(race, who, { answers: { [qs[at - 1][0]]: story.answers[qs[at - 1][0]], home: story.answers.home }, notes: '' }).filter(([t]) => t).map(([, p]) => p).join(' ') : '';
+    return '<div class="tell enter">' + bar + '<div class="tellpage"><div class="eyebrow">Chapter ' + chNo + ' · ' + esc(title) + '</div>' + scene +
+      (prev ? '<p class="prevbeat">' + esc(prev.split('. ').slice(-1)[0]) + '</p>' : '') +
+      '<h3 class="tellq">' + esc(text) + '</h3>' +
+      (blocked ? '<p class="small muted">' + esc(blocked) + '</p>' : '<div class="beats">' + opts.map(([v, label, sentence, note]) => {
+        const line = sentence ? beat(sentence) : id === 'home' ? (who || 'Your hero') + ' was raised among the ' + label + ': ' + S.cfg.cultureInfo[race][v][1].charAt(0).toLowerCase() + S.cfg.cultureInfo[race][v][1].slice(1) + '.' : '';
+        return '<button class="beat' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>';
+      }).join('') + '</div>') +
+      '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at + 1) + '">Next →</button>' : '<span></span>') + '</div></div></div>';
   }
 
   function creatorView() {
@@ -345,6 +380,7 @@
     const choice = (kind, id, title, body, on) => '<div class="choice ' + (on ? 'on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(title) + '</b>' + body + '</div>';
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
     const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
+    const k = cfg.classes[c.cls];
     let body = '';
     if (step === 'race') {
       const r = cfg.races[c.race];
@@ -352,31 +388,38 @@
         Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
         '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>';
     } else if (step === 'story') {
-      body = '<h2>Write their life story</h2><p class="muted">Seventeen questions about where your ' + esc(cfg.races[c.race].name) + ' comes from, asked the ' + esc(cfg.races[c.race].name) + ' way. Where they were raised sets the culture they follow; what they were known for starts them at Heritage rank 3 with the first ' + cfg.backstoryNodes + ' steps of that branch learned. The whole story leans to the three attributes it names most, +' + cfg.lifeStory.lean[1] + ' each. Kin who share your upbringing count three times for Renown.</p>' +
-        storyForm(c.race, c.name, c.story, 'creator');
+      body = '<h2>Their life story</h2><p class="muted">Every ' + esc(cfg.races[c.race].name) + ' has a story before the tavern. Tell it one moment at a time. Where they were raised sets their culture, what they were known for starts their Heritage at rank 3, and the three attributes the tale names most get +' + cfg.lifeStory.lean[1] + ' each.</p>' +
+        storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Now, how do they look? →</button>');
     } else if (step === 'cls') {
       body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
         Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>';
     } else if (step === 'origin') {
       body = '<h2>Choose an Origin</h2><p class="muted">Where your hero comes from: ' + cfg.originPoints + ' points in one attribute and a small edge of its own.</p><div class="choices" style="margin-top:12px">' +
         Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>';
-    } else {
+    } else if (step === 'look') {
       body = '<div class="head"><h2>Make them yours</h2><button class="small" data-act="randomLook">Randomise look</button></div><p class="muted">Build and height change the silhouette only. Your two clothes colours become the dyes on every piece of gear you earn later.</p><div class="lookgrid" style="margin-top:6px">' +
         sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
         seg('beard', ITP.OPTIONS.beard, 'Facial hair') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height') +
         sw('dye1', ITP.DYES, 'Main dye') + sw('dye2', ITP.DYES, 'Second dye') + sw('metal', ITP.METALS, 'Metal') + '</div>';
+    } else {
+      const ok = storyDone(c.race, c.story);
+      body = '<h2>And their name?</h2><p class="muted">Three to twenty letters. Your group, your guild and the market will know them by it.</p>' +
+        '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="Name" autocomplete="off">' +
+        '<div class="summary">' + [cfg.races[c.race].name, k.name, cfg.origins[c.origin][0] + ' Origin', c.story.answers.home ? cfg.cultures[c.race][c.story.answers.home] : null, c.story.answers.youth ? cfg.backstories[c.race][c.story.answers.youth][0] : null].filter(Boolean).map((x) => '<span class="chip">' + esc(x) + '</span>').join('') + '</div>' +
+        (ok ? '<div class="storybio book namebio">' + bioHtml(namedBio(c.race, c.name, c.story)) + '</div>' : '<div class="detail">Their life story is not finished yet. <button class="small" data-act="cstep" data-s="story">Finish it</button></div>');
     }
-    const idx = STEPS.findIndex(([s]) => s === step);
-    const nav = '<div class="row between" style="margin-top:16px">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">Back</button>' : '<span></span>') + (idx < STEPS.length - 1 ? '<button class="primary" data-act="cstep" data-s="' + STEPS[idx + 1][0] + '">Next</button>' : '<button class="primary" data-act="create">Create hero</button>') + '</div>';
-    const k = cfg.classes[c.cls];
-    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, life story, class and Origin are permanent. The look is yours to keep.</span></div><div class="cols">' +
-      '<div class="stagebox stack"><div class="panel stack"><div class="portrait" style="aspect-ratio:4/4.4">' + spr(plain(c), 4, 'idle') + '</div>' +
-      '<div><label for="cname">Name</label><input id="cname" value="' + esc(c.name) + '" maxlength="20" style="width:100%" placeholder="3 to 20 letters"></div>' +
-      '<div class="row"><b class="num" style="font-size:1.2rem">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</b>' + role(k.role) + '</div>' +
-      (c.story.answers.youth ? '<div class="small"><span class="muted">Known as</span> <b>' + esc(cfg.backstories[c.race][c.story.answers.youth][0]) + '</b> of ' + esc(cfg.cultures[c.race][c.story.answers.home]) + '</div>' : '<div class="small muted">Life story: ' + Object.keys(c.story.answers).length + ' of 17 answered</div>') +
-      '<div><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
-      '<button class="primary" data-act="create">Create hero</button></div></div>' +
-      '<div class="panel"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (i + 1) + '</i>' + n + '</button>').join('') + '</div>' + body + nav + '</div></div></div>';
+    const idx = STEPS.findIndex(([s]) => s === step), next = STEPS[idx + 1];
+    const nav = step === 'story' ? '' : '<div class="row between cnav">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">← ' + STEPS[idx - 1][1] + '</button>' : '<span></span>') + (next ? '<button class="primary" data-act="cstep" data-s="' + next[0] + '">' + next[1] + ' →</button>' : '<button class="primary big" data-act="create">Create hero</button>') + '</div>';
+    const doneN = STEPS.filter(([s]) => stepDone(c, s)).length, anim = S.creatorAnim ? ' enter ' + S.creatorAnim : '';
+    S.creatorAnim = null;
+    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, class, Origin and life story are permanent. The look is yours to keep.</span></div><div class="cols">' +
+      '<div class="stagebox"><div class="panel cside"><div class="portrait">' + spr(plain(c), 4, 'idle') + '</div><div class="stack tight">' +
+      '<div><b class="cname-show">' + esc(c.name.trim() || 'Unnamed hero') + '</b><div class="row" style="margin-top:4px"><span class="num">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</span>' + role(k.role) + '</div></div>' +
+      (c.story.answers.youth ? '<div class="small"><span class="muted">Known as</span> <b>' + esc(cfg.backstories[c.race][c.story.answers.youth][0]) + '</b> of ' + esc(cfg.cultures[c.race][c.story.answers.home]) + '</div>' : '') +
+      '<div class="startwrap"><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
+      (doneN === STEPS.length ? '<button class="primary" data-act="create">Create hero</button>' : '') + '</div></div></div>' +
+      '<div class="panel cmain"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + (stepDone(c, s) ? ' done' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (stepDone(c, s) && s !== step ? '✓' : i + 1) + '</i><span>' + n + '</span></button>').join('') + '</div>' +
+      '<span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span><div class="cbody' + anim + '">' + body + '</div>' + nav + '</div></div></div>';
   }
 
   // ------------------------------------------------------------------ shell
@@ -907,8 +950,8 @@
     const h = S.st.hero;
     if (h.story) return '<div class="stack"><div class="panel"><div class="eyebrow">' + esc(S.cfg.races[h.race].name) + ' · ' + esc(S.cfg.cultures[h.race][h.story.answers.home]) + '</div><h2>The life of ' + esc(h.name) + '</h2><div class="storybio" style="margin-top:10px">' + bioHtml(h.biography) + '</div></div></div>';
     const d = storyDraft();
-    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Seventeen questions, asked the ' + esc(S.cfg.races[h.race].name) + ' way. Where you were raised sets your culture, what you were known for starts you along one of its branches, and the story leans to the three attributes it names most. You write it once.</p>' +
-      storyForm(h.race, h.name, d, 'hero') + '<div class="row" style="justify-content:flex-end;margin-top:12px"><button class="primary" data-act="storySave" ' + (storyDone(h.race, d) ? '' : 'disabled') + '>Write my story</button></div></div></div>';
+    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. Where they were raised sets their culture, what they were known for starts them along one of its branches, and you write it once.</p>" +
+      storyWizard(h.race, h.name, d, 'hero', '<button class="primary" data-act="storySave">Write it into the tale</button>') + '</div></div>';
   }
 
   // ------------------------------------------------------------------ gear
@@ -1058,29 +1101,45 @@
 
   const handlers = {
     authMode: (d) => { S.authMode = d.mode; render(); },
-    cstep: (d) => { const c = creatorState(); c.name = $('#cname').value; S.creatorStep = d.s; render(); },
-    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') c.look.skin = ITP.RACES[d.id].skins[1]; c.name = $('#cname').value; render(); },
+    cstep: (d) => {
+      keepName();
+      const from = STEPS.findIndex(([x]) => x === S.creatorStep), to = STEPS.findIndex(([x]) => x === d.s);
+      if (to > from) (S.creatorSeen = S.creatorSeen || {})[S.creatorStep] = true;
+      if (from === to) return;
+      S.creatorAnim = to > from ? 'fwd' : 'back'; S.creatorStep = d.s; render();
+      const top = $('.creator .cmain'); if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' });
+      if (d.s === 'name') { const n = $('#cname'); if (n) n.focus(); }
+    },
+    storyAt: (d) => { (S.storyAt = S.storyAt || {})[d.ctx] = +d.i; keepName(); render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' }); },
+    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); render(); },
     ans: (d) => {
       const story = d.ctx === 'creator' ? creatorState().story : storyDraft(), v = /^\d+$/.test(d.v) ? +d.v : d.v;
-      if (d.ctx === 'creator') creatorState().name = $('#cname').value;
+      const race = d.ctx === 'creator' ? creatorState().race : S.st.hero.race;
       story.answers[d.q] = v;
-      if (d.q === 'home') { const y = story.answers.youth; if (y && S.cfg.backstories[d.ctx === 'creator' ? creatorState().race : S.st.hero.race][y][1] !== v) delete story.answers.youth; }
-      const y = window.scrollY; render(); window.scrollTo(0, y);
+      if (d.q === 'home') { const y = story.answers.youth; if (y && S.cfg.backstories[race][y][1] !== v) delete story.answers.youth; }
+      // the tale moves on to the next untold moment, or to the closing page once everything is told
+      const qs = storyQuestions(race, story), at = qs.findIndex(([id]) => id === d.q), open = qs.findIndex(([id], i) => i > at && story.answers[id] === undefined);
+      (S.storyAt = S.storyAt || {})[d.ctx] = open >= 0 ? open : storyDone(race, story) ? qs.length : at + 1;
+      render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' });
     },
     storyRandom: (d) => {
       const race = d.ctx === 'creator' ? creatorState().race : S.st.hero.race, story = d.ctx === 'creator' ? creatorState().story : storyDraft();
-      if (d.ctx === 'creator') creatorState().name = $('#cname').value;
       for (let guard = 0; guard < 3; guard++) storyQuestions(race, story).forEach(([id, , , opts, blocked]) => { if (story.answers[id] === undefined && !blocked && opts.length) story.answers[id] = opts[Math.floor(Math.random() * opts.length)][0]; });
-      render();
+      (S.storyAt = S.storyAt || {})[d.ctx] = storyQuestions(race, story).length; render();
     },
     storySave: () => {
       const h = S.st.hero, story = storyDraft();
       if (!storyDone(h.race, story)) { toast('Answer every question first.'); return; }
       confirmBox('Write this as ' + esc(h.name) + "'s life story? You will follow <b>" + esc(S.cfg.cultures[h.race][story.answers.home]) + '</b> and gain ' + fmt(S.cfg.backstoryRenown) + ' Renown. It cannot be rewritten.', () => act(() => post('/hero/act', { action: 'story', story }), 'Your story is written.'));
     },
-    look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; c.name = $('#cname').value; render(); },
-    randomLook: () => { const c = creatorState(), r = ITP.randomHero(); c.name = $('#cname').value; Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
-    create: async () => { const c = creatorState(); c.name = $('#cname').value.trim(); if (!c.name) { toast('Give your hero a name first.'); $('#cname').focus(); return; } if (!storyDone(c.race, c.story)) { toast('Finish your life story first.'); S.creatorStep = 'story'; render(); return; } try { await post('/hero', c); S.creator = null; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); } },
+    look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; keepName(); render(); },
+    randomLook: () => { const c = creatorState(), r = ITP.randomHero(); keepName(); Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
+    create: async () => {
+      const c = creatorState(); keepName(); c.name = c.name.trim();
+      if (!storyDone(c.race, c.story)) { toast('Finish their life story first.'); S.creatorStep = 'story'; render(); return; }
+      if (c.name.length < 3) { toast('Give your hero a name of 3 to 20 letters.'); S.creatorStep = 'name'; render(); const n = $('#cname'); if (n) n.focus(); return; }
+      try { await post('/hero', c); S.creator = null; S.storyAt = {}; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); }
+    },
     logout: async () => {
       if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }
       S.sureNew = false;
@@ -1164,6 +1223,7 @@
   });
   // Finding on a map repaints it in place, so typing stays smooth.
   document.addEventListener('input', (e) => {
+    if (e.target.id === 'cname') { keepName(); const show = $('.cname-show'); if (show) show.textContent = e.target.value.trim() || 'Unnamed hero'; const nb = $('.namebio'); if (nb) { const c = creatorState(); nb.innerHTML = bioHtml(namedBio(c.race, c.name, c.story)); } return; }
     if (e.target.id === 'storynotes') { (e.target.dataset.ctx === 'creator' ? creatorState().story : storyDraft()).notes = e.target.value; return; }
     if (e.target.id !== 'mapq') return;
     const host = $('#maphost'), map = host && MAPS[host.dataset.map];
@@ -1171,7 +1231,7 @@
     if (map) { map.hitAt = -1; mountMaps(); }
   });
   document.addEventListener('change', (e) => { if (e.target.id === 'storynotes') { const y = window.scrollY; render(); window.scrollTo(0, y); } });
-  document.addEventListener('keydown', (e) => { if (e.target.id === 'mapq' && e.key === 'Enter') { e.preventDefault(); handlers.mapNext(); } });
+  document.addEventListener('keydown', (e) => { if (e.target.id === 'mapq' && e.key === 'Enter') { e.preventDefault(); handlers.mapNext(); } if (e.target.id === 'cname' && e.key === 'Enter') { e.preventDefault(); handlers.create(); } });
   document.addEventListener('change', (e) => {
     const el = e.target;
     const a = el.dataset.actChange;
