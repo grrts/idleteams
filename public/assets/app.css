@@ -506,3 +506,46 @@ input:focus, select:focus, textarea:focus { border-image-source: var(--ui-frame-
 .sfx-toggle { position: fixed; left: 14px; bottom: 14px; z-index: 40; display: flex; gap: 6px; }
 .sfx-toggle button { font-size: 1.1rem; line-height: 1; padding: 8px 10px 10px; min-width: 40px; }
 @media (max-width: 720px) { .sfx-toggle { left: auto; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ------------------------------------------------------------------ lore book
+   Lore reads like a book: serif body text, gold links between entries, parchment-warm quotes. */
+.lorelink { color: var(--gold); text-decoration: none; border-bottom: 1px dotted color-mix(in srgb, var(--gold) 60%, transparent); cursor: pointer; }
+.lorelink:hover { color: #fff0b0; border-bottom-style: solid; }
+.chip.lorechip { cursor: pointer; text-decoration: none; color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); text-transform: none; letter-spacing: .02em; font-size: .78rem; padding: 2px 10px; }
+.chip.lorechip:hover { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.loresee { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.loresee .eyebrow { width: 100%; display: flex; align-items: center; gap: 6px; }
+.loresee.threads { margin: 12px 0 4px; padding-top: 10px; border-top: 1px solid var(--line); }
+.lorecard { margin-top: 12px; padding: 12px 14px; background: linear-gradient(180deg, rgba(255,210,90,.06), rgba(0,0,0,.18)); border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line)); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; }
+.lorecard .eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--gold); }
+.lorecard .eyebrow .ico, .lorenote .ico, .loresee .eyebrow .ico { width: 14px; height: 14px; }
+.lorecard b.title { font-family: var(--f-display); font-weight: 400; font-size: 1.15rem; }
+.lorecard p { margin: 0; font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; }
+.lorecard p.small { opacity: .9; }
+.lorepaths { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; margin-top: 4px; }
+.lorepaths p { margin-top: 2px; }
+.lorefacts { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 4px 0; font-size: .9rem; }
+.lorefacts dt { color: var(--muted); font-weight: 700; }
+.lorefacts dd { margin: 0; }
+.beat .lorenote { display: flex; gap: 6px; align-items: flex-start; font-style: normal; font-family: Nunito, system-ui, sans-serif; font-size: .78rem; line-height: 1.4; color: #e8d9a8; opacity: .8; letter-spacing: 0; text-shadow: none; margin-top: 3px; padding-top: 5px; border-top: 1px dashed rgba(255,210,90,.18); }
+.beat .lorenote .ico { flex: none; margin-top: 1px; }
+.modal > div.lorebox { max-width: 760px; }
+.loreentry h2 { margin: 2px 0 8px; }
+.loreentry .lede { font-family: Georgia, 'Times New Roman', serif; font-size: 1.08rem; line-height: 1.6; color: #f3e6cf; margin: 0 0 10px; }
+.loreentry section { margin-top: 12px; }
+.loreentry section h4 { margin: 0 0 4px; font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+.loreentry section p { margin: 0; font-family: Georgia, 'Times New Roman', serif; line-height: 1.6; }
+.loreentry .lorefacts { padding: 10px 12px; background: rgba(0,0,0,.2); border: 1px solid var(--line); border-radius: 8px; }
+.lorequote { margin: 14px 0 0; padding: 10px 14px; border-left: 3px solid var(--gold); font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 1.02rem; color: #ffe3a0; background: rgba(255,210,90,.05); }
+.lorequote cite { display: block; margin-top: 4px; font-style: normal; font-size: .8rem; color: var(--muted); }
+.lorebook { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.lorebook input#loreq { width: 100%; margin: 6px 0 10px; }
+.lorebook .shelves { display: flex; flex-wrap: wrap; gap: 4px; }
+.lorebook .shelves button { padding: 4px 10px 6px; font-size: .82rem; }
+.lorebook .shelves button.on { border-image-source: var(--ui-btn-primary); }
+.lorecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 10px; margin-top: 10px; }
+.loreitem { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.18); color: inherit; text-decoration: none; }
+.loreitem:hover { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); background: rgba(255,210,90,.05); }
+.loreitem b { font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; color: var(--text); }
+.loreitem .small { color: var(--muted); line-height: 1.45; }
+@media (max-width: 860px) { .lorebook { grid-template-columns: 1fr; } }

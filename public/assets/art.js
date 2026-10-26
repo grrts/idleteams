@@ -307,6 +307,7 @@
       case 'talents': b.next(); b.line(8, 14, 8, 8, '#8a5a34', { flat: true }); b.line(8, 8, 3, 3, '#8a5a34', { flat: true }); b.line(8, 8, 13, 3, '#8a5a34', { flat: true }); b.line(8, 10, 12, 7, '#8a5a34', { flat: true });
         [[3, 3, '#ffd25a'], [13, 3, '#ff8a6b'], [12, 7, '#6fd97a'], [8, 8, '#c084ff']].forEach(([x, y, c]) => { b.next(); b.ellipse(x, y, 1.8, 1.8, c); }); break;
       case 'heritage': path('M-5 -7 L5 -7 L5 5 L0 2 L-5 5 Z', '#c0392b'); path('M-5 -7 L5 -7 L5 -4 L-5 -4 Z', '#f0c23a'); path('M0 -2 L2 0 L0 2 L-2 0 Z', '#f0c23a'); break;
+      case 'lore': path('M-7 -5 Q-3.5 -7 0 -5 L0 6 Q-3.5 4 -7 6 Z', '#f2ead8'); path('M0 -5 Q3.5 -7 7 -5 L7 6 Q3.5 4 0 6 Z', '#e0d4bc'); path('M-0.6 -5 L0.6 -5 L0.6 6 L-0.6 6 Z', '#8a5a34'); path('M3 -4 L4.5 -4 L4.5 2 L3.75 1 L3 2 Z', '#c0392b'); break;
       case 'energy': path('M2 -7 L-4 1 L0 1 L-2 7 L5 -1 L1 -1 Z', '#ffd25a'); break;
     }
     return b.toCanvas();

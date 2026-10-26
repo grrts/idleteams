@@ -175,7 +175,7 @@
   // ------------------------------------------------------------------ boot and polling
 
   async function boot() {
-    S.cfg = await get('/config');
+    [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
     window.addEventListener('hashchange', () => { S.view = location.hash.slice(2) || 'battle'; S.sel = null; render(); loadView(); });
     S.view = location.hash.slice(2) || 'battle';
@@ -265,6 +265,87 @@
       '<div style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button></div></form></div>';
   }
 
+  // ------------------------------------------------------------------ lore
+
+  // The lore book (GET /lore): every pack merged, entries keyed "kind:id". Each choice in the game has a key, so
+  // showing lore is a lookup: loreKey('answer', race, question, index) and so on. Missing entries show nothing.
+  const loreKey = (kind, ...parts) => kind + ':' + parts.join('.');
+  const lore = (key) => (S.lore && S.lore.entries[key]) || null;
+  const loreShelf = (key) => (S.lore && S.lore.shelves[key.split(':')[0]]) || { title: '' };
+  const loreLink = (key, label, cls) => (lore(key) ? '<a href="#" class="' + (cls || 'lorelink') + '" data-act="lore" data-k="' + esc(key) + '">' + esc(label || lore(key).title) + '</a>' : esc(label || ''));
+  // Lore text links to other entries as [[kind:id]] or [[kind:id|words]].
+  const LINK = /\[\[([a-z]+:[A-Za-z0-9_.-]+)(?:\|([^\]]*))?\]\]/g;
+  const loreText = (t) => esc(t).replace(LINK, (m, key, label) => loreLink(key, label));
+  const lorePlain = (t) => String(t || '').replace(LINK, (m, key, label) => label || (lore(key) ? lore(key).title : key));
+  const packName = (id) => (S.lore.packs[id] || { name: id }).name;
+  const corePack = (id) => !S.lore.packs[id] || S.lore.packs[id].core;
+
+  function loreEntry(key) {
+    const e = lore(key);
+    if (!e) return '<p class="muted">Nothing is written about this yet. More of the world comes with every expansion.</p>';
+    const shelf = loreShelf(key), sections = e.sections || [];
+    const extra = (e.packs || []).filter((p) => !corePack(p));
+    return '<article class="loreentry"><div class="eyebrow">' + esc(shelf.title) + (e.kicker ? ' · ' + esc(e.kicker) : '') + '</div><h2>' + esc(e.title || shelf.title) + '</h2>' +
+      '<p class="lede">' + loreText(e.summary) + '</p>' +
+      (e.facts && e.facts.length ? '<dl class="lorefacts">' + e.facts.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + loreText(v) + '</dd>').join('') + '</dl>' : '') +
+      sections.map((s) => '<section><h4>' + esc(s.title) + (corePack(s.pack) ? '' : ' <span class="chip gold">' + esc(packName(s.pack)) + '</span>') + '</h4><p>' + loreText(s.text) + '</p></section>').join('') +
+      (e.quote ? '<blockquote class="lorequote">“' + esc(e.quote[0]) + '”' + (e.quote[1] ? '<cite>' + esc(e.quote[1]) + '</cite>' : '') + '</blockquote>' : '') +
+      (e.see && e.see.length ? '<div class="loresee"><span class="eyebrow">See also</span>' + e.see.filter(lore).map((k) => loreLink(k, null, 'chip lorechip')).join('') + '</div>' : '') +
+      (extra.length ? '<p class="tiny muted">Expanded in ' + extra.map((p) => esc(packName(p))).join(', ') + '.</p>' : '') + '</article>';
+  }
+  // A short card for one choice: what the lore book says, a few facts and a way into the full entry.
+  function loreCard(key, opts = {}) {
+    const e = lore(key);
+    if (!e) return '';
+    const first = (e.sections || [])[0];
+    return '<div class="lorecard"><div class="row between"><span class="eyebrow">' + ico('lore') + ' From the lore book' + (e.kicker ? ' · ' + esc(e.kicker) : '') + '</span><button class="small ghost" data-act="lore" data-k="' + esc(key) + '">Read more</button></div>' +
+      (opts.title === false ? '' : '<b class="title">' + esc(e.title) + '</b>') + '<p>' + loreText(e.summary) + '</p>' +
+      (opts.facts !== false && e.facts && e.facts.length ? '<dl class="lorefacts small">' + e.facts.slice(0, 4).map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + loreText(v) + '</dd>').join('') + '</dl>' : '') +
+      (opts.section && first ? '<p class="small">' + loreText(first.text) + '</p>' : '') + (opts.more || '') + '</div>';
+  }
+  // The lore book in a window, with a way back along the links followed.
+  function openLore(key, fresh) {
+    S.loreTrail = fresh || !S.loreTrail || $('#modal').hidden ? [key] : [...S.loreTrail, key];
+    const trail = S.loreTrail, back = trail.length > 1 ? '<button class="small ghost" data-act="loreBack">← ' + esc((lore(trail[trail.length - 2]) || {}).title || 'Back') + '</button>' : '<span></span>';
+    modal('<div class="row between">' + back + '<span class="row">' + (S.st && S.st.hero ? '<a href="#/lore" data-act="loreBook" data-k="' + esc(key) + '" class="small">Open the lore book</a>' : '') + '<button class="small" data-act="closeModal">Close</button></span></div>' + loreEntry(key));
+    $('#modal > div').classList.add('lorebox');
+    $('#modal > div').scrollTop = 0;
+  }
+  // Every entry a set of answers points to, for the "threads of your tale" list.
+  function loreThreads(keys) {
+    const seen = new Set();
+    keys.forEach((k) => { const e = lore(k); if (!e) return; if (e.title) seen.add(k); (e.see || []).forEach((s) => lore(s) && seen.add(s)); });
+    return [...seen];
+  }
+  function storyLoreKeys(race, story) {
+    const a = story.answers || {}, keys = [];
+    if (a.home) keys.push(loreKey('culture', race, a.home));
+    if (a.youth) keys.push(loreKey('backstory', race, a.youth));
+    Object.entries(a).forEach(([q, v]) => { if (typeof v === 'number') keys.push(loreKey('answer', race, q, v)); });
+    return keys;
+  }
+
+  // The lore book page: shelves, a search and one entry at a time.
+  function loreView() {
+    if (!S.lore) return '<div class="panel">The lore book could not be loaded.</div>';
+    const shelves = Object.entries(S.lore.shelves).filter(([, s]) => !s.hidden), key = S.loreKey && lore(S.loreKey) ? S.loreKey : null;
+    const shelf = S.loreShelf || (key ? key.split(':')[0] : 'world');
+    const count = (k) => Object.keys(S.lore.entries).filter((e) => e.startsWith(k + ':')).length;
+    const h = S.st.hero, mine = [loreKey('race', h.race), loreKey('class', h.cls), loreKey('origin', h.origin), h.culture && loreKey('culture', h.race, h.culture), h.backstory && loreKey('backstory', h.race, h.backstory), h.path && loreKey('path', h.cls, h.path)].filter((k) => k && lore(k));
+    return '<div class="lorebook"><div class="stack"><div class="panel tight"><h3>The lore book</h3><input id="loreq" placeholder="Search the lore" value="' + esc(S.loreQ || '') + '" aria-label="Search the lore" autocomplete="off">' +
+      '<div class="shelves">' + shelves.map(([k, s]) => '<button class="small' + (shelf === k && !S.loreQ ? ' on' : '') + '" data-act="loreShelf" data-k="' + k + '" title="' + esc(s.blurb) + '">' + esc(s.title) + ' <span class="muted">' + count(k) + '</span></button>').join('') + '</div></div>' +
+      '<div class="panel tight"><div class="eyebrow">Your hero</div><div class="loresee">' + mine.map((k) => '<a href="#" class="chip lorechip" data-act="loreGo" data-k="' + k + '">' + esc(lore(k).title) + '</a>').join('') + '</div></div>' +
+      '<div class="panel tight"><div class="eyebrow">Lore packs</div>' + Object.entries(S.lore.packs).map(([, p]) => '<p class="small"><b>' + esc(p.name) + '</b>' + (p.core ? ' <span class="chip">base game</span>' : ' <span class="chip gold">expansion</span>') + '<br><span class="muted">' + esc(p.description) + '</span></p>').join('') + '</div></div>' +
+      '<div class="stack">' + (key ? '<div class="panel"><div class="row between"><button class="small ghost" data-act="loreGo" data-k="">← ' + esc(loreShelf(key).title) + '</button></div>' + loreEntry(key).replace(/data-act="lore"/g, 'data-act="loreGo"') + '</div>' : '<div class="panel"><div class="lorelist">' + loreList(shelf) + '</div></div>') + '</div></div>';
+  }
+  function loreList(shelf) {
+    const q = (S.loreQ || '').trim().toLowerCase(), all = Object.entries(S.lore.entries).filter(([k]) => !loreShelf(k).hidden);
+    const hits = q ? all.filter(([, e]) => [e.title, e.kicker, e.summary, ...(e.sections || []).map((s) => s.text)].join(' ').toLowerCase().includes(q)) : all.filter(([k]) => k.startsWith((shelf || S.loreShelf || 'world') + ':'));
+    const s = S.lore.shelves[shelf || S.loreShelf || 'world'] || {};
+    return (q ? '<h2>' + hits.length + ' found</h2>' : '<h2>' + esc(s.title) + '</h2><p class="muted">' + esc(s.blurb) + '</p>') +
+      '<div class="lorecards">' + hits.slice(0, 120).map(([k, e]) => '<a href="#" class="loreitem" data-act="loreGo" data-k="' + k + '"><span class="eyebrow">' + esc(q ? loreShelf(k).title : e.kicker || '') + '</span><b>' + esc(e.title) + '</b><span class="small">' + esc(lorePlain(e.summary)) + '</span></a>').join('') + '</div>';
+  }
+
   // ------------------------------------------------------------------ creator
 
   function creatorState() {
@@ -341,6 +422,7 @@
    */
   function storyWizard(race, name, story, ctx, finish) {
     const qs = storyQuestions(race, story), at = Math.min((S.storyAt || {})[ctx] || 0, qs.length), L = S.cfg.lifeStory;
+    const threads = loreThreads(storyLoreKeys(race, story));
     const answered = qs.filter(([id]) => story.answers[id] !== undefined).length, who = name && name.trim() ? name.trim() : null;
     const bar = '<div class="tellbar"><span class="bar"><i style="width:' + (100 * answered) / qs.length + '%"></i></span><span class="small muted">' + answered + ' of ' + qs.length + '</span>' +
       (answered < qs.length ? '<button class="small ghost" data-act="storyRandom" data-ctx="' + ctx + '">Tell the rest for me</button>' : '') + '</div>';
@@ -349,6 +431,7 @@
       const bio = namedBio(race, who, story), done = storyDone(race, story);
       return '<div class="tell enter">' + bar + '<div class="tellpage"><div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
         '<div class="storyq"><div class="qtext">Anything the tale left out? A secret, a name, a promise. (optional)</div><textarea id="storynotes" data-ctx="' + ctx + '" maxlength="' + L.notesMax + '" rows="3">' + esc(story.notes || '') + '</textarea></div>' +
+        (threads.length ? '<div class="loresee threads"><span class="eyebrow">' + ico('lore') + ' Threads of this tale in the lore book</span>' + threads.map((k) => loreLink(k, null, 'chip lorechip')).join('') + '</div>' : '') +
         (done ? '' : '<p class="small bad">Some of the tale is still untold. Go back and answer the open questions.</p>') +
         '<div class="row between tellnav">' + back + (done ? finish : '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + qs.findIndex(([id]) => story.answers[id] === undefined) + '">Answer what is left</button>') + '</div></div></div>';
     }
@@ -362,7 +445,8 @@
       '<h3 class="tellq">' + esc(text) + '</h3>' +
       (blocked ? '<p class="small muted">' + esc(blocked) + '</p>' : '<div class="beats">' + opts.map(([v, label, sentence, note]) => {
         const line = sentence ? beat(sentence) : id === 'home' ? (who || 'Your hero') + ' was raised among the ' + label + ': ' + S.cfg.cultureInfo[race][v][1].charAt(0).toLowerCase() + S.cfg.cultureInfo[race][v][1].slice(1) + '.' : '';
-        return '<button class="beat' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>';
+        const le = lore(id === 'home' ? loreKey('culture', race, v) : id === 'youth' ? loreKey('backstory', race, v) : loreKey('answer', race, id, v));
+        return '<button class="beat' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + (le ? '<em class="lorenote">' + ico('lore') + esc(lorePlain(le.summary)) + '</em>' : '') + '</button>';
       }).join('') + '</div>') +
       '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at + 1) + '">Next →</button>' : '<span></span>') + '</div></div></div>';
   }
@@ -386,16 +470,19 @@
       const r = cfg.races[c.race];
       body = '<h2>Choose a race</h2><p class="muted">Races come in real sizes, from stout dwarves to towering orcs and draka. Every race can play every role.</p><div class="races" style="margin-top:12px">' +
         Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
-        '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>';
+        '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>' +
+        loreCard(loreKey('race', c.race), { title: false, section: true, more: '<div class="loresee"><span class="eyebrow">Their homelands</span>' + Object.keys(cfg.cultures[c.race]).map((cid) => loreLink(loreKey('culture', c.race, cid), null, 'chip lorechip')).join('') + loreLink('world:valdren', 'The world', 'chip lorechip') + '</div>' });
     } else if (step === 'story') {
       body = '<h2>Their life story</h2><p class="muted">Every ' + esc(cfg.races[c.race].name) + ' has a story before the tavern. Tell it one moment at a time. Where they were raised sets their culture, what they were known for starts their Heritage at rank 3, and the three attributes the tale names most get +' + cfg.lifeStory.lean[1] + ' each.</p>' +
         storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Now, how do they look? →</button>');
     } else if (step === 'cls') {
       body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>';
+        Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>' +
+        loreCard(loreKey('class', c.cls), { section: true, more: '<div class="lorepaths">' + Object.entries(k.paths).map(([pid, p]) => { const e = lore(loreKey('path', c.cls, pid)); return '<div><b>' + esc(p[0]) + '</b> <span class="muted small">Path at level ' + cfg.pathLevel + '</span><p class="small">' + (e ? loreText(e.summary) : esc(p[1])) + '</p></div>'; }).join('') + '</div>' });
     } else if (step === 'origin') {
       body = '<h2>Choose an Origin</h2><p class="muted">Where your hero comes from: ' + cfg.originPoints + ' points in one attribute and a small edge of its own.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>';
+        Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>' +
+        loreCard(loreKey('origin', c.origin), { section: true, more: '<div class="loresee">' + loreLink('world:wheel', 'The Wheel of Signs', 'chip lorechip') + '</div>' });
     } else if (step === 'look') {
       body = '<div class="head"><h2>Make them yours</h2><button class="small" data-act="randomLook">Randomise look</button></div><p class="muted">Build and height change the silhouette only. Your two clothes colours become the dyes on every piece of gear you earn later.</p><div class="lookgrid" style="margin-top:6px">' +
         sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
@@ -405,7 +492,7 @@
       const ok = storyDone(c.race, c.story);
       body = '<h2>And their name?</h2><p class="muted">Three to twenty letters. Your group, your guild and the market will know them by it.</p>' +
         '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="Name" autocomplete="off">' +
-        '<div class="summary">' + [cfg.races[c.race].name, k.name, cfg.origins[c.origin][0] + ' Origin', c.story.answers.home ? cfg.cultures[c.race][c.story.answers.home] : null, c.story.answers.youth ? cfg.backstories[c.race][c.story.answers.youth][0] : null].filter(Boolean).map((x) => '<span class="chip">' + esc(x) + '</span>').join('') + '</div>' +
+        '<div class="summary">' + [[cfg.races[c.race].name, loreKey('race', c.race)], [k.name, loreKey('class', c.cls)], [cfg.origins[c.origin][0] + ' Origin', loreKey('origin', c.origin)], c.story.answers.home ? [cfg.cultures[c.race][c.story.answers.home], loreKey('culture', c.race, c.story.answers.home)] : null, c.story.answers.youth ? [cfg.backstories[c.race][c.story.answers.youth][0], loreKey('backstory', c.race, c.story.answers.youth)] : null].filter(Boolean).map(([x, key]) => lore(key) ? loreLink(key, x, 'chip lorechip') : '<span class="chip">' + esc(x) + '</span>').join('') + '</div>' +
         (ok ? '<div class="storybio book namebio">' + bioHtml(namedBio(c.race, c.name, c.story)) + '</div>' : '<div class="detail">Their life story is not finished yet. <button class="small" data-act="cstep" data-s="story">Finish it</button></div>');
     }
     const idx = STEPS.findIndex(([s]) => s === step), next = STEPS[idx + 1];
@@ -424,12 +511,12 @@
 
   // ------------------------------------------------------------------ shell
 
-  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['talents', 'Talents', 'talents'], ['heritage', 'Heritage', 'heritage'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market']];
+  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['talents', 'Talents', 'talents'], ['heritage', 'Heritage', 'heritage'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market'], ['lore', 'Lore', 'lore']];
   function shell() {
     const h = S.st.hero;
     const dots = { battle: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= S.cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (S.st.party ? S.st.party.requests.filter((r) => r.kind === 'application').length : 0) };
     const nav = VIEWS.map(([id, n, i]) => '<a href="#/' + id + '" class="' + (S.view === id ? 'on' : '') + '">' + ico(i, '') + '<span>' + n + '</span>' + (dots[id] ? '<span class="badge">' + dots[id] + '</span>' : '') + '</a>').join('') + '<a href="#" data-act="toggleChat" class="chat-link">' + ico('chat', '') + '<span>Chat</span></a>';
-    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, lore: loreView };
     return '<div class="shell' + (S.chatOpen ? ' chat-open' : '') + '"><header class="top"><span class="logo">Idle <span>Teams</span></span>' +
       '<span class="who">' + por(h.look) + '<span><b>' + esc(h.name) + '</b> <span class="muted small">Lv ' + h.level + ' ' + className(h.cls) + '</span></span></span>' +
       '<span class="xp" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><span class="tiny muted">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</span><span class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></span></span>' +
@@ -926,11 +1013,14 @@
         const btn = mine ? '<span class="chip solid">' + ico('star') + 'Your culture</span>' : '<button class="small" data-act="culture" data-id="' + cid + '" ' + (learned(have, 'root') ? '' : 'disabled') + '>' + (h.culture ? 'Follow (' + fmt(cfg.renown.swapGold * h.level) + 'g)' : 'Follow') + '</button>';
         return '<div class="culture' + (mine ? ' mine' : h.culture ? ' other' : '') + '" style="--c:' + col + '"><div class="ccrest"><span class="cpennant"><img alt="" src="' + ITA.ui('heritage') + '"></span><div style="min-width:0"><h3>' + esc(name) + '</h3><div class="small muted">' + esc(theme) + '</div></div></div>' +
           '<div class="row" style="margin-top:8px;justify-content:space-between">' + btn + '<span class="num small muted">' + pts + '/' + fmt(ids.length) + '</span></div>' +
-          '<div class="tiny muted" style="margin-top:6px">' + tree.branches.filter((b) => bids.includes(b[0])).map((b) => '<a href="#/heritage" data-act="mapBranch" data-id="' + b[5][0] + '">' + esc(b[1]) + '</a>').join(' · ') + '</div></div>';
+          '<div class="tiny muted" style="margin-top:6px">' + tree.branches.filter((b) => bids.includes(b[0])).map((b) => '<a href="#/heritage" data-act="mapBranch" data-id="' + b[5][0] + '">' + esc(b[1]) + '</a>').join(' · ') + '</div>' +
+          (lore(loreKey('culture', h.race, cid)) ? '<div class="tiny" style="margin-top:6px">' + loreLink(loreKey('culture', h.race, cid), 'Lore of ' + name) + '</div>' : '') + '</div>';
       }).join('');
       detail = nodeDetail(map, have, sel, free, h.culture, 'heritage');
+      const branch = sel === 'root' ? null : tree.branches.find((b) => b[5].includes(sel)), bkey = branch ? loreKey('heritage', h.race, branch[0]) : loreKey('heritage', h.race);
       const story = h.backstory && cfg.backstories[h.race][h.backstory];
       side = (story ? '<div class="panel tight"><div class="eyebrow">Known as</div><h3 style="margin-bottom:6px">' + esc(story[0]) + '</h3><p class="small">' + esc(story[3]) + '</p><p class="small muted">' + esc(story[4]) + (h.culture !== story[1] ? '. The Renown comes back if you follow ' + esc(cfg.cultures[h.race][story[1]]) + ' again.' : '.') + '</p><div class="row small"><a href="#/heritage" data-act="mapBranch" data-id="' + story[2] + '.2.1">Show my branch: ' + esc(story[5]) + '</a><a href="#/story">Read my life story</a></div></div>' : '') +
+        (lore(bkey) ? '<div class="panel tight">' + loreCard(bkey) + '</div>' : '') +
         '<div class="panel tight"><h3 style="margin-bottom:6px">Your heritage</h3><p class="small">' + (Object.keys(have).length ? esc(h.heritageTotal) + '.' : 'Nothing learned yet. The root in the middle is free at rank 1.') + '</p></div>';
     }
     const count = tree ? Object.keys(tree.nodes).length : 0;
@@ -946,9 +1036,16 @@
   // ------------------------------------------------------------------ life story page
 
   const storyDraft = () => (S.storyDraft = S.storyDraft || { answers: {}, notes: '' });
+  // What the lore book says about a hero's choices: people, calling, Sign, culture, backstory and the tale's threads.
+  function heroLore(h, story) {
+    const keys = [loreKey('race', h.race), loreKey('class', h.cls), loreKey('origin', h.origin), h.culture && loreKey('culture', h.race, h.culture), h.backstory && loreKey('backstory', h.race, h.backstory)].filter((k) => k && lore(k));
+    const threads = story ? loreThreads(storyLoreKeys(h.race, story)).filter((k) => !keys.includes(k)) : [];
+    return '<div class="panel"><div class="head"><h2>In the lore book</h2><a href="#/lore" class="small">Open the lore book</a></div><div class="lorecards">' + keys.map((k) => '<a href="#" class="loreitem" data-act="lore" data-k="' + k + '"><span class="eyebrow">' + esc(loreShelf(k).title) + '</span><b>' + esc(lore(k).title) + '</b><span class="small">' + esc(lorePlain(lore(k).summary)) + '</span></a>').join('') + '</div>' +
+      (threads.length ? '<div class="loresee threads"><span class="eyebrow">Threads of their tale</span>' + threads.map((k) => loreLink(k, null, 'chip lorechip')).join('') + '</div>' : '') + '</div>';
+  }
   function storyView() {
     const h = S.st.hero;
-    if (h.story) return '<div class="stack"><div class="panel"><div class="eyebrow">' + esc(S.cfg.races[h.race].name) + ' · ' + esc(S.cfg.cultures[h.race][h.story.answers.home]) + '</div><h2>The life of ' + esc(h.name) + '</h2><div class="storybio" style="margin-top:10px">' + bioHtml(h.biography) + '</div></div></div>';
+    if (h.story) return '<div class="stack"><div class="panel"><div class="eyebrow">' + esc(S.cfg.races[h.race].name) + ' · ' + esc(S.cfg.cultures[h.race][h.story.answers.home]) + '</div><h2>The life of ' + esc(h.name) + '</h2><div class="storybio" style="margin-top:10px">' + bioHtml(h.biography) + '</div></div>' + heroLore(h, h.story) + '</div>';
     const d = storyDraft();
     return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. Where they were raised sets their culture, what they were known for starts them along one of its branches, and you write it once.</p>" +
       storyWizard(h.race, h.name, d, 'hero', '<button class="primary" data-act="storySave">Write it into the tale</button>') + '</div></div>';
@@ -1149,6 +1246,11 @@
     },
     toggleChat: () => { S.chatOpen = !S.chatOpen; render(); },
     chan: (d) => { S.chat.channel = d.id; S.chatJump = true; render(); pollChat(); },
+    lore: (d) => openLore(d.k),
+    loreBack: () => { const t = S.loreTrail || []; if (t.length > 1) { S.loreTrail = t.slice(0, -2); openLore(t[t.length - 2]); } },
+    loreBook: (d) => { closeModal(); S.loreKey = d.k; S.loreQ = ''; location.hash = '#/lore'; render(); },
+    loreGo: (d) => { S.loreKey = d.k || null; S.loreQ = ''; render(); const top = $('.lorebook'); if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' }); },
+    loreShelf: (d) => { S.loreShelf = d.k; S.loreKey = null; S.loreQ = ''; render(); },
     modalYes: () => { const f = S.modalYes; closeModal(); if (f) f(); },
     closeModal,
     // hero
@@ -1224,6 +1326,7 @@
   // Finding on a map repaints it in place, so typing stays smooth.
   document.addEventListener('input', (e) => {
     if (e.target.id === 'cname') { keepName(); const show = $('.cname-show'); if (show) show.textContent = e.target.value.trim() || 'Unnamed hero'; const nb = $('.namebio'); if (nb) { const c = creatorState(); nb.innerHTML = bioHtml(namedBio(c.race, c.name, c.story)); } return; }
+    if (e.target.id === 'loreq') { S.loreQ = e.target.value; S.loreKey = null; const box = $('.lorelist'); if (box) box.innerHTML = loreList(); else render(); return; }
     if (e.target.id === 'storynotes') { (e.target.dataset.ctx === 'creator' ? creatorState().story : storyDraft()).notes = e.target.value; return; }
     if (e.target.id !== 'mapq') return;
     const host = $('#maphost'), map = host && MAPS[host.dataset.map];

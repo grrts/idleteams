@@ -48,6 +48,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   chest for need/greed/pass. Loot is never guaranteed. Players who are away roll by their loot setting
   when the chest closes.
 - Guilds and chat (tavern, guild and group channels).
+- Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
+  Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
+  backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is
+  made (every life story answer carries a note), the life story page and the Heritage map show the lore of the hero's
+  choices, and the Lore page is the whole book with shelves and search. Lore is data in `lore/`, in packs: an
+  expansion is a new folder that adds entries or grows existing ones (see `lore/README.md`).
 
 ## Run it locally
 
@@ -114,6 +120,7 @@ a database and cron.
 | Where | What |
 | --- | --- |
 | `src/Game/Rules.php` | All static game data: attributes, races, classes, Origins, skills, Keystones, slots, glyphs, powers |
+| `src/Game/Lore.php`, `lore/` | The lore book: lore packs merged in order, the key for every character choice, and the checks that every choice has lore and every link resolves |
 | `src/Game/LifeStory.php` | The life story questions for every race, the biography and how the answers feed Heritage |
 | `src/Game/TreeMap.php` | Builds the radial node maps, checks them and finds paths |
 | `src/Game/Talents.php`, `Heritage.php` | The class talent maps and the race and culture Heritage maps, with Renown. The client loads a map from `GET /api/tree/{talent\|heritage}/{key}` |

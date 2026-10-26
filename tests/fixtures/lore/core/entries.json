@@ -1,0 +1,4 @@
+{ "entries": {
+  "race:dwarf": { "title": "Dwarves", "summary": "Short and stubborn.", "sections": [{ "title": "Home", "text": "They live in [[place:hold|the hold]]." }], "facts": [["Lifespan", "300 years"]], "see": ["place:hold"] },
+  "place:hold": { "title": "The Hold", "summary": "A mountain." }
+} }

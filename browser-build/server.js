@@ -872,6 +872,7 @@
 
   const ROUTES = [
     ['GET', /^\/config$/, () => config()],
+    ['GET', /^\/lore$/, () => D.LORE],
     ['GET', /^\/tree\/(talent|heritage)\/([a-z]+)$/, (m) => (m[1] === 'talent' ? T.tree(m[2]) : H.tree(m[2])) || fail('Unknown map.')],
     ['POST', /^\/logout$/, () => { db = fresh(); seed(); return { ok: true }; }],
     ['GET', /^\/state$/, () => state()],

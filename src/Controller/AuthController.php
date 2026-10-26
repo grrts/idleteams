@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Game\Heritage;
+use App\Game\Lore;
 use App\Game\Talents;
 use App\Service\GameError;
 use App\Service\Present;
@@ -32,6 +33,17 @@ class AuthController extends ApiController
         $res = $this->json($kind === 'talent' ? Talents::tree($key) : Heritage::tree($key));
         $res->setPublic();
         $res->setMaxAge(86400);
+
+        return $res;
+    }
+
+    /** The lore book: every lore pack, merged. It only changes with a release or an expansion, so clients cache it. */
+    #[Route('/api/lore', methods: ['GET'])]
+    public function lore(): JsonResponse
+    {
+        $res = $this->json(Lore::book());
+        $res->setPublic();
+        $res->setMaxAge(3600);
 
         return $res;
     }

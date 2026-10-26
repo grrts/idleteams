@@ -1,0 +1,551 @@
+{
+  "entries": {
+    "world:valdren": {
+      "title": "Valdren",
+      "kicker": "The world",
+      "summary": "A warm, wide world built on top of a fire that never went out. Six peoples share it, and for a thousand years they have shared one problem: the fire keeps trying to come back up.",
+      "sections": [
+        { "title": "A world on a hearth", "text": "Under every mountain, field and sea of Valdren burns the [[world:underflame|Underflame]], the fire the dragons shaped the world from in the [[era:dawnfire|Dawnfire]]. For most of history it stayed where it belonged. Since the [[era:sundering|Sundering]] it has broken through in places, and where it breaks through a [[world:hollows|Hollow]] opens: a wound in the world, full of heat, monsters and treasure." },
+        { "title": "The six peoples", "text": "[[race:human|Humans]] are the many and the restless. [[race:elf|Elves]] are the old and the patient. [[race:dwarf|Dwarves]] live inside the mountains, [[race:orc|orcs]] on the open steppe, [[race:felkin|felkin]] on rooftops and dunes, and the [[race:draka|draka]] in the volcano peaks where the dragons used to nest. None of them can close a Hollow alone, which is why the [[faction:pact|Pact of Five]] exists." },
+        { "title": "Now", "text": "It is the year 1012 After the Sundering, and something has changed. Hollows open more often and run deeper. The great forge of the draka is cooling. Elves report stars moving that should not move. The old ones call it [[era:waking|the Waking]], and every tavern board in Valdren is full." }
+      ],
+      "facts": [
+        ["Year", "1012 AS (After the Sundering)"],
+        ["Peoples", "Humans, elves, dwarves, orcs, felkin, draka"],
+        ["Heart of the world", "[[place:lanternford|Lanternford]], where the Pact was sworn"],
+        ["Greatest danger", "The [[world:hollows|Hollows]]"]
+      ],
+      "quote": ["Every fire in Valdren is a little piece of the big one. Mind yours.", "Hearth saying, told to children everywhere"],
+      "see": ["era:sundering", "faction:pact", "world:hollows"]
+    },
+    "world:underflame": {
+      "title": "The Underflame",
+      "kicker": "The fire beneath",
+      "summary": "The living fire under the world. The dragons shaped Valdren out of it, and every forge, hearth and spell of fire draws a little from it.",
+      "sections": [
+        { "title": "What it is", "text": "Scholars of [[culture:elf.starspire|Starspire]] call it the first matter. [[culture:dwarf.runedeep|Runedeep]] priests call it the mountain's blood. The [[race:draka|draka]] simply call it the Mother, and say they can hear it breathe. All agree it is not evil. It is hungry, the way all fire is hungry, and it does not understand that things live on top of it." },
+        { "title": "What it does", "text": "Where the crust is thin, the Underflame warms springs, feeds volcanoes and makes the soil rich. Where it breaks through, it melts stone into strange halls and wakes things that should have stayed asleep: the [[beast:cinderborn|cinderborn]], slag beasts and worse. Those places are the [[world:hollows|Hollows]]." },
+        { "title": "Keeping it down", "text": "Since the [[era:sundering|Sundering]] the Underflame has been held below by three things: the sleep of [[faith:ember-songs|Aurvanth the Last]], the warding runes of the dwarves, and the heroes of the [[faction:pact|Pact]] who walk into every Hollow and put out its heart." }
+      ],
+      "facts": [["Also called", "The Mother (draka), the mountain's blood (dwarves), the first matter (Starspire)"], ["Breaks through at", "[[world:hollows|Hollows]]"]],
+      "see": ["world:hollows", "era:dawnfire", "faith:ember-songs"]
+    },
+    "world:hollows": {
+      "title": "Hollows",
+      "kicker": "Dungeons",
+      "summary": "Wounds in the world where the Underflame breaks through. Every Hollow has a heart, and a Hollow whose heart is put out closes again, until the next one opens.",
+      "sections": [
+        { "title": "How a Hollow opens", "text": "First the ground gets warm. Wells run hot, animals leave, and at night the cracks glow. Then the earth folds open into halls that were never dug by anyone: melted stone, burning rivers, rooms the size of cathedrals. Monsters come with it, some born from the fire itself, some only woken by it." },
+        { "title": "Wings and hearts", "text": "A Hollow grows in wings, each one guarded by something the fire made strong, and at the bottom of each wing beats a heart, a knot of the [[world:underflame|Underflame]] wrapped in a creature. Kill the guardian and the heart gutters out. When every heart is out the Hollow cools and seals, slowly, over days." },
+        { "title": "Why five", "text": "Armies have marched into Hollows and not come back. The halls are too narrow for a host and too deadly for one. Since the [[era:first-five|First Five]] closed the [[hollow:cinder-gate|Cinder Gate]], everyone knows the answer: a band of five, one to hold the line, one to keep them alive, and three to put the heart out. The [[faction:pact|Pact]] has sworn bands that way ever since." },
+        { "title": "Levels and depth", "text": "A Hollow is not the same every time a band walks in. The deeper the fire runs, the harder the guardians and the richer the [[world:common-chest|chest]]. The Pact rates them by depth, which is why one band can run the same Hollow for weeks and find something new each time." }
+      ],
+      "facts": [["Known Hollows", "[[hollow:ember-hollow|Ember Hollow]], the sealed [[hollow:cinder-gate|Cinder Gate]]"], ["Walked by", "Bands of five, sworn to the [[faction:pact|Pact]]"]],
+      "quote": ["If you can hear it breathing, you are already too deep. Keep going anyway.", "Pact tavern saying"],
+      "see": ["hollow:ember-hollow", "world:common-chest", "world:musters"]
+    },
+    "world:common-chest": {
+      "title": "The Common Chest",
+      "kicker": "Shared loot",
+      "summary": "The oldest law of the Pact: everything a band takes out of a Hollow goes into one chest, and the band decides together who carries it home.",
+      "sections": [
+        { "title": "The law", "text": "When the [[era:first-five|First Five]] came out of the [[hollow:cinder-gate|Cinder Gate]] they had one sack of treasure and five people who had nearly died for it. Brannoc Vale tipped it out on the table of the Five Flagons and said: whoever needs it, takes it. The rest roll for it. Nobody fights over it, ever. That table still stands in [[place:lanternford|Lanternford]]." },
+        { "title": "Need, greed and pass", "text": "A hero who can use a thing declares need. One who only wants it declares greed. One who has enough passes, and the Pact remembers who passes. Nothing is ever promised: a Hollow gives what it gives, and some runs give nothing at all." },
+        { "title": "Nothing binds", "text": "The Pact forbids binding oaths on treasure. A blade won in a Hollow can be given away, sold on the market or handed to a friend the next morning. The old saying is that loot is borrowed from the fire, never owned." }
+      ],
+      "facts": [["Sworn", "612 AS, at the Five Flagons"], ["Rolls", "Need, greed or pass"]],
+      "see": ["faction:pact", "world:hollows"]
+    },
+    "world:musters": {
+      "title": "The Great Musters",
+      "kicker": "Raids",
+      "summary": "When a Hollow opens too big for one band, the Pact rings every bell in Valdren and the bands come together: forty in a guild muster, hundreds on the fronts of a Great Muster.",
+      "sections": [
+        { "title": "When the bells ring", "text": "Some Hollows open with more than one heart beating at once, or with a heart so large that no single band can reach it. Then the [[faction:pact|Pact]] calls a muster. Guilds send their best bands, and the bands are set on fronts: one holds the Gate, one breaks the Ritual, one keeps the Infirmary running so the wounded can go back in." },
+        { "title": "Still in fives", "text": "Even in a muster of hundreds, every hero fights in their band of five. The Pact never broke that rule, and every muster that tried to fight as an army instead is remembered as a disaster. The looks earned in a muster are the proudest a hero can wear, because everyone knows where they came from." },
+        { "title": "The last Great Muster", "text": "The last Great Muster closed the Ashmaw in 978 AS, the year of the [[era:great-burn|Great Burn]]. It took eleven days and two hundred and forty heroes. The names of the ones who did not come back are carved in the floor of the Five Flagons in [[place:lanternford|Lanternford]]." }
+      ],
+      "facts": [["Guild muster", "Up to 40 heroes"], ["Great Muster", "Up to 250 heroes, on fronts"]],
+      "see": ["faction:pact", "era:waking"]
+    },
+    "era:dawnfire": {
+      "title": "The Dawnfire",
+      "kicker": "The age of dragons",
+      "summary": "The first age, before counting. The dragons rose out of the Underflame, shaped the world from it, and woke the first peoples.",
+      "sections": [
+        { "title": "The shaping", "text": "The [[faith:ember-songs|ember-songs]] say the dragons were the first fire to learn to think. They pulled mountains out of the [[world:underflame|Underflame]], cooled seas over it and spread forests across the cooled stone. Where they slept, they left their warmth, and that warmth is why the north is green." },
+        { "title": "The first peoples", "text": "[[race:elf|Elves]] woke first, under starlight, and remember it. [[race:dwarf|Dwarves]] say they were woken by the ringing of the mountains as the dragons shaped them. The [[race:draka|draka]] hatched from eggs the dragons warmed with their own fire. [[race:human|Humans]], [[race:orc|orcs]] and [[race:felkin|felkin]] came later, and each tells a different story about how, which they are happy to argue about." },
+        { "title": "The Long Summer", "text": "For thousands of years the dragons ruled lightly and the peoples grew. The great Elderwood covered half the world, the dwarves found the first veins of mithril, and the elves built the first towers of [[culture:elf.starspire|Starspire]]. Nobody counted the years, which the elves say is the surest sign of a happy age." }
+      ],
+      "facts": [["When", "Before counting"], ["Ended", "With the [[era:sundering|Sundering]]"]],
+      "see": ["era:sundering", "faith:ember-songs"]
+    },
+    "era:sundering": {
+      "title": "The Sundering",
+      "kicker": "Year 0",
+      "summary": "The night the dragons fell asleep and the Underflame broke through. The Elderwood split, the mountains cracked and the first Hollows opened. Valdren counts its years from it.",
+      "sections": [
+        { "title": "What happened", "text": "Something rose from below the [[world:underflame|Underflame]], deeper than fire. The ember-songs call it the Hunger Below and refuse to say more. The dragons went down to meet it, and only one came back up: Aurvanth, the last true dragon, who wrapped herself around the broken places of the world and fell into a sleep she has not woken from. Where she could not reach, the fire broke through." },
+        { "title": "What it broke", "text": "The Elderwood burned down its middle, leaving [[culture:elf.silverwood|Silverwood]] in the north and [[culture:elf.duskvale|Duskvale]] in the south, and the [[place:ashlands|Ashlands]] in between. The [[place:greyteeth|Greyteeth]] cracked open, which is how the dwarves found the deep halls. The [[place:red-steppe|red steppe]] got its colour. Elves who saw it still speak of it only in whispers." },
+        { "title": "Why it matters now", "text": "Every [[world:hollows|Hollow]] is a place where the Sundering never quite healed. The [[era:waking|Waking]] has made people ask the question nobody wanted to ask for a thousand years: what happens if Aurvanth wakes up, or does not?" }
+      ],
+      "facts": [["When", "Year 0 of the count, 1012 years ago"], ["Elves call it", "The Sundering of the old forests"], ["Humans call it", "The Breaking"]],
+      "quote": ["We do not speak of that night above a whisper, child. The fire might be listening.", "An elven grandparent"],
+      "see": ["era:dawnfire", "place:ashlands", "faith:ember-songs", "era:waking"]
+    },
+    "era:banners": {
+      "title": "The Age of Banners",
+      "kicker": "200 to 850 AS",
+      "summary": "The long age of kingdoms after the Sundering, when the old human realm of Aster rose, the dwarves dug the Long Road and the Nine Clans first rode together.",
+      "sections": [
+        { "title": "The realm of Aster", "text": "Out of the scattered refugee towns of the Breaking rose the human realm of Aster, ruled from Asterhold in the [[culture:human.crownlands|Crownlands]]. At its height its banners flew from the [[place:greyteeth|Greyteeth]] to the Saltreach coast, and its knights rode under the old realm's star." },
+        { "title": "The other peoples", "text": "The dwarves dug the [[place:long-road|Long Road]] that links every mountain hold. The orcs of the [[place:red-steppe|red steppe]] became the [[faction:nine-clans|Nine Clans]]. Felkin caravans first crossed the [[place:endless-dunes|Endless Dunes]] and built [[place:saffra|Saffra]]. The elves closed their forests and watched." },
+        { "title": "The Banner Wars", "text": "The age ended in the Banner Wars of the 800s, when Aster's great houses fought over its crown. The realm broke into the [[culture:human.crownlands|Crownlands]], the free city of [[culture:human.freeport|Freeport]] and the frontier of the [[culture:human.highmarch|Highmarch]]. Knights who rode out in those years often never came home." }
+      ],
+      "facts": [["When", "About 200 to 850 AS"], ["Ended with", "The Banner Wars"]],
+      "see": ["faction:crown", "era:first-five"]
+    },
+    "era:first-five": {
+      "title": "The First Five",
+      "kicker": "612 AS",
+      "summary": "The five heroes of five peoples who walked into the Cinder Gate together and closed it, and then swore the Pact that every band still keeps.",
+      "sections": [
+        { "title": "The Cinder Gate", "text": "In 612 AS a Hollow opened under Asterhold itself. Three royal armies marched into the [[hollow:cinder-gate|Cinder Gate]] and none came out. Then five people who had met in a tavern in [[place:lanternford|Lanternford]] went in on their own: a human knight, an elven archer, a dwarven rune-priest, an orc storm-shaman and a felkin thief. Nine days later the fire under the capital went out." },
+        { "title": "The five", "text": "Brannoc Vale, a Crownlands knight with a shield bigger than his patience. Ilyra of the Silverwood, who never missed and never explained. Durga Stonesong of Runedeep, who healed with runes and swore at everyone. Marak Thunderhide of the Stormcallers, who heard the dead and listened. And Pell Quickwhisker, a felkin who stole the heart of the Hollow out of its guardian's chest, and was very proud of it." },
+        { "title": "The oath", "text": "They swore it at the Five Flagons over a table that still stands: walk in fives; hold the line for each other; share the [[world:common-chest|chest]]; leave nobody behind in the dark. That oath became the [[faction:pact|Pact of Five]]." },
+        { "title": "The sixth seat", "text": "No draka was among the First Five. In 790 AS the draka fire council sent a flame-speaker down from [[place:kaldera|Kaldera]] to ask to join, and the Pact added a sixth chair to the table. Draka still say they were late because they had to finish the song first." }
+      ],
+      "facts": [["When", "612 AS"], ["Where", "The Five Flagons, [[place:lanternford|Lanternford]]"], ["The five", "Brannoc Vale, Ilyra of the Silverwood, Durga Stonesong, Marak Thunderhide, Pell Quickwhisker"]],
+      "quote": ["Whoever needs it, takes it. The rest roll. Nobody fights over it, ever.", "Brannoc Vale, at the first Common Chest"],
+      "see": ["faction:pact", "hollow:cinder-gate", "world:common-chest"]
+    },
+    "era:hungry-years": {
+      "title": "The Hungry Years",
+      "kicker": "941 to 947 AS",
+      "summary": "Seven years of failed harvests after the Ashfall, when grey ash from a Hollow blotted out the summers across the human lands.",
+      "sections": [
+        { "title": "The Ashfall", "text": "In 940 AS a Hollow opened under the sea off the Saltreach and burned for a full year before a band of the [[faction:pact|Pact]] reached its heart. The ash it threw up drifted over the [[culture:human.crownlands|Crownlands]] and the [[culture:human.highmarch|Highmarch]], and for seven summers the sun came up grey." },
+        { "title": "Who fed whom", "text": "Whole villages emptied. The farms that held on fed whole valleys, and the families who ran them are still respected in every market. [[culture:human.freeport|Freeport]] grew rich selling grain, which the Crownlands have not forgotten. The Lantern chapels opened orphanages that are still running, full of the grandchildren of those years." }
+      ],
+      "facts": [["When", "941 to 947 AS"], ["Cause", "Ash from a sea Hollow off the Saltreach"]],
+      "see": ["faith:lantern", "culture:human.crownlands"]
+    },
+    "era:great-burn": {
+      "title": "The Great Burn",
+      "kicker": "978 AS",
+      "summary": "The year the Ashmaw Hollow opened on the red steppe and set it burning for a whole summer. Many orc clans scattered, and the Ashlands grew by half.",
+      "sections": [
+        { "title": "The Ashmaw", "text": "The [[faith:ancestors|Stormcaller shamans]] had warned of it for years: the Ashmaw, a Hollow with three hearts, opened under the eastern [[place:red-steppe|red steppe]] in the dry summer of 978. Fire ran across the grass faster than a wolf. The [[world:musters|last Great Muster]] closed it after eleven days, but by then the eastern steppe was gone." },
+        { "title": "After", "text": "Clans that lost their grazing scattered into the cities or into the [[place:ashlands|Ashlands]], where the [[culture:orc.ashland|Ashlanders]] took in anyone who could carry a load. Some orcs blame the Pact for coming late. Others joined it, and many of today's orc heroes are children of the Burn." }
+      ],
+      "facts": [["When", "978 AS"], ["Closed by", "The last Great Muster"]],
+      "see": ["culture:orc.ashland", "world:musters", "faction:nine-clans"]
+    },
+    "era:waking": {
+      "title": "The Waking",
+      "kicker": "Now",
+      "summary": "What the old ones call the present: Hollows opening faster than ever, the draka forge cooling, the stars shifting and something under the world turning over in its sleep.",
+      "sections": [
+        { "title": "The signs", "text": "Since about 1000 AS the signs have piled up. Hollows that used to open once a decade open every year. The great forge at [[place:kaldera|Kaldera]] burns lower every winter. Draka hatchlings hear roars from the mountain that no living dragon could make. Starspire mages have charted a star that went out. Dwarves of [[culture:dwarf.runedeep|Runedeep]] say the runes on the deepest gates are warm to the touch." },
+        { "title": "Two fears", "text": "Some say Aurvanth, the last dragon, is waking, and that the [[world:underflame|Underflame]] she holds down will come up with her. Others say she is dying, which would be worse. The [[faction:ashen-choir|Ashen Choir]] says it is the best thing that could happen, and sings to make it come sooner." },
+        { "title": "The answer", "text": "The [[faction:pact|Pact]] has done what it always does: rung the bells, filled the tavern boards and sent bands of five into the dark. More heroes have sworn in the last ten years than in the hundred before. You are one of them." }
+      ],
+      "facts": [["When", "From about 1000 AS to now"], ["Signs", "More Hollows, a cooling forge, moving stars, warm runes"]],
+      "quote": ["It is not that the world is ending. It is that the world is waking up, and it is in a terrible mood.", "Durga Stonesong's journal, last page, author unknown"],
+      "see": ["faction:ashen-choir", "faith:ember-songs", "place:kaldera"]
+    },
+    "place:lanternford": {
+      "title": "Lanternford",
+      "kicker": "The free town at the crossroads",
+      "summary": "A busy free town where the Greywater river meets five roads. The Pact was sworn here, and every hero who wants a band ends up at its tavern board sooner or later.",
+      "sections": [
+        { "title": "The town", "text": "Lanternford got its name from the lanterns that used to hang on the ford posts so night travellers would not drown. Five roads meet there, from the [[culture:human.crownlands|Crownlands]], the [[culture:human.freeport|Freeport]] coast, the [[culture:human.highmarch|Highmarch]], the elven woods and the dwarven Long Road. It belongs to no crown. Everyone passes through, and half of them stay." },
+        { "title": "The Five Flagons", "text": "The tavern where the [[era:first-five|First Five]] met and swore the [[faction:pact|Pact]]. The table of the first [[world:common-chest|Common Chest]] stands under glass by the fire, with a sixth chair added for the draka. The tavern board by the door is where bands look for heroes and heroes look for bands." },
+        { "title": "The Greywater", "text": "The river that runs through Lanternford comes down from the Highmarch cold and grey. Its bridges are a point of local pride, and every one of them has been rebuilt at least once after something came up out of a Hollow and walked across it." }
+      ],
+      "facts": [["Ruled by", "A town council, and in practice by the Pact"], ["Famous for", "The Five Flagons, the tavern board, its bridges"], ["River", "The Greywater"]],
+      "see": ["faction:pact", "era:first-five"]
+    },
+    "place:greyteeth": {
+      "title": "The Greyteeth",
+      "kicker": "The mountains of the dwarves",
+      "summary": "The great grey range that runs down the middle of Valdren. Humans guard its passes, and the dwarves live inside it.",
+      "sections": [
+        { "title": "Above", "text": "On the outside the Greyteeth are bare rock, snow and goat trails, home to the human frontier folk of the [[culture:human.highmarch|Highmarch]], who hold the passes against raiders and worse." },
+        { "title": "Within", "text": "Inside, the range is hollowed out like a honeycomb. The great holds of [[culture:dwarf.ironhold|Ironhold]], [[culture:dwarf.brewhall|Brewhall]] and [[culture:dwarf.runedeep|Runedeep]] are only the largest of dozens, linked by the [[place:long-road|Long Road]]. The Sundering cracked the mountains open to a depth no dwarf had dug before, and the deepest of those cracks have never been fully mapped." }
+      ],
+      "facts": [["Holds", "Ironhold, Brewhall, Runedeep and many smaller ones"], ["Passes held by", "The Highmarch"]],
+      "see": ["race:dwarf", "place:long-road"]
+    },
+    "place:long-road": {
+      "title": "The Long Road",
+      "kicker": "The underway",
+      "summary": "The great tunnel road that links every dwarf hold under the Greyteeth, and reaches places under the world that the surface folk have never heard of.",
+      "sections": [
+        { "title": "Who dug it", "text": "The dwarves started digging it in the [[era:banners|Age of Banners]] and have never stopped. Every clan that adds a mile carves its name into the wall there, and walking the Long Road is reading the history of the dwarves in order." },
+        { "title": "What is down there", "text": "Most of the Long Road is lamplit, patrolled and busy with carts. Some of it is not. Old side tunnels lead toward the cracks the [[era:sundering|Sundering]] opened, where [[beast:goblins|goblins]] nest and older things sleep. Tunnel patrols walk those stretches in pairs and do not talk about what they hear." }
+      ],
+      "facts": [["Length", "Unknown, and still growing"], ["Patrolled by", "Hold guards and tunnel patrols"]],
+      "see": ["place:greyteeth", "beast:goblins"]
+    },
+    "place:red-steppe": {
+      "title": "The Red Steppe",
+      "kicker": "Home of the orcs",
+      "summary": "An endless sea of red grass under a huge sky, where the orc clans follow their herds and the drums carry for miles.",
+      "sections": [
+        { "title": "The land", "text": "The grass of the steppe turned red after the [[era:sundering|Sundering]], and the soil underneath is warm all year. Herds of shaggy aurochs graze it, and the clans follow them in tents that move with the season." },
+        { "title": "The clans", "text": "The orcs of the steppe live in clans bound by blood and drum. The [[culture:orc.bloodfang|Bloodfang]] hold the west, the [[culture:orc.stormcaller|Stormcallers]] the hills where the thunder lives, and the eastern edge burned in the [[era:great-burn|Great Burn]] and became the [[place:ashlands|Ashlands]]. Every few generations the clans unite under one warchief, as the [[faction:nine-clans|Nine Clans]]." }
+      ],
+      "facts": [["Grass", "Red, and warm underneath"], ["Peoples", "The orc clans"]],
+      "see": ["race:orc", "faction:nine-clans"]
+    },
+    "place:ashlands": {
+      "title": "The Ashlands",
+      "kicker": "The burned wastes",
+      "summary": "The grey wasteland the Sundering burned through the middle of the old Elderwood, made larger by the Great Burn. Ash storms, shadow-beasts and stubborn survivors.",
+      "sections": [
+        { "title": "What it is", "text": "A thousand years ago this was the heart of the Elderwood. Now it is grey dust over black glass, cracked by vents where the [[world:underflame|Underflame]] still breathes. Ash storms can blot out the sun for days." },
+        { "title": "Who lives there", "text": "The [[culture:orc.ashland|Ashlanders]], orcs who took to the wastes and made a hard life there, run caravans of salt and ash-iron across it. [[beast:shadow-beasts|Shadow-beasts]] hunt the storms and creep toward the elven forests on either side, which is why the elves keep watch on their borders." }
+      ],
+      "facts": [["Made by", "The [[era:sundering|Sundering]], and the [[era:great-burn|Great Burn]]"], ["Dangers", "Ash storms, vents, [[beast:shadow-beasts|shadow-beasts]]"]],
+      "see": ["culture:orc.ashland", "beast:shadow-beasts", "era:sundering"]
+    },
+    "place:endless-dunes": {
+      "title": "The Endless Dunes",
+      "kicker": "The golden desert",
+      "summary": "A sea of golden sand in the south, crossed only by felkin caravans that know where the hidden springs are.",
+      "sections": [
+        { "title": "The sand", "text": "The dunes move with the wind and swallow roads, wells and the occasional city. Only the [[culture:felkin.sandstride|Sandstriders]] know the way across, by the stars and by the hidden oases they keep secret even from other felkin." },
+        { "title": "Dangers", "text": "[[beast:sand-wyrm|Sand-wyrms]] swim under the dunes and come up under caravans. Scorpions the size of carts hunt at night. In the deep desert a sand plague comes every few decades, and felkin healers walk out to meet it." }
+      ],
+      "facts": [["Crossed by", "Sandstrider caravans"], ["City", "[[place:saffra|Saffra]], on its northern edge"]],
+      "see": ["culture:felkin.sandstride", "place:saffra"]
+    },
+    "place:saffra": {
+      "title": "Saffra",
+      "kicker": "The city of roofs",
+      "summary": "The felkin city on the edge of the Endless Dunes: spice markets below, a second city on the rooftops above, and the Sun Temple in the middle of it all.",
+      "sections": [
+        { "title": "Two cities in one", "text": "Down in the streets Saffra is a city of bazaars, spice stalls and caravan yards, ruled by its Sultan. Up on the roofs is a second city with its own roads, bridges and laws, where the [[culture:felkin.moonclaw|Moonclaw]] hunt and every felkin kit learns to jump before they learn to read." },
+        { "title": "The Sun Temple", "text": "At the centre of the city stands the [[faith:sun-temple|Sun Temple]], a golden dome where the sacred cats sleep in the warmest spots and the sand-priestesses read the future in the shape of the dunes." },
+        { "title": "The Sultan's sapphire", "text": "The Sultan's crown holds a sapphire the size of a fist that has been stolen four times and returned three. Every felkin family claims an ancestor who was involved." }
+      ],
+      "facts": [["Ruled by", "The Sultan of Saffra"], ["Famous for", "Spices, rooftops, the Sun Temple"]],
+      "see": ["race:felkin", "faith:sun-temple"]
+    },
+    "place:kaldera": {
+      "title": "Kaldera",
+      "kicker": "The volcano peaks",
+      "summary": "The ring of volcano peaks in the far north where the dragons once nested and the draka live now, around the great forge that has burned since the Dawnfire.",
+      "sections": [
+        { "title": "The peaks", "text": "Kaldera is a ring of black mountains around a crater lake that steams in winter. Draka nests cling to every cliff. Updrafts from the vents let even a young draka glide for miles, which the [[culture:draka.ashwing|Ashwing]] have turned into a whole way of life." },
+        { "title": "The great forge", "text": "In the heart of the ring burns the Heartforge, a crack straight down to the [[world:underflame|Underflame]] that the dragons left open on purpose, so their children could stay warm. The [[culture:draka.cinderscale|Cinderscale]] have guarded it for a thousand years. Lately it burns lower every winter, and nobody knows why." },
+        { "title": "Under the mountain", "text": "The draka say Aurvanth the Last sleeps under Kaldera, curled around the deepest wound of the [[era:sundering|Sundering]]. Some days the whole ring trembles, and hatchlings say they hear her breathe." }
+      ],
+      "facts": [["People", "The draka"], ["Heart", "The Heartforge, the great forge"], ["Sleeping beneath", "Aurvanth the Last, they say"]],
+      "see": ["race:draka", "faith:ember-songs", "era:waking"]
+    },
+    "faction:pact": {
+      "title": "The Pact of Five",
+      "kicker": "The heroes' oath",
+      "summary": "The oath and order of everyone who walks into Hollows. It has no king and no army, only bands of five, tavern boards in every town, and four rules nobody breaks.",
+      "sections": [
+        { "title": "The four rules", "text": "Walk in fives. Hold the line for each other. Share the [[world:common-chest|chest]]. Leave nobody behind in the dark. Everything else, from guilds to musters, grew out of those four lines sworn by the [[era:first-five|First Five]] in 612 AS." },
+        { "title": "How it works", "text": "Any hero of any people can swear the Pact at any of its taverns. They post on the tavern board, find a band, and go where the bells ring. Bands that stay together form guilds, guilds keep halls, and when a Hollow is too big for one band the Pact calls a [[world:musters|muster]]." },
+        { "title": "Roles", "text": "The Pact never cared what a hero is, only what they do. Every band needs someone to stand in front, someone to keep everyone breathing, and someone to end the fight. That is why every people can follow every [[class:guardian|calling]], and why a band of a dwarf, an elf, an orc, a felkin and a draka is not strange at all." },
+        { "title": "Who leads it", "text": "Nobody, officially. In practice the keepers of the Five Flagons in [[place:lanternford|Lanternford]] keep its records, ring its bells and settle its arguments, and they have done so for four hundred years." }
+      ],
+      "facts": [["Founded", "612 AS"], ["Seat", "The Five Flagons, [[place:lanternford|Lanternford]]"], ["Members", "Every hero who has sworn, of every people"]],
+      "quote": ["Walk in fives. Hold the line. Share the chest. Leave nobody in the dark.", "The Pact of Five"],
+      "see": ["era:first-five", "world:common-chest", "world:musters"]
+    },
+    "faction:crown": {
+      "title": "The Crown of Aster",
+      "kicker": "The old kingdom",
+      "summary": "What is left of the old human realm of Aster: a king in Asterhold, proud knightly houses, and a lot of rusted helmets hanging over hearths.",
+      "sections": [
+        { "title": "The kingdom now", "text": "The Crown rules the [[culture:human.crownlands|Crownlands]] from Asterhold and claims the rest of the old realm on paper. King Aldric IV is old, fair and cautious. His procession still travels the realm each spring, and children born the day it passes are often named after one of his knights." },
+        { "title": "The Crown and the Pact", "text": "The Crown has never fully forgiven the [[faction:pact|Pact]] for doing what its armies could not at the [[hollow:cinder-gate|Cinder Gate]]. It also cannot do without it. Most knights who want real battle swear the Pact as well as their knightly oath, and the king pretends not to notice." }
+      ],
+      "facts": [["Seat", "Asterhold, in the Crownlands"], ["King", "Aldric IV"], ["Emblem", "The old realm's silver star on blue"]],
+      "see": ["culture:human.crownlands", "era:banners"]
+    },
+    "faction:syndics": {
+      "title": "The Syndics of Freeport",
+      "kicker": "The merchant council",
+      "summary": "The council of merchant houses that runs Freeport. Officially they are traders. Unofficially half of them are smugglers, and everyone knows which half.",
+      "sections": [
+        { "title": "Who they are", "text": "Twelve merchant houses hold a seat each on the Syndic council of [[culture:human.freeport|Freeport]]. They set the harbour tolls, hire the city watch and quietly decide which ships get searched. The old smuggling families do not have seats, but they have the ear of most of the people who do." },
+        { "title": "The guilds", "text": "Under the Syndics run the trade guilds of Freeport, and the guilds keep long memories. A family that owes a Freeport guild pays it back, with interest, or leaves town." }
+      ],
+      "facts": [["Seat", "The Tollhouse, Freeport harbour"], ["Motto", "Everything has a price. Most things have two."]],
+      "see": ["culture:human.freeport"]
+    },
+    "faction:conclave": {
+      "title": "The Starspire Conclave",
+      "kicker": "The high mages",
+      "summary": "The council of elven high mages who rule the white towers of Starspire, read the stars, and decide which omens are spoken aloud.",
+      "sections": [
+        { "title": "The towers", "text": "Seven white towers stand in [[culture:elf.starspire|Starspire]], each led by an archmage. Together they are the Conclave, keepers of the star charts and of the wards the elves wove into the sky after the [[era:sundering|Sundering]]." },
+        { "title": "Omens", "text": "The Conclave believes some omens do more harm spoken than kept. Stargazers who read the sky wrongly, or rightly at the wrong time, are sometimes asked to leave. Since the [[era:waking|Waking]] began, more have been asked to leave than ever before." }
+      ],
+      "facts": [["Seat", "The seven white towers of Starspire"], ["Keeps", "The star charts and the sky-wards"]],
+      "see": ["culture:elf.starspire", "faith:stars"]
+    },
+    "faction:nine-clans": {
+      "title": "The Nine Clans",
+      "kicker": "The orc horde",
+      "summary": "The orc clans of the red steppe when they ride together. It happens rarely, under a warchief strong enough to hold them, and the drums remember every time.",
+      "sections": [
+        { "title": "Uniting", "text": "Most of the time the orc clans of the [[place:red-steppe|red steppe]] are rivals, raiding each other's herds and settling grudges in the blood pits. Every few generations a warchief rises who can make nine clans ride as one. The last did it for a single summer, and that summer is still the favourite song at every fire." },
+        { "title": "After the Burn", "text": "The [[era:great-burn|Great Burn]] scattered several clans for good. Today there are more than nine, fewer than there were, and many orcs live far from the steppe. The name stays, because the drums like it." }
+      ],
+      "facts": [["Gathers", "Under a warchief, rarely"], ["Remembered by", "The drums"]],
+      "see": ["race:orc", "place:red-steppe"]
+    },
+    "faction:fire-council": {
+      "title": "The Fire Council",
+      "kicker": "The draka moot",
+      "summary": "The great gathering of the draka flights around the Heartforge, where flame-speakers argue for their clans until the fire agrees with one of them.",
+      "sections": [
+        { "title": "How it meets", "text": "When something matters to all the draka, every flight sends a flame-speaker to the Heartforge at [[place:kaldera|Kaldera]]. They speak in turn into the fire, and the [[culture:draka.emberkin|Emberkin]] read how it answers. A council can last a night or a month." },
+        { "title": "What it decided", "text": "The Fire Council sent the first draka to join the [[faction:pact|Pact]] in 790 AS. It is meeting now, about the cooling of the forge, and has been for two years." }
+      ],
+      "facts": [["Meets at", "The Heartforge"], ["Speakers", "One flame-speaker per flight"]],
+      "see": ["race:draka", "culture:draka.emberkin"]
+    },
+    "faction:ashen-choir": {
+      "title": "The Ashen Choir",
+      "kicker": "Cultists of the fire",
+      "summary": "A secret cult that believes the Underflame should be set free. They sing to the Hollows, and the Hollows seem to listen.",
+      "sections": [
+        { "title": "What they believe", "text": "The Choir teaches that the [[era:sundering|Sundering]] was not a disaster but a birth that was stopped halfway, and that Aurvanth's sleep is a cage. When the [[world:underflame|Underflame]] rises in full, they say, everything will burn clean and begin again. They do not say who will be left to enjoy it." },
+        { "title": "What they do", "text": "Choir members have been found deep in [[world:hollows|Hollows]] singing to their hearts, and Hollows they sing to grow faster. Pact bands who meet them are told to bring them out alive if they can. They rarely can." }
+      ],
+      "facts": [["Symbol", "A grey hand with a flame in the palm"], ["Wants", "The Underflame freed"]],
+      "see": ["era:waking", "world:hollows"]
+    },
+    "faction:chain-lords": {
+      "title": "The Chain Lords",
+      "kicker": "Slavers of the south",
+      "summary": "Raiders and slavers who work the edges of the desert and the steppe, selling captives to anyone who will pay. Felkin and orcs alike have long memories of them.",
+      "sections": [
+        { "title": "Who they are", "text": "The Chain Lords are not one band but many, sworn to no crown, trading in people along the southern edge of the [[place:endless-dunes|Endless Dunes]] and the [[place:red-steppe|steppe]]. Their camps move like caravans and their prisons are cages on wheels." },
+        { "title": "Their enemies", "text": "Felkin villages post night watches on their roofs because of them. Orc clans have ridden against them together even in years they rode against each other. The [[faction:pact|Pact]] pays a bounty on every cage broken open." }
+      ],
+      "facts": [["Hunted by", "Felkin watches, orc clans, the Pact"]],
+      "see": ["race:felkin"]
+    },
+    "faction:quiet-hand": {
+      "title": "The Quiet Hand",
+      "kicker": "The rogues' guild",
+      "summary": "A guild of thieves, spies and duelists with a house in every city. It sells secrets, keeps its word, and sends its best into the Hollows, where there is a great deal to steal.",
+      "sections": [
+        { "title": "The guild", "text": "The Quiet Hand began in [[culture:human.freeport|Freeport]] as a guild of locksmiths, which tells you everything. Today it has houses in every city and rooftop roads in [[place:saffra|Saffra]]. Its members swear never to steal from a band they walk with, and the [[faction:pact|Pact]] has found that they keep it." },
+        { "title": "Pell's luck", "text": "The Hand claims Pell Quickwhisker of the [[era:first-five|First Five]] as its patron, and every new member touches a copper coin said to be from his purse. There are at least four hundred of those coins." }
+      ],
+      "facts": [["Houses", "In every city"], ["Patron", "Pell Quickwhisker"]],
+      "see": ["class:rogue"]
+    },
+    "faction:wayfarers": {
+      "title": "The Wayfarers' Lodge",
+      "kicker": "The rangers' order",
+      "summary": "An old order of hunters, scouts and beast-friends who keep the wild roads open between towns, and who were mapping Hollows before the Pact had a name for them.",
+      "sections": [
+        { "title": "The lodge", "text": "Wayfarers keep lodges at the edges of things: forests, deserts, mountain passes. A hungry traveller can always eat at one, and a lost one always gets directions. In return the lodges ask for news, which they carry from lodge to lodge faster than any courier." },
+        { "title": "Rangers", "text": "The [[class:ranger|rangers]] of the lodge train with bows, traps and animal companions. The [[era:first-five|First Five]]'s Ilyra of the Silverwood was a Wayfarer, and the lodge has been sending its best to the [[faction:pact|Pact]] ever since." }
+      ],
+      "facts": [["Lodges", "At the edges of the wild"], ["Trades in", "News"]],
+      "see": ["class:ranger"]
+    },
+    "faith:lantern": {
+      "title": "The Lantern Faith",
+      "kicker": "The Undying Light",
+      "summary": "The faith of the chapels: the belief that the first flame, tamed into light, still burns in every living thing, and can be called on to mend it.",
+      "sections": [
+        { "title": "What they believe", "text": "The Lantern Faith teaches that when the dragons shaped Valdren they kept one flame back from the hunger of the [[world:underflame|Underflame]] and made it into light: warmth without burning. That light, the Undying Light, lives in every heart. A priest is someone who has learned to fan it." },
+        { "title": "Chapels and orphanages", "text": "Every human town has a Lantern chapel with a lamp that is never allowed to go out. Since the [[era:hungry-years|Hungry Years]] most chapels run an orphanage too, known for teaching discipline before letters. The faith is strongest among humans but has followers in every people." },
+        { "title": "Clerics", "text": "The [[class:cleric|clerics]] of the faith carry the light into the Hollows, where it burns brightest against the dark. The priests and the hedge-wizards have never got along, which surprises no one." }
+      ],
+      "facts": [["Symbol", "A lantern with an open door"], ["Holy days", "Lantern Night, the longest night of winter"]],
+      "see": ["class:cleric"]
+    },
+    "faith:green": {
+      "title": "The Green",
+      "kicker": "The faith of growing things",
+      "summary": "The old belief, shared by druids and wardens, that everything alive is one great slow creature that can be asked for help, if you ask politely and wait.",
+      "sections": [
+        { "title": "What they believe", "text": "Followers of the Green believe that roots, rivers, beasts and people are all threads of the same weave, and that the weave wants to heal. After the [[era:sundering|Sundering]] burned the heart of the Elderwood, the Green taught the survivors to plant instead of mourning." },
+        { "title": "Who follows it", "text": "Elves of [[culture:elf.duskvale|Duskvale]] and [[culture:elf.silverwood|Silverwood]], human hedge-folk, felkin herbalists and more orcs than you would think. Its two callings are the [[class:druid|druids]], who heal through growth, and the [[class:warden|wardens]], who let the wild wear them as armour." }
+      ],
+      "facts": [["Symbol", "A seedling in an open hand"], ["Holy places", "The oldest groves"]],
+      "see": ["class:druid", "class:warden"]
+    },
+    "faith:stars": {
+      "title": "Starlore",
+      "kicker": "The elven sky",
+      "summary": "The elven belief that the stars are a written record of everything that has happened and will happen, and that the wise can learn to read it.",
+      "sections": [
+        { "title": "The sky as a book", "text": "Elves say they woke under the stars in the [[era:dawnfire|Dawnfire]] and that the stars watched over them before anything else did. Starlore teaches that every star is a word, and the sky a sentence too long for anyone to read in one life, even an elven one." },
+        { "title": "Wards in the sky", "text": "After the [[era:sundering|Sundering]] the elves wove wards out of starlight, and some still hold. The [[faction:conclave|Conclave]] of [[culture:elf.starspire|Starspire]] guards the charts. A star that goes out, as one did recently, is a word erased, and the elves are frightened of what the sentence now says." }
+      ],
+      "facts": [["Keepers", "The Starspire Conclave"]],
+      "see": ["faction:conclave", "culture:elf.starspire"]
+    },
+    "faith:runes": {
+      "title": "The Rune Faith",
+      "kicker": "The speech of stone",
+      "summary": "The dwarven faith that the mountain is alive and speaks in runes, and that a rune carved true can hold back anything, even fire.",
+      "sections": [
+        { "title": "What they believe", "text": "Dwarves say they were woken by the ringing of the mountains as the dragons shaped them, and that the stone has been talking ever since. Runes are its words. A rune-priest of [[culture:dwarf.runedeep|Runedeep]] learns to hear what the stone wants to say and to carve it so it stays said." },
+        { "title": "The deep gates", "text": "The deepest gates of the [[place:long-road|Long Road]] are carved with warding runes that keep the [[world:underflame|Underflame]] and what lives in it below. Durga Stonesong of the [[era:first-five|First Five]] carved the runes that sealed the [[hollow:cinder-gate|Cinder Gate]]. Lately the runes on the deepest gates have been warm." }
+      ],
+      "facts": [["Priests", "The rune-sworn of Runedeep"]],
+      "see": ["culture:dwarf.runedeep"]
+    },
+    "faith:ancestors": {
+      "title": "The Ancestor Spirits",
+      "kicker": "The orc faith",
+      "summary": "The orc belief that the dead ride on in the storm, and that a shaman who listens can hear them in the thunder and the drums.",
+      "sections": [
+        { "title": "What they believe", "text": "When an orc dies well, their spirit joins the storm that rolls over the [[place:red-steppe|red steppe]]. Thunder is the ancestors arguing, rain is them weeping, and lightning is them choosing someone. The drums are how the living answer." },
+        { "title": "Shamans", "text": "The [[culture:orc.stormcaller|Stormcallers]] are the shamans who speak with the ancestors. Marak Thunderhide of the [[era:first-five|First Five]] was one, and his spirit is said to ride at the front of every storm. An orc who calls on the ancestors and hears nothing has lost something that cannot be stolen back." }
+      ],
+      "facts": [["Shamans", "The Stormcallers"], ["Sacred sound", "The drum"]],
+      "see": ["culture:orc.stormcaller", "race:orc"]
+    },
+    "faith:sun-temple": {
+      "title": "The Sun Temple",
+      "kicker": "The felkin faith",
+      "summary": "The golden temple of Saffra, where the sun is worshipped, the sacred cats are served, and the sand-priestesses read fortunes in the dunes.",
+      "sections": [
+        { "title": "The faith", "text": "Felkin believe the sun is a great warm cat who naps across the sky each day, and that every warm spot on the ground is a place she has blessed. The Sun Temple in [[place:saffra|Saffra]] is the warmest place in the world, and its sacred cats, ordinary cats with extraordinary opinions, sleep wherever they like." },
+        { "title": "Sand-priestesses", "text": "The priestesses of the temple read the future in the shapes the wind leaves in the dunes. They are right just often enough that nobody dares ignore them." }
+      ],
+      "facts": [["Temple", "The golden dome of Saffra"], ["Sacred animal", "The cat, naturally"]],
+      "see": ["place:saffra", "race:felkin"]
+    },
+    "faith:ember-songs": {
+      "title": "The Ember-songs",
+      "kicker": "The draka faith",
+      "summary": "The great sung history of the draka, which carries every flight's memory from clutch to clutch and tells of the dragons, their sleep, and Aurvanth the Last.",
+      "sections": [
+        { "title": "The songs", "text": "Draka do not write their history down. They sing it to their eggs. The ember-songs hold the story of the [[era:dawnfire|Dawnfire]], the names of every flight's heroes, and the long sad verse of the [[era:sundering|Sundering]]." },
+        { "title": "Aurvanth the Last", "text": "The heart of the songs is Aurvanth, the last true dragon, who came back from the deep alone and wrapped herself around the wound of the world under [[place:kaldera|Kaldera]]. The draka believe they are her children's children, and that one day a verse will be sung that wakes her. They disagree loudly about whether that would be good." },
+        { "title": "Dragons", "text": "No living draka has seen a true dragon. Some families keep scales they swear came from one. The roars heard in the mountain since the [[era:waking|Waking]] have every flight singing new verses." }
+      ],
+      "facts": [["Sung by", "Every draka flight"], ["Heart of the song", "Aurvanth the Last"]],
+      "see": ["race:draka", "place:kaldera", "era:sundering"]
+    },
+    "hollow:ember-hollow": {
+      "title": "Ember Hollow",
+      "kicker": "The dungeon",
+      "summary": "A three-winged Hollow that opened under the old quarries south of Lanternford. It is where most new bands learn what the Pact is for.",
+      "sections": [
+        { "title": "How it opened", "text": "The quarries south of [[place:lanternford|Lanternford]] had been warm for years before the ground split in 1009 AS. The Pact sent a band in within the week, and they came back with burns, a chest of treasure and the news that it had three hearts. It has been run ever since and has never fully closed." },
+        { "title": "The three wings", "text": "The first wing is the old kennels of the quarry, where the [[beast:cinder-hound|Cinder Hound]] leads its pack. The second is a lake of slag ruled by the [[beast:slag-matron|Slag Matron]]. The third, deepest, holds the [[beast:ember-golem|Ember Golem]], built from the quarry's own stone by the fire itself." },
+        { "title": "Why it stays open", "text": "Every time a band puts its hearts out, they relight within days. The keepers of the Five Flagons think something below is feeding it. The [[faction:ashen-choir|Ashen Choir]] has been seen nearby." }
+      ],
+      "facts": [["Opened", "1009 AS"], ["Wings", "Three, each with a guardian"], ["Guardians", "[[beast:cinder-hound|Cinder Hound]], [[beast:slag-matron|Slag Matron]], [[beast:ember-golem|Ember Golem]]"]],
+      "see": ["beast:cinder-hound", "beast:slag-matron", "beast:ember-golem", "world:hollows"]
+    },
+    "hollow:cinder-gate": {
+      "title": "The Cinder Gate",
+      "kicker": "Sealed, 612 AS",
+      "summary": "The Hollow that opened under Asterhold and swallowed three royal armies, until the First Five closed it. Its sealed door is still under the palace.",
+      "sections": [
+        { "title": "The Gate", "text": "It opened in the cellars of the royal palace of Asterhold in 612 AS, a great arch of melted stone leading down into fire. Three armies of the [[faction:crown|Crown]] marched in. None marched out." },
+        { "title": "Sealed", "text": "The [[era:first-five|First Five]] walked in, put out its heart, and Durga Stonesong carved the runes that sealed the arch behind them. The door is still there, under the palace, guarded day and night. Its runes have never been warm. Until last winter." }
+      ],
+      "facts": [["Opened", "612 AS"], ["Closed by", "The First Five"]],
+      "see": ["era:first-five", "faith:runes"]
+    },
+    "beast:cinderborn": {
+      "title": "Cinderborn",
+      "kicker": "Creatures of the fire",
+      "summary": "Creatures born out of the Underflame itself where it breaks through: animals, stones and sometimes worse, given heat, hunger and a kind of life.",
+      "sections": [
+        { "title": "What they are", "text": "When the [[world:underflame|Underflame]] wells up into a [[world:hollows|Hollow]], it gets into whatever it finds. Bones, stone, lost animals. The cinderborn are what it makes of them: hounds with embers for eyes, stone that walks, slag that crawls. They are not cruel. They are fire, and fire spreads." },
+        { "title": "Fighting them", "text": "Cinderborn burn, but they also cool. Wardens and guardians learn to hold them until the heat goes out of them. Mages of the frost learn that a cinderborn hit with ice fights very badly indeed." }
+      ],
+      "see": ["world:hollows", "hollow:ember-hollow"]
+    },
+    "beast:cinder-hound": {
+      "title": "The Cinder Hound",
+      "kicker": "Guardian of the first wing",
+      "summary": "The guardian of Ember Hollow's first wing: a quarry dog the fire got into, grown huge, leading a pack of smaller hounds through the old kennels.",
+      "sections": [
+        { "title": "Origin", "text": "The quarrymen of Lanternford kept big dogs to guard their stone. When [[hollow:ember-hollow|Ember Hollow]] opened, the kennels went first. The Cinder Hound was probably the pack leader once. It still is." },
+        { "title": "In battle", "text": "It never fights alone, and it goes for whoever looks weakest. A band that lets its healer get bitten learns quickly why the Pact puts a tank in front." }
+      ],
+      "see": ["hollow:ember-hollow", "beast:cinderborn"]
+    },
+    "beast:slag-matron": {
+      "title": "The Slag Matron",
+      "kicker": "Guardian of the second wing",
+      "summary": "The great molten thing that rules the slag lake of Ember Hollow's second wing, and keeps making more of herself.",
+      "sections": [
+        { "title": "Origin", "text": "Nobody knows what the Slag Matron was before the fire. The quarry's records mention a foreman who went down into the warm galleries alone the week before the Hollow opened." },
+        { "title": "In battle", "text": "She spawns slag brood from the lake around her, and burns anyone standing too long in one place. Bands that handle her well are bands that move together." }
+      ],
+      "see": ["hollow:ember-hollow"]
+    },
+    "beast:ember-golem": {
+      "title": "The Ember Golem",
+      "kicker": "Guardian of the third wing",
+      "summary": "A giant of quarry stone with a heart of the Underflame, guarding the deepest wing of Ember Hollow.",
+      "sections": [
+        { "title": "Origin", "text": "The fire built it out of the quarry itself, with the cut blocks still showing their mason marks. At its centre beats the deepest heart of [[hollow:ember-hollow|Ember Hollow]]." },
+        { "title": "In battle", "text": "It hits harder than anything else in the Hollow and grows hotter as the fight goes on. Every band that has beaten it says the same: the tank held, the healer did not panic, and everyone else hit very hard, very fast." }
+      ],
+      "see": ["hollow:ember-hollow", "world:underflame"]
+    },
+    "beast:shadow-beasts": {
+      "title": "Shadow-beasts",
+      "kicker": "Hunters of the ash storms",
+      "summary": "Long, thin, hungry shapes that hunt inside the ash storms of the wastes and creep toward the elven forests at dusk.",
+      "sections": [
+        { "title": "What they are", "text": "Some say shadow-beasts are cinderborn whose fire went out and left only the hunger. Others say they came up with the Hunger Below at the [[era:sundering|Sundering]]. They are hard to see, harder to hit, and hate light." },
+        { "title": "Where they hunt", "text": "They live in the ash storms of the [[place:ashlands|Ashlands]] and slip into [[culture:elf.silverwood|Silverwood]] and [[culture:elf.duskvale|Duskvale]] on stormy nights. Duskvale's lantern processions began as a way to keep them off." }
+      ],
+      "see": ["place:ashlands"]
+    },
+    "beast:goblins": {
+      "title": "Goblins",
+      "kicker": "The deep folk",
+      "summary": "Small, clever, nasty tunnel-dwellers who nest in the deep cracks under the mountains and raid dwarf tunnels for metal and food.",
+      "sections": [
+        { "title": "What they are", "text": "Goblins live in the deep cracks the [[era:sundering|Sundering]] opened under the [[place:greyteeth|Greyteeth]]. They steal metal, set traps and breed fast. Every dwarf beardling who walks tunnel patrol meets them sooner or later." },
+        { "title": "Worse things", "text": "Goblins are frightened of something even deeper than they live. Dwarves have learned to worry when the goblins start climbing up." }
+      ],
+      "see": ["place:long-road", "race:dwarf"]
+    },
+    "beast:trolls": {
+      "title": "Trolls",
+      "kicker": "Gate-breakers",
+      "summary": "Huge, stupid and very hard to kill. Trolls come down from the high snows every winter and try the gates of the holds and the watchtowers of the passes.",
+      "sections": [
+        { "title": "Fighting them", "text": "A troll heals almost as fast as it is cut, so it must be held in place while others strike. Dwarves hold it behind a wall of shields. Highmarch wardens use fire. Everyone agrees it takes a team." }
+      ],
+      "see": ["place:greyteeth", "culture:human.highmarch"]
+    },
+    "beast:sand-wyrm": {
+      "title": "Sand-wyrms",
+      "kicker": "Swimmers of the dunes",
+      "summary": "Long armoured worms that swim under the sand of the dunes and the dry edge of the steppe, and come up under anything that walks too heavily.",
+      "sections": [
+        { "title": "Hunting them", "text": "Sandstriders cross the [[place:endless-dunes|dunes]] with soft feet and light loads to avoid them. Orcs of the southern steppe hunt them for their hide, which makes the best armour on the steppe." }
+      ],
+      "see": ["place:endless-dunes"]
+    },
+    "beast:wyvern": {
+      "title": "Wyverns",
+      "kicker": "Raiders of the peaks",
+      "summary": "Two-legged winged lizards, distant and stupid cousins of the dragons, that raid goat pens, nests and anything else they can carry off.",
+      "sections": [
+        { "title": "Wyverns and draka", "text": "The draka of [[place:kaldera|Kaldera]] consider wyverns an insult to the memory of the dragons and hunt them on sight. The elves of [[culture:elf.silverwood|Silverwood]] shoot them out of the sky from a very long way off." }
+      ],
+      "see": ["place:kaldera"]
+    }
+  }
+}

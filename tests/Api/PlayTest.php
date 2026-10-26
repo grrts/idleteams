@@ -38,6 +38,8 @@ class PlayTest extends WebTestCase
 
     public function testNewPlayerJoinsTheDemoGroupAndPlaysABattle(): void
     {
+        $lore = $this->api('GET', '/lore');
+        $this->assertSame('Valdren', $lore['entries']['world:valdren']['title'], 'the lore book is readable before logging in');
         $this->assertTrue($this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123'])['ok']);
         $hero = $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'story' => LifeStory::example('dwarf', 'cook'), 'look' => ['hair' => 'bob']]);
         $this->assertSame(1, $hero['level']);
