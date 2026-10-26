@@ -339,24 +339,27 @@
     const back = at > 0 ? '<button class="small ghost" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at - 1) + '">← Back</button>' : '<span></span>';
     if (at >= qs.length) {
       const bio = namedBio(race, who, story), done = storyDone(race, story);
-      return '<div class="tell enter">' + bar + '<div class="tellpage">' + taleArt(race, 'setting') + '<div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
+      return '<div class="tell enter">' + bar + '<div class="tellpage">' + (ctx === 'creator' ? '' : taleArt(race, 'setting')) + '<div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
         '<div class="storyq"><div class="qtext">Anything the tale left out? A secret, a name, a promise. (optional)</div><textarea id="storynotes" data-ctx="' + ctx + '" maxlength="' + L.notesMax + '" rows="3">' + esc(story.notes || '') + '</textarea></div>' +
         (done ? '' : '<p class="small bad">Some of the tale is still untold. Go back and answer the open questions.</p>') +
         '<div class="row between tellnav">' + back + (done ? finish : '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + qs.findIndex(([id]) => story.answers[id] === undefined) + '">Answer what is left</button>') + '</div></div></div>';
     }
     const [id, title, text, opts, blocked] = qs[at], first = at === 0 || qs[at - 1][1] !== title;
+    const later = qs.findIndex(([q], i) => i > at && story.answers[q] === undefined), nextOpen = later >= 0 ? later : qs.findIndex(([q]) => story.answers[q] === undefined) >= 0 ? qs.findIndex(([q]) => story.answers[q] === undefined) : qs.length;
     const chKey = Object.keys(L.chapters).find((k) => L.chapters[k][0] === title), chNo = Object.keys(L.chapters).indexOf(chKey) + 1;
     const scene = first ? '<p class="scene">' + esc(L.scenes[race][chKey]) + '</p>' : '';
     const beat = (sentence) => (who ? sentence.split('{name}').join(who) : sentence.replace(/^\{name\}/, 'Your hero').split('{name}').join('your hero'));
     const prev = !first && story.answers[qs[at - 1][0]] !== undefined ? namedBio(race, who, { answers: { [qs[at - 1][0]]: story.answers[qs[at - 1][0]], home: story.answers.home }, notes: '' }).filter(([t]) => t).map(([, p]) => p).join(' ') : '';
-    return '<div class="tell enter">' + bar + '<div class="tellpage">' + taleArt(race, chKey) + '<div class="eyebrow">Chapter ' + chNo + ' · ' + esc(title) + '</div>' + scene +
+    const picked = story.answers[id], moment = picked !== undefined && window.ITT ? '<figure class="moment"><img class="taleart" alt="" src="' + ITT.answer(race, chKey, answerMotif(race, qs[at], picked)) + '"></figure>' : '';
+    return '<div class="tell enter">' + bar + '<div class="tellpage">' + (moment || (ctx === 'creator' ? '' : taleArt(race, chKey))) + '<div class="eyebrow">Chapter ' + chNo + ' · ' + esc(title) + '</div>' + scene +
       (prev ? '<p class="prevbeat">' + esc(prev.split('. ').slice(-1)[0]) + '</p>' : '') +
       '<h3 class="tellq">' + esc(text) + '</h3>' +
       (blocked ? '<p class="small muted">' + esc(blocked) + '</p>' : '<div class="beats">' + opts.map(([v, label, sentence, note]) => {
         const line = sentence ? beat(sentence) : id === 'home' ? (who || 'Your hero') + ' was raised among the ' + label + ': ' + S.cfg.cultureInfo[race][v][1].charAt(0).toLowerCase() + S.cfg.cultureInfo[race][v][1].slice(1) + '.' : '';
-        return '<button class="beat' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>';
+        const emb = window.ITT ? '<img class="emb" alt="" src="' + ITT.emblem(answerMotif(race, qs[at], v)) + '">' : '';
+        return '<button class="beat' + (emb ? ' has-emb' : '') + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '">' + emb + '<b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>';
       }).join('') + '</div>') +
-      '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at + 1) + '">Next →</button>' : '<span></span>') + '</div></div></div>';
+      '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="primary" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + nextOpen + '">Continue →</button>' : '<span class="small muted">Choose what happened.</span>') + '</div></div></div>';
   }
 
   // The creator is one tale told in order. Each step finishes a sentence: [step, the words that lead into it].
@@ -404,6 +407,19 @@
   };
   // A picture from the tale art kit (tale-art.js), or nothing when it is not loaded.
   const taleArt = (race, chapter) => (window.ITT ? '<img class="taleart" alt="" src="' + ITT.scene(race, chapter) + '">' : '');
+  // The emblem of one answer: [id, chapter, question, options] and the value picked.
+  function answerMotif(race, q, v) {
+    const o = q[3].find(([x]) => x === v); if (!o) return 'star';
+    return ITT.motif(q[0], o[1], o[2] || (q[0] === 'home' ? S.cfg.cultureInfo[race][v][1] : ''));
+  }
+  // The scene behind each page of the creator: the race's homeland at the hour that suits the step.
+  function taleBackdrop(c, step) {
+    if (!window.ITT) return '';
+    let ch = { race: 'setting', cls: 'age', origin: 'self', look: 'childhood', name: 'setting' }[step];
+    if (step === 'origin' && (stepDone(c, 'origin') || (S.creatorPicked || {}).origin)) return ' style="--tale-bg:url(\'' + ITT.sign(c.origin) + '\')"';
+    if (step === 'story') { const qs = storyQuestions(c.race, c.story), at = (S.storyAt || {}).creator || 0, L = S.cfg.lifeStory; ch = at >= qs.length ? 'setting' : Object.keys(L.chapters).find((k) => L.chapters[k][0] === qs[at][1]); }
+    return ' style="--tale-bg:url(\'' + ITT.scene(c.race, ch) + '\')"';
+  }
   const taleBit = (kind, id) => TALE[kind][id] || [kind === 'race' ? S.cfg.races[id].name : kind === 'cls' ? S.cfg.classes[id].name : S.cfg.origins[id][0], '', ''];
   // The opening of the tale as far as it has been told, one sentence per step: [step, sentence].
   function taleOpening(c, upTo) {
@@ -422,32 +438,42 @@
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
     const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
     // a choice is the next words of the sentence, with the rest of it underneath; a calling also shows its role
-    const words = (kind, list) => '<div class="words">' + list.map(([id, w, rest, tag, art]) => '<button class="word' + (c[kind] === id && stepDone(c, kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '">' + (art ? '<span class="art">' + art + '</span>' : '') + '<span class="wtxt"><b>' + esc(w) + '</b>' + (tag || '') + (rest ? '<em class="rest">' + esc(rest) + '</em>' : '') + '</span></button>').join('') + '</div>';
+    const words = (kind, list) => '<div class="words' + (list.some((x) => x[4]) ? ' cards' : '') + '">' + list.map(([id, w, rest, tag, art]) => '<button class="word' + (c[kind] === id && chosen(kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '">' + (art ? '<span class="art">' + art + '</span>' : '') + '<span class="wtxt"><b>' + esc(w) + '</b>' + (tag || '') + (rest ? '<em class="rest">' + esc(rest) + '</em>' : '') + '</span></button>').join('') + '</div>';
+    const chosen = (s) => stepDone(c, s) || !!(S.creatorPicked || {})[s];
     // what has been told so far; each sentence turns back to its page
     const told = (n) => { const t = taleOpening(c, n).filter(([s]) => STEPS.findIndex(([x]) => x === s) < n); return t.length ? '<p class="told">' + t.map(([s, line]) => '<a href="#" data-act="cstep" data-s="' + s + '" title="Tell this part again">' + esc(line) + '</a>').join(' ') + '</p>' : ''; };
     const lead = () => '<h2 class="lead">' + (step === 'cls' ? '…' : '') + esc(STEPS[idx][1]) + '…</h2>';
     let body = '';
-    if (step === 'race') body = lead() + words('race', Object.keys(cfg.races).map((id) => [id, ...taleBit('race', id), '', spr(plain(c, id), 1)]));
-    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : ''), role(cfg.classes[id].role), spr({ ...plain(c), ...(KIT[id] || {}) }, 1)]; }));
+    if (step === 'race') body = lead() + words('race', Object.keys(cfg.races).map((id) => [id, ...taleBit('race', id), '', spr(plain(c, id), 2.5, 'idle')]));
+    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : ''), role(cfg.classes[id].role), spr({ ...plain(c), ...(KIT[id] || {}) }, 2.5, 'idle')]; }));
     else if (step === 'origin') body = told(idx) + lead() + words('origin', Object.keys(cfg.origins).map((id) => { const t = taleBit('origin', id); return [id, t[0], t[1] ? t[1].charAt(0).toUpperCase() + t[1].slice(1) + '.' : '', '', window.ITT ? '<img class="signart" alt="" src="' + ITT.sign(id) + '">' : '']; }));
     else if (step === 'story') body = storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Go on →</button>');
     else if (step === 'look') {
-      body = lead() + '<div class="likeness"><div class="portrait">' + spr(plain(c), 4, 'idle') + '<button class="small ghost" data-act="randomLook">Someone else</button></div><div class="lookgrid">' +
-        sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
-        seg('beard', ITP.OPTIONS.beard, 'Facial hair') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height') +
-        sw('dye1', ITP.DYES, 'Clothes') + sw('dye2', ITP.DYES, 'Trim') + sw('metal', ITP.METALS, 'Buckles') + '</div></div>';
+      const tab = S.lookTab || 'face', TABS = { face: 'Face', hair: 'Hair', body: 'Body', clothes: 'Clothes' };
+      const opts = {
+        face: () => sw('skin', R.skins, 'Skin') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') + seg('acc', ITP.OPTIONS.acc, 'Accessory'),
+        hair: () => sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + seg('beard', ITP.OPTIONS.beard, 'Facial hair'),
+        body: () => seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height'),
+        clothes: () => sw('dye1', ITP.DYES, 'Clothes') + sw('dye2', ITP.DYES, 'Trim') + sw('metal', ITP.METALS, 'Buckles'),
+      };
+      body = lead() + '<div class="likeness"><div class="stage' + (S.faceLeft ? ' left' : '') + '">' + spr(plain(c), 7, 'idle') +
+        '<div class="row stagebtns"><button class="small" data-act="faceTurn" title="Turn around">' + (S.faceLeft ? '→ Face right' : '← Face left') + '</button><button class="small ghost" data-act="randomLook">Someone else</button></div></div>' +
+        '<div class="lookui"><div class="seg looktabs">' + Object.entries(TABS).map(([t, n]) => '<button class="small' + (t === tab ? ' on' : '') + '" data-act="lookTab" data-t="' + t + '">' + n + '</button>').join('') + '</div><div class="lookgrid">' + opts[tab]() + '</div></div></div>';
     } else {
       const ok = storyDone(c.race, c.story);
-      body = taleArt(c.race, 'self') + lead() + '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="…" autocomplete="off" aria-label="Their name">' +
+      body = lead() + '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="…" autocomplete="off" aria-label="Their name">' +
         (ok ? '<div class="storybio book namebio">' + wholeTale(c) + '</div>' : '<p class="told">Their life story is not finished yet. <a href="#" data-act="cstep" data-s="story">Finish it</a></p>') +
         '<p class="small muted">Once their tale is told it stays told. Only their looks can change later.</p>';
     }
     const prev = STEPS[idx - 1];
-    const nav = '<div class="row between cnav">' + (prev ? '<button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button>' : '<span></span>') +
-      (step === 'look' ? '<button class="primary" data-act="cstep" data-s="name">Go on →</button>' : step === 'name' ? '<button class="primary big" data-act="create">Begin their tale</button>' : '<span></span>') + '</div>';
+    // the choice pages keep the chosen words and the way on in a bar at the bottom, so they stay in view on a phone
+    const pickStep = ['race', 'cls', 'origin'].includes(step), line = pickStep && chosen(step) ? (taleOpening(c, idx + 1).find(([s]) => s === step) || [])[1] : '';
+    const nav = '<div class="row between cnav' + (pickStep ? ' choosebar' : '') + '">' + (prev ? '<button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back</button>' : '<span></span>') +
+      (pickStep ? '<p class="chosen">' + (line ? esc(line) : '<span class="muted">Choose how the tale goes on.</span>') + '</p>' + (line ? '<button class="primary" data-act="cstep" data-s="' + STEPS[idx + 1][0] + '">Continue →</button>' : '<span></span>') : '') +
+      (step === 'look' ? '<button class="primary" data-act="cstep" data-s="name">Continue →</button>' : step === 'name' ? '<button class="primary big" data-act="create">Begin their tale</button>' : '') + '</div>';
     const doneN = STEPS.filter(([s]) => stepDone(c, s)).length, anim = S.creatorAnim ? ' enter ' + S.creatorAnim : '';
     S.creatorAnim = null;
-    return '<div class="creator tale"><div class="logo">Idle <span>Teams</span></div><div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
+    return '<div class="creator tale"' + taleBackdrop(c, step) + '><div class="logo">Idle <span>Teams</span></div><div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
       '<div class="cbody' + anim + '">' + body + '</div>' + (step === 'story' ? (prev ? '<div class="row between cnav"><button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button><span></span></div>' : '') : nav) + '</div></div>';
   }
 
@@ -1140,15 +1166,13 @@
       if (d.s === 'name') { const n = $('#cname'); if (n) n.focus(); }
     },
     storyAt: (d) => { (S.storyAt = S.storyAt || {})[d.ctx] = +d.i; keepName(); render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' }); },
-    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); const next = STEPS[STEPS.findIndex(([x]) => x === d.kind) + 1]; if (next) handlers.cstep({ s: next[0] }); else render(); },
+    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); (S.creatorPicked = S.creatorPicked || {})[d.kind] = true; render(); },
     ans: (d) => {
       const story = d.ctx === 'creator' ? creatorState().story : storyDraft(), v = /^\d+$/.test(d.v) ? +d.v : d.v;
       const race = d.ctx === 'creator' ? creatorState().race : S.st.hero.race;
       story.answers[d.q] = v;
       if (d.q === 'home') { const y = story.answers.youth; if (y && S.cfg.backstories[race][y][1] !== v) delete story.answers.youth; }
-      // the tale moves on to the next untold moment, or to the closing page once everything is told
-      const qs = storyQuestions(race, story), at = qs.findIndex(([id]) => id === d.q), open = qs.findIndex(([id], i) => i > at && story.answers[id] === undefined);
-      (S.storyAt = S.storyAt || {})[d.ctx] = open >= 0 ? open : storyDone(race, story) ? qs.length : at + 1;
+      // the answer shows its picture first; Continue moves the tale on
       render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' });
     },
     storyRandom: (d) => {
@@ -1161,6 +1185,8 @@
       if (!storyDone(h.race, story)) { toast('Answer every question first.'); return; }
       confirmBox('Write this as ' + esc(h.name) + "'s life story? You will follow <b>" + esc(S.cfg.cultures[h.race][story.answers.home]) + '</b> and gain ' + fmt(S.cfg.backstoryRenown) + ' Renown. It cannot be rewritten.', () => act(() => post('/hero/act', { action: 'story', story }), 'Your story is written.'));
     },
+    lookTab: (d) => { keepName(); S.lookTab = d.t; render(); },
+    faceTurn: () => { S.faceLeft = !S.faceLeft; render(); },
     look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; keepName(); render(); },
     randomLook: () => { const c = creatorState(), r = ITP.randomHero(); keepName(); Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
     create: async () => {
