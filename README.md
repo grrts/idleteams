@@ -9,8 +9,11 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 
 ## What you can do in the proof of concept
 
-- Create an account and a hero: race, class and Origin (each with pre-spent points and a passive), and a look.
-  The creator shows the hero in plain clothes; gear comes from play.
+- Create an account and a hero. The creator is one tale you finish a sentence at a time: "There once was… an
+  orc", "who would one day answer the call of… the shield", "born under the sign of… the Wolf", then the life
+  story, the likeness and the name. It shows no numbers: race, class and Origin still bring their pre-spent
+  points and passives, but those are only shown once the hero exists. The likeness is shown in plain clothes;
+  gear comes from play.
 - Hero sheet: 23 attributes with a breakdown of where every point comes from, the soft cap, combat stats and
   the percentage curves. Path at level 10, the Oath at 20 (seals the Path and carves in spent points),
   permanent Keystones at 15, 25, 35, 45 and every 25 levels after 50. Levels are uncapped.

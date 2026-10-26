@@ -276,7 +276,6 @@
   }
   // The creator shows the hero in plain clothes: gear comes from play, not from the creator.
   const plain = (c, race) => ({ ...c.look, race: race || c.race, skin: race && race !== c.race ? ITP.RACES[race].skins[1] : c.look.skin, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
-  const STEPS = [['race', 'Race'], ['cls', 'Class'], ['origin', 'Origin'], ['story', 'Life story'], ['look', 'Look'], ['name', 'Name']];
   // The name field only exists on the last step, so creator actions copy it before re-rendering.
   const keepName = () => { const el = $('#cname'); if (el && S.creator) S.creator.name = el.value; };
   const stepDone = (c, s) => (s === 'story' ? storyDone(c.race, c.story) : s === 'name' ? c.name.trim().length >= 3 : !!(S.creatorSeen || {})[s]);
@@ -288,19 +287,12 @@
     const L = S.cfg.lifeStory, q = L.questions[race], cult = S.cfg.cultures[race], bs = S.cfg.backstories[race], out = [];
     Object.values(L.chapters).forEach(([title, ids]) => ids.forEach((id) => {
       if (id === 'home') out.push([id, title, q.home, Object.entries(cult).map(([cid, n]) => [cid, n, '', '']), null]);
-      else if (id === 'youth') out.push([id, title, q.youth, Object.entries(bs).filter(([, b]) => b[1] === story.answers.home).map(([bid, b]) => [bid, b[0], b[3], 'Starts in ' + b[5] + ' · ' + b[4]]), story.answers.home ? null : 'Answer where you were raised first.']);
-      else out.push([id, title, q[id][0], q[id][1].map((o, i) => [i, o[0], '', attrName(o[2])]), null]);
+      else if (id === 'youth') out.push([id, title, q.youth, Object.entries(bs).filter(([, b]) => b[1] === story.answers.home).map(([bid, b]) => [bid, b[0], b[3], '']), story.answers.home ? null : 'Answer where you were raised first.']);
+      else out.push([id, title, q[id][0], q[id][1].map((o, i) => [i, o[0], o[1], '']), null]);
     }));
     return out;
   }
   const storyDone = (race, story) => storyQuestions(race, story).every(([id]) => story.answers[id] !== undefined && story.answers[id] !== null);
-  // Same rule as LifeStory::lean: the three attributes the answers name most, earliest first on a tie.
-  function storyLean(race, story) {
-    const q = S.cfg.lifeStory.questions[race], count = new Map();
-    Object.values(S.cfg.lifeStory.chapters).flatMap((c) => c[1]).forEach((id) => { const a = story.answers[id]; if (typeof a === 'number' && q[id]) { const at = q[id][1][a][2]; count.set(at, (count.get(at) || 0) + 1); } });
-    const order = [...count.keys()];
-    return [...count.entries()].sort((x, y) => y[1] - x[1] || order.indexOf(x[0]) - order.indexOf(y[0])).slice(0, S.cfg.lifeStory.lean[0]).map(([a]) => a);
-  }
   // Same prose as LifeStory::biography.
   function storyBio(race, name, story) {
     const L = S.cfg.lifeStory, q = L.questions[race], home = S.cfg.cultureInfo[race][story.answers.home];
@@ -367,59 +359,88 @@
       '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at + 1) + '">Next →</button>' : '<span></span>') + '</div></div></div>';
   }
 
+  // The creator is one tale told in order. Each step finishes a sentence: [step, the words that lead into it].
+  const STEPS = [['race', 'There once was'], ['cls', 'who would one day answer the call of'], ['origin', 'But first they had to be born, under the sign of'], ['story', 'And this is how they grew up'], ['look', 'Anyone who met them on the road would have seen'], ['name', 'And their name was']];
+  // Story words only: what each race, calling and sign is in the tale, never what it does in a fight.
+  // [the words that finish the sentence, the rest of it]; anything missing falls back to the plain name.
+  const TALE = {
+    race: {
+      human: ['a human', 'one of the many-handed, short-lived and stubborn, from the towns that rebuilt the world after the Breaking'],
+      elf: ['an elf', 'one of the long-lived, who woke first under the stars and never forget anything'],
+      dwarf: ['a dwarf', 'short, broad and patient as stone, from the deep halls under the Greyteeth'],
+      orc: ['an orc', 'big, proud and loud, a child of the drum from the red steppe'],
+      felkin: ['a felkin', 'quick and curious, from the dunes and the rooftops, who always landed on their feet'],
+      draka: ['a draka', 'hatched in the fire peaks of Kaldera, with a flame inside and dragons for ancestors'],
+    },
+    cls: {
+      guardian: ['the shield', 'and stand between their friends and whatever came out of the dark', 'Guardian'],
+      warden: ['the wild roads', 'and let the forest wear them like armour, bark for skin and thorns for anyone too close', 'Warden'],
+      cleric: ['the Undying Light', 'and carry it into the Hollows, to mend the wounded and burn away what does not belong', 'Cleric'],
+      druid: ['the Green', 'and learn to heal the way spring does: slowly, then all at once', 'Druid'],
+      ranger: ['the bow', 'and roam the far edges with the Wayfarers, very rarely wrong about where to shoot', 'Ranger'],
+      mage: ['the weave', 'and pull fire, frost and raw force out of the world itself', 'Mage'],
+      rogue: ['the quiet knife', 'and learn from the Quiet Hand to be somewhere else before anyone struck back', 'Rogue'],
+    },
+    origin: {
+      anvil: ['the Anvil', 'in the first frost of winter, and they were patient and good with their hands from the start'],
+      lantern: ['the Lantern', 'on the longest night of the year, when every window kept a light burning for them'],
+      comet: ['the Comet', 'the year a wandering star crossed the sky, and nothing about them was ever predictable again'],
+      fox: ['the Fox', 'at the thaw, clever from their first day and never quite where anyone was looking'],
+      oak: ['the Oak', 'in the spring rains, rooted and very hard to knock down'],
+      bell: ['the Bell', 'in the season of the muster, and they were loud from their very first breath'],
+      tide: ['the Tide', 'at midsummer, calm and deep as the sea'],
+      hare: ['the Hare', 'in high summer, and they were running before they could walk'],
+      wolf: ['the Wolf', 'in late summer, fierce and loyal to their own'],
+      hawk: ['the Hawk', 'at the harvest, sharp-eyed from the cradle'],
+      ember: ['the Ember', 'by the light of the autumn fires, hot-blooded and bright'],
+      crown: ['the Crown', "at the year's end, proud and generous, as if they were born to lead"],
+    },
+  };
+  const taleBit = (kind, id) => TALE[kind][id] || [kind === 'race' ? S.cfg.races[id].name : kind === 'cls' ? S.cfg.classes[id].name : S.cfg.origins[id][0], '', ''];
+  // The opening of the tale as far as it has been told, one sentence per step: [step, sentence].
+  function taleOpening(c, upTo) {
+    const out = [], r = taleBit('race', c.race), k = taleBit('cls', c.cls), o = taleBit('origin', c.origin), seen = (s) => stepDone(c, s) || STEPS.findIndex(([x]) => x === s) < upTo;
+    if (seen('race')) out.push(['race', 'There once was ' + r[0] + (r[1] ? ', ' + r[1] : '') + '.']);
+    if (seen('cls')) out.push(['cls', 'One day they would answer the call of ' + k[0] + (k[1] ? ', ' + k[1] : '') + (k[2] ? '. They would be a ' + k[2] : '') + '.']);
+    if (seen('origin')) out.push(['origin', 'But first they had to be born, under the sign of ' + o[0] + (o[1] ? ', ' + o[1] : '') + '.']);
+    return out;
+  }
+
+  // The whole tale as the name page tells it: the opening, then the life story with the name in it.
+  const wholeTale = (c) => bioHtml(taleOpening(c, STEPS.length).map(([, l]) => ['', l])) + bioHtml(namedBio(c.race, c.name, c.story));
+
   function creatorView() {
-    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep;
-    const start = {};
-    const add = (a, n) => { start[a] = (start[a] || 0) + n; };
-    Object.entries(cfg.races[c.race].points).forEach(([a, n]) => add(a, n));
-    Object.entries(cfg.classes[c.cls].points).forEach(([a, n]) => add(a, n));
-    add(cfg.origins[c.origin][1], cfg.originPoints);
-    storyLean(c.race, c.story).forEach((a) => add(a, cfg.lifeStory.lean[1]));
-    const maxStart = Math.max(...Object.values(start));
-    const pts = (o) => Object.entries(o).map(([a, n]) => '+' + n + ' ' + attrName(a)).join(' · ');
-    const choice = (kind, id, title, body, on) => '<div class="choice ' + (on ? 'on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(title) + '</b>' + body + '</div>';
+    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep, idx = STEPS.findIndex(([s]) => s === step);
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
     const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
-    const k = cfg.classes[c.cls];
+    // a choice is the next words of the sentence, with the rest of it underneath
+    const words = (kind, list) => '<div class="words">' + list.map(([id, w, rest]) => '<button class="word' + (c[kind] === id && stepDone(c, kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(w) + '</b>' + (rest ? '<span>' + esc(rest) + '</span>' : '') + '</button>').join('') + '</div>';
+    // what has been told so far; each sentence turns back to its page
+    const told = (n) => { const t = taleOpening(c, n).filter(([s]) => STEPS.findIndex(([x]) => x === s) < n); return t.length ? '<p class="told">' + t.map(([s, line]) => '<a href="#" data-act="cstep" data-s="' + s + '" title="Tell this part again">' + esc(line) + '</a>').join(' ') + '</p>' : ''; };
+    const lead = () => '<h2 class="lead">' + (step === 'cls' ? '…' : '') + esc(STEPS[idx][1]) + '…</h2>';
     let body = '';
-    if (step === 'race') {
-      const r = cfg.races[c.race];
-      body = '<h2>Choose a race</h2><p class="muted">Races come in real sizes, from stout dwarves to towering orcs and draka. Every race can play every role.</p><div class="races" style="margin-top:12px">' +
-        Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
-        '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>';
-    } else if (step === 'story') {
-      body = '<h2>Their life story</h2><p class="muted">Every ' + esc(cfg.races[c.race].name) + ' has a story before the tavern. Tell it one moment at a time. Where they were raised sets their culture, what they were known for starts their Heritage at rank 3, and the three attributes the tale names most get +' + cfg.lifeStory.lean[1] + ' each.</p>' +
-        storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Now, how do they look? →</button>');
-    } else if (step === 'cls') {
-      body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>';
-    } else if (step === 'origin') {
-      body = '<h2>Choose an Origin</h2><p class="muted">Where your hero comes from: ' + cfg.originPoints + ' points in one attribute and a small edge of its own.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>';
-    } else if (step === 'look') {
-      body = '<div class="head"><h2>Make them yours</h2><button class="small" data-act="randomLook">Randomise look</button></div><p class="muted">Build and height change the silhouette only. Your two clothes colours become the dyes on every piece of gear you earn later.</p><div class="lookgrid" style="margin-top:6px">' +
+    if (step === 'race') body = lead() + words('race', Object.keys(cfg.races).map((id) => [id, ...taleBit('race', id)]));
+    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : '')]; }));
+    else if (step === 'origin') body = told(idx) + lead() + words('origin', Object.keys(cfg.origins).map((id) => { const t = taleBit('origin', id); return [id, t[0], t[1] ? t[1].charAt(0).toUpperCase() + t[1].slice(1) + '.' : '']; }));
+    else if (step === 'story') body = storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Go on →</button>');
+    else if (step === 'look') {
+      body = lead() + '<div class="likeness"><div class="portrait">' + spr(plain(c), 4, 'idle') + '<button class="small ghost" data-act="randomLook">Someone else</button></div><div class="lookgrid">' +
         sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
         seg('beard', ITP.OPTIONS.beard, 'Facial hair') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height') +
-        sw('dye1', ITP.DYES, 'Main dye') + sw('dye2', ITP.DYES, 'Second dye') + sw('metal', ITP.METALS, 'Metal') + '</div>';
+        sw('dye1', ITP.DYES, 'Clothes') + sw('dye2', ITP.DYES, 'Trim') + sw('metal', ITP.METALS, 'Buckles') + '</div></div>';
     } else {
       const ok = storyDone(c.race, c.story);
-      body = '<h2>And their name?</h2><p class="muted">Three to twenty letters. Your group, your guild and the market will know them by it.</p>' +
-        '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="Name" autocomplete="off">' +
-        '<div class="summary">' + [cfg.races[c.race].name, k.name, cfg.origins[c.origin][0] + ' Origin', c.story.answers.home ? cfg.cultures[c.race][c.story.answers.home] : null, c.story.answers.youth ? cfg.backstories[c.race][c.story.answers.youth][0] : null].filter(Boolean).map((x) => '<span class="chip">' + esc(x) + '</span>').join('') + '</div>' +
-        (ok ? '<div class="storybio book namebio">' + bioHtml(namedBio(c.race, c.name, c.story)) + '</div>' : '<div class="detail">Their life story is not finished yet. <button class="small" data-act="cstep" data-s="story">Finish it</button></div>');
+      body = lead() + '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="…" autocomplete="off" aria-label="Their name">' +
+        (ok ? '<div class="storybio book namebio">' + wholeTale(c) + '</div>' : '<p class="told">Their life story is not finished yet. <a href="#" data-act="cstep" data-s="story">Finish it</a></p>') +
+        '<p class="small muted">Once their tale is told it stays told. Only their looks can change later.</p>';
     }
-    const idx = STEPS.findIndex(([s]) => s === step), next = STEPS[idx + 1];
-    const nav = step === 'story' ? '' : '<div class="row between cnav">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">← ' + STEPS[idx - 1][1] + '</button>' : '<span></span>') + (next ? '<button class="primary" data-act="cstep" data-s="' + next[0] + '">' + next[1] + ' →</button>' : '<button class="primary big" data-act="create">Create hero</button>') + '</div>';
+    const prev = STEPS[idx - 1];
+    const nav = '<div class="row between cnav">' + (prev ? '<button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button>' : '<span></span>') +
+      (step === 'look' ? '<button class="primary" data-act="cstep" data-s="name">Go on →</button>' : step === 'name' ? '<button class="primary big" data-act="create">Begin their tale</button>' : '<span></span>') + '</div>';
     const doneN = STEPS.filter(([s]) => stepDone(c, s)).length, anim = S.creatorAnim ? ' enter ' + S.creatorAnim : '';
     S.creatorAnim = null;
-    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, class, Origin and life story are permanent. The look is yours to keep.</span></div><div class="cols">' +
-      '<div class="stagebox"><div class="panel cside"><div class="portrait">' + spr(plain(c), 4, 'idle') + '</div><div class="stack tight">' +
-      '<div><b class="cname-show">' + esc(c.name.trim() || 'Unnamed hero') + '</b><div class="row" style="margin-top:4px"><span class="num">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</span>' + role(k.role) + '</div></div>' +
-      (c.story.answers.youth ? '<div class="small"><span class="muted">Known as</span> <b>' + esc(cfg.backstories[c.race][c.story.answers.youth][0]) + '</b> of ' + esc(cfg.cultures[c.race][c.story.answers.home]) + '</div>' : '') +
-      '<div class="startwrap"><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
-      (doneN === STEPS.length ? '<button class="primary" data-act="create">Create hero</button>' : '') + '</div></div></div>' +
-      '<div class="panel cmain"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + (stepDone(c, s) ? ' done' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (stepDone(c, s) && s !== step ? '✓' : i + 1) + '</i><span>' + n + '</span></button>').join('') + '</div>' +
-      '<span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span><div class="cbody' + anim + '">' + body + '</div>' + nav + '</div></div></div>';
+    return '<div class="creator tale"><div class="logo">Idle <span>Teams</span></div><div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
+      '<div class="cbody' + anim + '">' + body + '</div>' + (step === 'story' ? (prev ? '<div class="row between cnav"><button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button><span></span></div>' : '') : nav) + '</div></div>';
   }
 
   // ------------------------------------------------------------------ shell
@@ -950,7 +971,7 @@
     const h = S.st.hero;
     if (h.story) return '<div class="stack"><div class="panel"><div class="eyebrow">' + esc(S.cfg.races[h.race].name) + ' · ' + esc(S.cfg.cultures[h.race][h.story.answers.home]) + '</div><h2>The life of ' + esc(h.name) + '</h2><div class="storybio" style="margin-top:10px">' + bioHtml(h.biography) + '</div></div></div>';
     const d = storyDraft();
-    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. Where they were raised sets their culture, what they were known for starts them along one of its branches, and you write it once.</p>" +
+    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. It is written once.</p>" +
       storyWizard(h.race, h.name, d, 'hero', '<button class="primary" data-act="storySave">Write it into the tale</button>') + '</div></div>';
   }
 
@@ -1105,13 +1126,13 @@
       keepName();
       const from = STEPS.findIndex(([x]) => x === S.creatorStep), to = STEPS.findIndex(([x]) => x === d.s);
       if (to > from) (S.creatorSeen = S.creatorSeen || {})[S.creatorStep] = true;
-      if (from === to) return;
+      if (from === to) { render(); return; }
       S.creatorAnim = to > from ? 'fwd' : 'back'; S.creatorStep = d.s; render();
-      const top = $('.creator .cmain'); if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' });
+      window.scrollTo(0, 0);
       if (d.s === 'name') { const n = $('#cname'); if (n) n.focus(); }
     },
     storyAt: (d) => { (S.storyAt = S.storyAt || {})[d.ctx] = +d.i; keepName(); render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' }); },
-    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); render(); },
+    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); const next = STEPS[STEPS.findIndex(([x]) => x === d.kind) + 1]; if (next) handlers.cstep({ s: next[0] }); else render(); },
     ans: (d) => {
       const story = d.ctx === 'creator' ? creatorState().story : storyDraft(), v = /^\d+$/.test(d.v) ? +d.v : d.v;
       const race = d.ctx === 'creator' ? creatorState().race : S.st.hero.race;
@@ -1223,7 +1244,7 @@
   });
   // Finding on a map repaints it in place, so typing stays smooth.
   document.addEventListener('input', (e) => {
-    if (e.target.id === 'cname') { keepName(); const show = $('.cname-show'); if (show) show.textContent = e.target.value.trim() || 'Unnamed hero'; const nb = $('.namebio'); if (nb) { const c = creatorState(); nb.innerHTML = bioHtml(namedBio(c.race, c.name, c.story)); } return; }
+    if (e.target.id === 'cname') { keepName(); const nb = $('.namebio'); if (nb) nb.innerHTML = wholeTale(creatorState()); return; }
     if (e.target.id === 'storynotes') { (e.target.dataset.ctx === 'creator' ? creatorState().story : storyDraft()).notes = e.target.value; return; }
     if (e.target.id !== 'mapq') return;
     const host = $('#maphost'), map = host && MAPS[host.dataset.map];
