@@ -337,17 +337,20 @@
         const sub = boss.name + (t < this.mechUntil ? '  ·  ' + this.mechText : '') + (this.enraged ? '  ·  ENRAGED' : '');
         g.font = '16px ' + FONT; g.strokeText(sub, x + w / 2, y + 48); g.fillStyle = this.enraged || t < this.mechUntil ? '#ffb090' : '#efe7ff'; g.fillText(sub, x + w / 2, y + 48);
       }
-      // left: where the group is
+      // left: where the group is (a page with its own HUD shows this itself)
       g.textAlign = 'left'; g.font = '24px ' + FONT; g.lineWidth = 5; g.strokeStyle = '#120812';
+      if (!this.hooks.hud) {
       const where = this.walkFrom != null ? 'Moving on' : boss ? 'Boss fight' : this.label || '';
       g.strokeText(where, 22, boss ? 112 : 40); g.fillStyle = '#ffffff'; g.fillText(where, 22, boss ? 112 : 40);
       g.font = '16px ' + FONT;
       const lines = [ART.WINGS[this.wing || 0].name + ' · wing ' + ((this.wing || 0) + 1), 'Dungeon level ' + cur.dungeonLevel, 'Party DPS ' + fmt(this.dmgLog.reduce((s, d) => s + d[1], 0) / 10)];
       lines.forEach((l, k) => { const yy = (boss ? 136 : 64) + k * 21; g.strokeText(l, 22, yy); g.fillStyle = k === 2 ? '#ffd25a' : '#d8c8e8'; g.fillText(l, 22, yy); });
-      // right: combo counter
+      }
+      // combo counter: top right, or centred under the boss bar when the page's HUD covers the corners
       if (t - this.comboAt < 2.5 && this.combo >= 5) {
-        g.textAlign = 'right'; g.font = '40px ' + FONT; g.lineWidth = 6; g.strokeText(String(this.combo), W - 24, boss ? 120 : 56); g.fillStyle = '#ffffff'; g.fillText(String(this.combo), W - 24, boss ? 120 : 56);
-        g.font = '15px ' + FONT; g.lineWidth = 4; g.strokeText('HIT COMBO', W - 24, boss ? 140 : 76); g.fillStyle = '#ffd25a'; g.fillText('HIT COMBO', W - 24, boss ? 140 : 76);
+        const cx = this.hooks.hud ? W / 2 : W - 24, cy = boss ? 120 : 56;
+        g.textAlign = this.hooks.hud ? 'center' : 'right'; g.font = '40px ' + FONT; g.lineWidth = 6; g.strokeText(String(this.combo), cx, cy + (this.hooks.hud && boss ? 10 : 0)); g.fillStyle = '#ffffff'; g.fillText(String(this.combo), cx, cy + (this.hooks.hud && boss ? 10 : 0));
+        g.font = '15px ' + FONT; g.lineWidth = 4; g.strokeText('HIT COMBO', cx, cy + 20 + (this.hooks.hud && boss ? 10 : 0)); g.fillStyle = '#ffd25a'; g.fillText('HIT COMBO', cx, cy + 20 + (this.hooks.hud && boss ? 10 : 0));
       }
       // banner
       const b = this.banners[0];
@@ -377,5 +380,54 @@
   function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + Math.max(0, Math.min(1, a)).toFixed(3) + ')'; }
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-  window.ITArena = { Arena, W, H };
+  // The camp: between runs the group rests around a fire in the first wing, so the screen behind the menus is
+  // always a living scene. members: [{ name, cls, look }], up to five; empty seats are left open.
+  class Camp {
+    constructor(canvas) { this.cv = canvas; this.g = canvas.getContext('2d'); this.sprites = new Map(); this.embers = []; this.wing = 0; this.sparks = []; }
+    sprite(look, pose) { return Arena.prototype.sprite.call(this, look, pose); }
+    draw(members, wing) {
+      const g = this.g, t = performance.now() / 1000;
+      this.wing = wing || 0;
+      g.save(); g.imageSmoothingEnabled = false;
+      Arena.prototype.drawBackdrop.call(this, t * 3, t);
+      const fx = 480, fy = 470;
+      // firelight on the floor
+      const fl = 0.85 + 0.1 * Math.sin(t * 9) + 0.05 * Math.sin(t * 23);
+      let gr = g.createRadialGradient(fx, fy - 20, 10, fx, fy - 20, 300 * fl);
+      gr.addColorStop(0, 'rgba(255,170,70,0.38)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      // seats in a half ring behind and beside the fire
+      const seats = [[fx - 150, fy + 22], [fx + 150, fy + 22], [fx - 255, fy - 2], [fx + 255, fy - 2], [fx, fy - 40]];
+      const order = members.map((m, i) => i).sort((a, b) => seats[a][1] - seats[b][1]);
+      order.forEach((i) => {
+        const m = members[i], [x, y] = seats[i], pose = Math.floor(t * 1.6 + i * 0.7) % 9 === 0 ? 'blink' : Math.floor(t * 1.5 + i) % 2 ? 'stand1' : 'stand0';
+        const img = this.sprite(m.look, pose), S2 = 2, w = img.width * S2, h = img.height * S2, feet = P.FEET * S2;
+        g.fillStyle = 'rgba(0,0,0,0.38)'; g.beginPath(); g.ellipse(x, y, 30, 8, 0, 0, Math.PI * 2); g.fill();
+        if (x < fx) flipped(g, img, Math.round(x), Math.round(y - feet), w, h); else g.drawImage(img, Math.round(x - w / 2), Math.round(y - feet), w, h);
+        const head = y - feet + (this.sprite(m.look, 'stand0')._top || 0) * S2;
+        g.font = '13px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#120812'; g.fillStyle = CLASS_COL[m.cls] || '#fff';
+        g.strokeText(m.name, x, head - 8); g.fillText(m.name, x, head - 8);
+      });
+      // logs and stones
+      g.fillStyle = '#3a2418'; g.fillRect(fx - 34, fy - 6, 68, 10); g.fillStyle = '#5a3824'; g.fillRect(fx - 28, fy - 12, 56, 8);
+      g.fillStyle = '#4a4458'; [-44, -30, 30, 44].forEach((d) => g.fillRect(fx + d - 6, fy - 2, 12, 8));
+      // the flames: stacked flickering blocks, hot at the core
+      const cols = ['#ff5a1a', '#ff8a2a', '#ffc040', '#fff0a0'];
+      cols.forEach((c, k) => {
+        g.fillStyle = c;
+        for (let j = 0; j < 6 - k; j++) {
+          const ph = t * (6 + j) + j * 1.7 + k, hgt = (54 - k * 12) * (0.75 + 0.25 * Math.sin(ph)), wd = 34 - k * 8;
+          const x0 = fx - wd / 2 + (j - (5 - k) / 2) * 4 + Math.sin(ph * 1.3) * 3;
+          g.fillRect(Math.round(x0), Math.round(fy - 10 - hgt), Math.round(wd / (6 - k) + 6), Math.round(hgt));
+        }
+      });
+      if (this.sparks.length < 24 && Math.random() < 0.4) this.sparks.push({ x: fx + rand(-14, 14), y: fy - 30, vy: rand(-90, -40), vx: rand(-14, 14), life: rand(0.8, 1.8), t0: t });
+      this.sparks = this.sparks.filter((s) => t - s.t0 < s.life);
+      this.sparks.forEach((s) => { const a = t - s.t0; g.globalAlpha = 1 - a / s.life; g.fillStyle = a < 0.4 ? '#fff0a0' : '#ff9a3a'; g.fillRect(s.x + s.vx * a + Math.sin(a * 5) * 4, s.y + s.vy * a, 3, 3); });
+      g.globalAlpha = 1;
+      g.restore();
+    }
+  }
+
+  window.ITArena = { Arena, Camp, W, H };
 })();
