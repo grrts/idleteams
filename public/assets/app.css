@@ -240,6 +240,7 @@ details.run summary b { font-family: var(--f-display); font-weight: 400; font-si
 .creator .word { display: block; text-align: left; background: none; border: 0; border-left: 3px solid transparent; border-radius: 0 8px 8px 0; padding: 9px 14px; white-space: normal; font-weight: 400; letter-spacing: 0; text-shadow: none; box-shadow: none; }
 .creator .word b { font-family: Georgia, 'Times New Roman', serif; font-size: 1.32rem; font-weight: 700; color: #f6ead6; }
 .creator .word span { display: block; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: .98rem; line-height: 1.45; color: var(--muted, #b7a9c4); margin-top: 2px; }
+.creator .word span.chip { display: inline-flex; width: auto; font-family: var(--f-body); font-style: normal; font-size: .7rem; line-height: 1.5; margin: 0 0 0 10px; vertical-align: 4px; color: var(--text, #f6ead6); }
 .creator .word:hover { background: rgba(255,210,90,.06); border-left-color: var(--line2); transform: none; }
 .creator .word.on { border-left-color: var(--gold); background: rgba(255,210,90,.08); }
 .creator .word.on b { color: var(--gold); }

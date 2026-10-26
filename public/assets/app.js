@@ -413,14 +413,14 @@
     const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep, idx = STEPS.findIndex(([s]) => s === step);
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
     const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
-    // a choice is the next words of the sentence, with the rest of it underneath
-    const words = (kind, list) => '<div class="words">' + list.map(([id, w, rest]) => '<button class="word' + (c[kind] === id && stepDone(c, kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(w) + '</b>' + (rest ? '<span>' + esc(rest) + '</span>' : '') + '</button>').join('') + '</div>';
+    // a choice is the next words of the sentence, with the rest of it underneath; a calling also shows its role
+    const words = (kind, list) => '<div class="words">' + list.map(([id, w, rest, tag]) => '<button class="word' + (c[kind] === id && stepDone(c, kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(w) + '</b>' + (tag || '') + (rest ? '<span>' + esc(rest) + '</span>' : '') + '</button>').join('') + '</div>';
     // what has been told so far; each sentence turns back to its page
     const told = (n) => { const t = taleOpening(c, n).filter(([s]) => STEPS.findIndex(([x]) => x === s) < n); return t.length ? '<p class="told">' + t.map(([s, line]) => '<a href="#" data-act="cstep" data-s="' + s + '" title="Tell this part again">' + esc(line) + '</a>').join(' ') + '</p>' : ''; };
     const lead = () => '<h2 class="lead">' + (step === 'cls' ? '…' : '') + esc(STEPS[idx][1]) + '…</h2>';
     let body = '';
     if (step === 'race') body = lead() + words('race', Object.keys(cfg.races).map((id) => [id, ...taleBit('race', id)]));
-    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : '')]; }));
+    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : ''), role(cfg.classes[id].role)]; }));
     else if (step === 'origin') body = told(idx) + lead() + words('origin', Object.keys(cfg.origins).map((id) => { const t = taleBit('origin', id); return [id, t[0], t[1] ? t[1].charAt(0).toUpperCase() + t[1].slice(1) + '.' : '']; }));
     else if (step === 'story') body = storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Go on →</button>');
     else if (step === 'look') {
