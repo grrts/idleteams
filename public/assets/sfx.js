@@ -192,7 +192,8 @@
   const INST = {
     // plucked lute: bright saw through a closing filter, plus a soft octave
     lute: (t, m, len, v) => { osc(t, { type: 'sawtooth', f: mtof(m), vol: 0.09 * v, d: 0.5, filter: { f: 3500, f2: 500, t: 0.3 }, bus: musicBus, wet: 0.2, pan: -0.25 }); osc(t, { type: 'triangle', f: mtof(m + 12), vol: 0.03 * v, d: 0.25, bus: musicBus, wet: 0.2, pan: -0.25 }); },
-    flute: (t, m, len, v) => { osc(t, { type: 'sine', f: mtof(m), vol: 0.11 * v, a: 0.05, d: 0.1, s: 0.8, r: 0.12, len, vib: { rate: 5.2, depth: 9, delay: 0.18 }, bus: musicBus, wet: 0.35, pan: 0.2 }); osc(t, { type: 'triangle', f: mtof(m), vol: 0.035 * v, a: 0.05, d: 0.1, s: 0.8, r: 0.1, len, bus: musicBus, wet: 0.3, pan: 0.2 }); noise(t, { vol: 0.012 * v, a: 0.04, d: len, type: 'bandpass', f: mtof(m) * 2, q: 4, bus: musicBus, wet: 0.2 }); },
+    // harp: a soft plucked tone with a warm body and a short shimmer, played an octave below the written line
+    harp: (t, m, len, v) => { const f = mtof(m - 12); osc(t, { type: 'triangle', f, vol: 0.12 * v, a: 0.004, d: Math.min(1.4, len + 0.6), filter: { f: 2600, f2: 700, t: 0.6 }, bus: musicBus, wet: 0.4, pan: 0.2 }); osc(t, { type: 'sine', f: f * 2, vol: 0.035 * v, a: 0.004, d: 0.5, bus: musicBus, wet: 0.45, pan: 0.2 }); osc(t, { type: 'sine', f: f / 2, vol: 0.04 * v, a: 0.01, d: 0.6, bus: musicBus, wet: 0.2, pan: 0.2 }); },
     pad: (t, m, len, v) => [-7, 0, 7].forEach((dt) => osc(t, { type: 'sawtooth', f: mtof(m), detune: dt, vol: 0.022 * v, a: 0.4, d: 0.2, s: 0.8, r: 0.6, len, filter: { f: 900 }, bus: musicBus, wet: 0.5 })),
     strings: (t, m, len, v) => [-9, 0, 9].forEach((dt, k) => osc(t, { type: 'sawtooth', f: mtof(m), detune: dt, vol: 0.026 * v, a: 0.12, d: 0.2, s: 0.75, r: 0.3, len, filter: { f: 2200 }, vib: { rate: 5, depth: 5, delay: 0.25 }, bus: musicBus, wet: 0.45, pan: k - 1 })),
     lead: (t, m, len, v) => [-6, 6].forEach((dt, k) => osc(t, { type: 'sawtooth', f: mtof(m), detune: dt, vol: 0.05 * v, a: 0.015, d: 0.15, s: 0.7, r: 0.12, len, filter: { f: 1200, f2: 3200, t: 0.08, q: 2 }, vib: { rate: 5.8, depth: 12, delay: 0.2 }, bus: musicBus, wet: 0.35, pan: k ? 0.15 : -0.15 })),
@@ -226,11 +227,11 @@
   const arpPart = (chords, order, oct = 5, every = 1) => { const evs = []; chords.forEach((c, i) => { const r = tone3(c, oct), all = [...r, r[0] + 12, r[1] + 12]; for (let s = 0; s < 16; s += every) evs.push([i * 16 + s, [all[order[(s / every) % order.length]]], every]); }); return { evs, steps: chords.length * 16 }; };
 
   const TRACKS = {
-    // the tavern: an easy lute and flute tune in D major
+    // the tavern: an easy lute and harp tune in D major
     town: (() => {
       const ch = ['D', 'G', 'A', 'D', 'Bm', 'G', 'A', 'D'];
       return { bpm: 92, vol: 1, parts: [
-        ['flute', seq('F#5:4 A5:4 D6:6 C#6:2 B5:4 A5:4 G5:4 F#5:4 E5:4 F#5:2 G5:2 A5:6 -:2 F#5:4 E5:4 D5:8 D5:4 F#5:4 B5:6 A5:2 G5:4 B5:4 D6:4 B5:4 A5:4 G5:2 F#5:2 E5:4 C#5:4 D5:12 -:4'), 0.9],
+        ['harp', seq('F#5:4 A5:4 D6:6 C#6:2 B5:4 A5:4 G5:4 F#5:4 E5:4 F#5:2 G5:2 A5:6 -:2 F#5:4 E5:4 D5:8 D5:4 F#5:4 B5:6 A5:2 G5:4 B5:4 D6:4 B5:4 A5:4 G5:2 F#5:2 E5:4 C#5:4 D5:12 -:4'), 0.9],
         ['lute', arpPart(ch, [0, 2, 1, 2, 3, 2, 1, 2], 4, 2), 0.8],
         ['pad', padPart(ch, 4), 0.8],
         ['bass', bassPart(ch, [[0, 0, 6], [8, 2, 6]]), 0.8],
