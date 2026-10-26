@@ -514,16 +514,16 @@
     const pts = (p) => (d.k * p) / ((1 - p) ** 2);
     const curve = (x) => { if (x <= 0) return 0; const b = 2 * x + d.k; return (b - Math.sqrt(b * b - 4 * x * x)) / (2 * x); };
     const maxX = Math.max(pts(0.75), d.p * 1.3), Y = (p) => H - 8 - p * (H - 16);
-    g.fillStyle = '#120812'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = '#3e2b4d'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(0.5)); g.lineTo(W, Y(0.5)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#140e07'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#513c27'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(0.5)); g.lineTo(W, Y(0.5)); g.stroke(); g.setLineDash([]);
     g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
     g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fillStyle = 'rgba(255,138,42,0.15)'; g.fill();
     g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
     g.strokeStyle = '#ff8a2a'; g.lineWidth = 2; g.stroke();
     const me = Math.min(d.cap, curve(d.p)) * (d.half ? 0.5 : 1), mx = Math.min(W - 4, (d.p / maxX) * W);
-    g.fillStyle = '#7be07f'; g.beginPath(); g.arc(mx, Y(me), 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#120812'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#7be07f'; g.beginPath(); g.arc(mx, Y(me), 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#140e07'; g.lineWidth = 2; g.stroke();
     g.fillStyle = '#f4ead8'; g.font = '13px "Lilita One", sans-serif'; g.fillText(pct(me), Math.min(W - 44, mx + 8), Math.max(14, Y(me) - 6));
-    g.fillStyle = '#8a7a98'; g.font = '11px Nunito, sans-serif'; g.fillText('50%', 4, Y(0.5) - 4);
+    g.fillStyle = '#9e8d74'; g.font = '11px Nunito, sans-serif'; g.fillText('50%', 4, Y(0.5) - 4);
   }
 
   // ------------------------------------------------------------------ skills

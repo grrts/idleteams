@@ -113,7 +113,7 @@
             else if (n === 'Ember Shards') this.banner('Ember Shards', 'Kill them before they reach the healer', '#ffb340', 1.4);
             break;
           }
-          case 'death': { log(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); if (fresh) { sfx('death'); const p = this.heroPos(e.dst); this.burst(p[0], p[1] - 70, '#d0c8e0', 18, 120, -60); this.callout(e.dst, 'Down!', '#ff6464'); } break; }
+          case 'death': { log(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); if (fresh) { sfx('death'); const p = this.heroPos(e.dst); this.burst(p[0], p[1] - 70, '#e2d7c6', 18, 120, -60); this.callout(e.dst, 'Down!', '#ff6464'); } break; }
           case 'revive': log(e.t, esc(names[e.src]) + ' is back on their feet.', 'good'); if (fresh) { sfx('revive'); const p = this.heroPos(e.src); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 1, w: 50, pillar: true }); } break;
           case 'kill': {
             const en = this.enemies[e.dst];
@@ -255,7 +255,7 @@
       if (snap && snap[4][i] > 0 && !dead) { g.strokeStyle = 'rgba(200,225,255,0.75)'; g.lineWidth = 3; g.beginPath(); g.ellipse(x, y - 70, 40, 82, 0, 0, Math.PI * 2); g.stroke(); g.fillStyle = 'rgba(160,200,255,0.10)'; g.fill(); }
       const head = y - feet + (this.sprite(r.look, 'stand0')._top || 0) * S;
       if (!dead) bar(this.g, x - 26, head - 12, 52, hp / 1000, hp < 350 ? '#ff5a5a' : '#62e070');
-      g.font = '13px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#120812'; g.fillStyle = CLASS_COL[r.cls];
+      g.font = '13px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#140e07'; g.fillStyle = CLASS_COL[r.cls];
       g.strokeText(r.name, x, head - 18); g.fillText(r.name, x, head - 18);
     }
     drawEffects(t, dt) {
@@ -303,14 +303,14 @@
       // skill callouts above heads
       this.callouts = this.callouts.filter((c) => t < c.t + c.life);
       g.textAlign = 'center';
-      this.callouts.forEach((c) => { const k = (t - c.t) / c.life; g.globalAlpha = 1 - k * k; g.font = '17px ' + FONT; g.lineWidth = 4; g.strokeStyle = '#120812'; g.strokeText(c.text, c.x, c.y - k * 20); g.fillStyle = c.col; g.fillText(c.text, c.x, c.y - k * 20); });
+      this.callouts.forEach((c) => { const k = (t - c.t) / c.life; g.globalAlpha = 1 - k * k; g.font = '17px ' + FONT; g.lineWidth = 4; g.strokeStyle = '#140e07'; g.strokeText(c.text, c.x, c.y - k * 20); g.fillStyle = c.col; g.fillText(c.text, c.x, c.y - k * 20); });
       g.globalAlpha = 1;
       // damage and heal numbers
       this.nums = this.nums.filter((n) => t < n.t + n.life);
       this.nums.forEach((n) => {
         const k = (t - n.t) / n.life, pop = k < 0.12 ? 1 + (0.12 - k) * 4 : 1;
         g.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
-        g.font = Math.round(n.size * pop) + 'px ' + FONT; g.lineWidth = Math.max(4, n.size / 5); g.strokeStyle = '#120812';
+        g.font = Math.round(n.size * pop) + 'px ' + FONT; g.lineWidth = Math.max(4, n.size / 5); g.strokeStyle = '#140e07';
         const x = n.x + n.vx * k, y = n.y - 50 * ease(k);
         g.strokeText(n.text, x, y); g.fillStyle = n.col; g.fillText(n.text, x, y);
       });
@@ -323,14 +323,14 @@
       // boss bar across the top, in segments of 10%
       if (boss) {
         const x = 200, y = 18, w = 560, h = 26, f = boss.hp / 1000;
-        g.fillStyle = 'rgba(12,6,14,0.82)'; g.fillRect(x - 70, y - 8, w + 130, 70);
+        g.fillStyle = 'rgba(15,10,5,0.82)'; g.fillRect(x - 70, y - 8, w + 130, 70);
         g.font = '22px ' + FONT; g.fillStyle = '#ffd25a'; g.fillText('Lv ' + cur.dungeonLevel, x - 58, y + 21);
         g.fillStyle = '#2a1418'; g.fillRect(x, y, w, h);
-        const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, this.enraged ? '#ff4a3a' : '#7a6aff'); gr.addColorStop(1, this.enraged ? '#a01a1a' : '#4a3ac0');
+        const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, this.enraged ? '#ff4a3a' : '#f0b040'); gr.addColorStop(1, this.enraged ? '#a01a1a' : '#a8601a');
         g.fillStyle = gr; g.fillRect(x, y, w * f, h);
         g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x, y, w * f, 4);
         g.fillStyle = 'rgba(0,0,0,0.35)'; for (let k = 1; k < 10; k++) g.fillRect(x + (w * k) / 10, y, 2, h);
-        g.strokeStyle = '#120812'; g.lineWidth = 3; g.strokeRect(x, y, w, h);
+        g.strokeStyle = '#140e07'; g.lineWidth = 3; g.strokeRect(x, y, w, h);
         g.font = '17px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4;
         const hpText = fmt((boss.max * boss.hp) / 1000) + ' / ' + fmt(boss.max);
         g.strokeText(hpText, x + w / 2, y + 19); g.fillStyle = '#ffffff'; g.fillText(hpText, x + w / 2, y + 19);
@@ -338,13 +338,13 @@
         g.font = '16px ' + FONT; g.strokeText(sub, x + w / 2, y + 48); g.fillStyle = this.enraged || t < this.mechUntil ? '#ffb090' : '#efe7ff'; g.fillText(sub, x + w / 2, y + 48);
       }
       // left: where the group is (a page with its own HUD shows this itself)
-      g.textAlign = 'left'; g.font = '24px ' + FONT; g.lineWidth = 5; g.strokeStyle = '#120812';
+      g.textAlign = 'left'; g.font = '24px ' + FONT; g.lineWidth = 5; g.strokeStyle = '#140e07';
       if (!this.hooks.hud) {
       const where = this.walkFrom != null ? 'Moving on' : boss ? 'Boss fight' : this.label || '';
       g.strokeText(where, 22, boss ? 112 : 40); g.fillStyle = '#ffffff'; g.fillText(where, 22, boss ? 112 : 40);
       g.font = '16px ' + FONT;
       const lines = [ART.WINGS[this.wing || 0].name + ' · wing ' + ((this.wing || 0) + 1), 'Dungeon level ' + cur.dungeonLevel, 'Party DPS ' + fmt(this.dmgLog.reduce((s, d) => s + d[1], 0) / 10)];
-      lines.forEach((l, k) => { const yy = (boss ? 136 : 64) + k * 21; g.strokeText(l, 22, yy); g.fillStyle = k === 2 ? '#ffd25a' : '#d8c8e8'; g.fillText(l, 22, yy); });
+      lines.forEach((l, k) => { const yy = (boss ? 136 : 64) + k * 21; g.strokeText(l, 22, yy); g.fillStyle = k === 2 ? '#ffd25a' : '#e8dbc8'; g.fillText(l, 22, yy); });
       }
       // combo counter: top right, or centred under the boss bar when the page's HUD covers the corners
       if (t - this.comboAt < 2.5 && this.combo >= 5) {
@@ -360,7 +360,7 @@
         else {
           const a = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1, s = k < 0.15 ? 1.3 - k * 2 : 1;
           g.globalAlpha = a; g.textAlign = 'center';
-          g.fillStyle = 'rgba(12,6,14,0.6)'; g.fillRect(0, 205, W, 92);
+          g.fillStyle = 'rgba(15,10,5,0.6)'; g.fillRect(0, 205, W, 92);
           g.font = Math.round(46 * s) + 'px ' + FONT; g.lineWidth = 7; g.strokeText(b.text, W / 2, 255); g.fillStyle = b.col; g.fillText(b.text, W / 2, 255);
           if (b.sub) { g.font = '18px ' + FONT; g.lineWidth = 4; g.strokeText(b.sub, W / 2, 282); g.fillStyle = '#efe7ff'; g.fillText(b.sub, W / 2, 282); }
           g.globalAlpha = 1;
@@ -372,7 +372,7 @@
   // Art is drawn with heroes facing left and monsters facing right; the arena puts the party on the left, so both flip.
   function flipped(g, img, cx, top, w, h) { g.save(); g.translate(cx, 0); g.scale(-1, 1); g.drawImage(img, -w / 2, top, w, h); g.restore(); }
   function bar(g, x, y, w, f, col) {
-    g.fillStyle = '#120812'; g.fillRect(x - 2, y - 2, w + 4, 10);
+    g.fillStyle = '#140e07'; g.fillRect(x - 2, y - 2, w + 4, 10);
     g.fillStyle = '#3a1418'; g.fillRect(x, y, w, 6);
     g.fillStyle = col; g.fillRect(x, y, Math.round(w * Math.max(0, f)), 6);
     g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(x, y, Math.round(w * Math.max(0, f)), 2);
@@ -405,12 +405,12 @@
         g.fillStyle = 'rgba(0,0,0,0.38)'; g.beginPath(); g.ellipse(x, y, 30, 8, 0, 0, Math.PI * 2); g.fill();
         if (x < fx) flipped(g, img, Math.round(x), Math.round(y - feet), w, h); else g.drawImage(img, Math.round(x - w / 2), Math.round(y - feet), w, h);
         const head = y - feet + (this.sprite(m.look, 'stand0')._top || 0) * S2;
-        g.font = '13px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#120812'; g.fillStyle = CLASS_COL[m.cls] || '#fff';
+        g.font = '13px ' + FONT; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#140e07'; g.fillStyle = CLASS_COL[m.cls] || '#fff';
         g.strokeText(m.name, x, head - 8); g.fillText(m.name, x, head - 8);
       });
       // logs and stones
       g.fillStyle = '#3a2418'; g.fillRect(fx - 34, fy - 6, 68, 10); g.fillStyle = '#5a3824'; g.fillRect(fx - 28, fy - 12, 56, 8);
-      g.fillStyle = '#4a4458'; [-44, -30, 30, 44].forEach((d) => g.fillRect(fx + d - 6, fy - 2, 12, 8));
+      g.fillStyle = '#5d4e3f'; [-44, -30, 30, 44].forEach((d) => g.fillRect(fx + d - 6, fy - 2, 12, 8));
       // the flames: stacked flickering blocks, hot at the core
       const cols = ['#ff5a1a', '#ff8a2a', '#ffc040', '#fff0a0'];
       cols.forEach((c, k) => {
