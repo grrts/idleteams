@@ -58,7 +58,7 @@ class Game
     {
         return [
             'race' => $hero->race, 'cls' => $hero->cls, 'origin' => $hero->origin, 'level' => $hero->level,
-            'spent' => $hero->spent, 'path' => $hero->path, 'keystones' => $hero->keystones,
+            'spent' => $hero->spent, 'path' => $hero->path, 'legend' => $hero->legend, 'keystones' => $hero->keystones,
             'talents' => $hero->talents, 'heritage' => $hero->heritage, 'culture' => $hero->culture, 'backstory' => $hero->backstory, 'story' => $hero->story,
             'items' => array_map(fn (Item $i) => Items::spec($i), $this->equipped($hero)),
         ];

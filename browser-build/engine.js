@@ -82,6 +82,18 @@
     },
     clean: (tree, have) => Object.fromEntries(Object.entries(have || {}).filter(([id, r]) => r > 0 && tree.nodes[id])),
   });
+  // Legend forms at level 50: a capstone, the ultimate and the Path skill, read like a talent node (Legends.php).
+  const LG = (E.Legends = {
+    get: (path, form) => (form && D.LEGENDS[path] && D.LEGENDS[path][form]) || null,
+    titled(name, path, form) { const f = LG.get(path, form); return f ? name + ' ' + f[0] : name; },
+    effect(cls, path, form) {
+      const f = LG.get(path, form);
+      if (!f) return null;
+      const skill = { [D.CLASSES[cls].ultimate[0]]: f[5] };
+      for (const id of Object.keys((D.CLASSES[cls].paths[path] || [])[2] || {})) skill[id] = f[6];
+      return { stat: f[3], skill };
+    },
+  });
   const plans = {};
   const T = (E.Talents = {
     points: (level) => D.TALENT.POINTS_PER_LEVEL * Math.max(0, level - 1),
@@ -119,6 +131,8 @@
       if (build.heritage && keys(build.heritage).length && D.HERITAGE_TREES[build.race]) sets.push([D.HERITAGE_TREES[build.race], build.heritage, 'Heritage']);
       const story = build.backstory && D.HERITAGE.BACKSTORY_INFO[build.race]?.[build.backstory];
       if (story) sets.push([{ nodes: { b: { name: story[0], max: 1, effect: H.backstoryEffect(build.race, build.backstory, build.culture || null) } } }, { b: 1 }, 'Backstory']);
+      const le = build.legend && LG.effect(build.cls, build.path, build.legend);
+      if (le) sets.push([{ nodes: { l: { name: LG.get(build.path, build.legend)[2], max: 1, effect: le } } }, { l: 1 }, 'Legend']);
       for (const [tree, have, label] of sets) {
         for (const [id, r] of Object.entries(have)) {
           const n = tree.nodes[id];

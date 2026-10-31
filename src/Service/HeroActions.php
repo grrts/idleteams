@@ -9,6 +9,7 @@ use App\Game\Combatants;
 use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\LifeStory;
+use App\Game\Legends;
 use App\Game\Rules;
 use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class HeroActions
         'dentedShield' => ['Dented Shield', 'Blocked three Tank Busters in one battle'],
         'legendFound' => ['Legend Finder', 'Won a legendary from a group chest'],
         'signature' => ['Signed', 'Made one skill their own at level 30'],
+        'legend' => ['Legend', 'Took a Legend form at level 50'],
     ];
 
     /** Look keys the creator may set, with the values the pixel renderer knows. */
@@ -179,6 +181,21 @@ class HeroActions
         $h->marks = array_values(array_unique([...$h->marks, 'signature']));
         $label = $name ?: Rules::classSkills($h->cls)[$skill][0];
         $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf("%s made %s their Signature: %s's %s.", $h->name, Rules::classSkills($h->cls)[$skill][0], $h->name, $label), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    /** Level 50: one of the two Legend forms of the hero's Path, for good. */
+    public function chooseLegend(Hero $h, string $form): void
+    {
+        if ($h->level < Legends::LEVEL) {
+            throw new GameError(sprintf('Legend forms open at level %d.', Legends::LEVEL));
+        }
+        if ($h->legend) {
+            throw new GameError('Your Legend form is taken for good.');
+        }
+        $f = Legends::get($h->path, $form) ?? throw new GameError('Pick one of the two forms of your Path.');
+        $h->legend = $form;
+        $h->marks = array_values(array_unique([...$h->marks, 'legend']));
+        $this->game->post('tavern', sprintf('%s has become a Legend: %s. %s', $h->name, Legends::titled($h->name, $h->path, $form), $f[1]), ['type' => 'hero', 'hero' => $h->id]);
     }
 
     public function rankUp(Hero $h, string $skill): void

@@ -594,7 +594,7 @@
     const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView };
     const isWin = S.view !== 'battle' && views[S.view];
     // top: who you are, where the run is, what you carry
-    const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
+    const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(h.title || className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
     const dg = cur ? dun(cur.dungeon) : null;
     if (dg) ITA.setDungeon(dg);
     const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + dg.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
@@ -801,7 +801,7 @@
     const career = h.career || {};
 
     return '<div class="stack"><div class="hero-top"><div class="portrait"><span class="lvl">Level ' + h.level + '</span>' + spr(h.look, 4, 'idle') + '</div>' +
-      '<div class="stack tight"><div><div class="eyebrow">' + esc(race.name) + ' · Origin: ' + esc(origin[0]) + (h.backstory ? ' · ' + esc(S.cfg.backstories[h.race][h.backstory][0]) : '') + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div><h1>' + esc(h.name) + '</h1>' +
+      '<div class="stack tight"><div><div class="eyebrow">' + esc(race.name) + ' · Origin: ' + esc(origin[0]) + (h.backstory ? ' · ' + esc(S.cfg.backstories[h.race][h.backstory][0]) : '') + (h.guild ? ' · [' + esc(h.guild.tag) + '] ' + esc(h.guild.name) : '') + '</div><h1>' + esc(h.name) + (h.title ? ' <span class="gold legend-title">' + esc(h.title) + '</span>' : '') + '</h1>' +
       '<div class="row title-line">' + esc(cls.name) + (h.path ? ' of the ' + esc(cls.paths[h.path][0]) : '') + role(h.role) + (h.oathTaken ? '<span class="chip gold">' + ico('lock') + 'Oathsworn</span>' : '') + '</div></div>' +
       '<div><div class="small muted" style="margin-bottom:4px">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP to level ' + (h.level + 1) + '</div><div class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></div></div>' +
       '<div class="statstrip">' + key + '</div>' +
@@ -813,7 +813,7 @@
       (h.story ? '<div class="panel"><div class="head"><h2>Life story</h2><a class="small" href="#/story">Read it all</a></div><div class="storybio short">' + bioHtml(h.biography.slice(0, 2)) + '</div></div>' : '<div class="panel row between"><span class="small muted">' + esc(h.name) + ' has no life story yet.</span><a href="#/story"><button class="small primary">Write it</button></a></div>') +
       '<div class="panel"><h2>Combat stats</h2><div class="statstrip">' + stats + '</div></div>' +
       '<div class="panel"><div class="head"><h2>Curves</h2><span class="small muted">Points needed = K × p / (1 − p)², K = ' + h.k.toFixed(1) + ' at your level. The green dot is you.</span></div><div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))">' + curves + '</div></div>' +
-      '<div class="panel"><h2>Path</h2>' + path + '</div>' +
+      '<div class="panel"><h2>Path</h2>' + path + '</div>' + legendView(h) +
       '<div class="panel"><div class="head"><h2>Keystones</h2><span class="small muted">Levels ' + cfg.keystoneLevels.join(', ') + ', then every 25 after 50. Each choice is permanent.</span></div>' + (chosen ? '<div class="choices">' + chosen + '</div>' : '') + open + (!chosen && !open ? '<p class="muted">Your first Keystone opens at level ' + cfg.keystoneLevels[0] + '.</p>' : '') + '</div>' +
       '<div class="panel"><h2>Loot setting</h2><p class="small muted">When you are away, the game rolls for you this way when a chest closes.</p><div class="seg" style="margin-top:8px">' + [['upgrades', 'Need on upgrades, greed on the rest'], ['greed', 'Greed on everything'], ['pass', 'Pass on everything']].map(([v, n]) => '<button class="' + (h.lootPolicy === v ? 'on' : '') + '" data-act="lootPolicy" data-v="' + v + '">' + n + '</button>').join('') + '</div></div></div>';
   }
@@ -840,6 +840,15 @@
 
   // Level 30: one skill becomes the hero's own and grows Mastery from every use, with no cap.
   const SIG_TRAIT = { swift: ['Swift', 'shorter cooldown'], potent: ['Potent', '10% more power'], echo: ['Echo', 'a chance to cast it twice'] };
+  /** Level 50: the two Legend forms of the hero's Path, then the one taken. */
+  function legendView(h) {
+    const lf = h.legendForm;
+    if (!lf) return h.level >= S.cfg.legendLevel - 10 && h.path ? '<div class="panel legend soon"><h2>' + ico('heritage') + ' Legend form</h2><p class="small muted">At level ' + S.cfg.legendLevel + ' you take one of two Legend forms of your Path, for good: a title, a capstone passive and a stronger ultimate.</p></div>' : '';
+    const card = (f, pick) => '<div class="choice' + (pick ? '' : ' on locked') + '"' + (pick ? ' data-act="legendPick" data-id="' + f.id + '" data-t="' + esc(f.titled) + '"' : '') + '><span class="eyebrow">' + esc(f.titled) + '</span><b>' + esc(f.capstone) + '</b><div class="small muted"><i>' + esc(f.flavour) + '</i></div>' +
+      '<div class="small">' + esc(f.capstoneText) + '</div><div class="small gold" style="margin-top:4px">' + esc(f.ultimate) + ': ' + esc(f.ultimateText) + '</div></div>';
+    if (lf.open) return '<div class="panel legend open"><h2>' + ico('heritage') + ' Become a Legend</h2><p class="small">Choose the Legend form of your Path. This is permanent, and the tavern will hear of it.</p><div class="choices">' + lf.forms.map((f) => card(f, true)).join('') + '</div></div>';
+    return '<div class="panel legend"><h2>' + ico('heritage') + ' ' + esc(lf.form.titled) + '</h2><div class="choices">' + card(lf.form, false) + '</div></div>';
+  }
   function signatureView(h) {
     const sg = h.signature;
     if (!sg) return '';
@@ -1594,6 +1603,7 @@
     attrOpen: (d) => { S.attrOpen = S.attrOpen === d.a ? null : d.a; render(); },
     lootPolicy: (d) => act(() => post('/hero/act', { action: 'lootPolicy', policy: d.v }), 'Saved.'),
     path: (d) => act(() => post('/hero/act', { action: 'path', path: d.id }), 'Path chosen. You can still change it until the Oath.'),
+    legendPick: (d) => confirmBox('Become <b>' + esc(d.t) + '</b>? Your Legend form is permanent.', () => act(() => post('/hero/act', { action: 'legend', form: d.id }), 'You are a Legend now.')),
     sigPick: () => {
       const skill = $('#sigSkill').value, name = $('#sigName').value.trim(), s = S.st.hero.skills.find((x) => x.id === skill);
       confirmBox('Make <b>' + esc(s ? s.name : skill) + '</b> your Signature' + (name ? ', named <b>' + esc(name) + '</b>' : '') + '? This is permanent.', () => act(() => post('/hero/act', { action: 'signature', skill, name }), 'Your Signature is chosen.'));

@@ -42,6 +42,7 @@ class HeroController extends ApiController
             'path' => $actions->choosePath($h, (string) ($in['path'] ?? '')),
             'keystone' => $actions->chooseKeystone($h, (int) ($in['level'] ?? 0), (string) ($in['keystone'] ?? '')),
             'signature' => $actions->chooseSignature($h, (string) ($in['skill'] ?? ''), (string) ($in['name'] ?? '')),
+            'legend' => $actions->chooseLegend($h, (string) ($in['form'] ?? '')),
             'rankUp' => $actions->rankUp($h, (string) ($in['skill'] ?? '')),
             'resetRanks' => $actions->resetRanks($h),
             'loadout' => $actions->setLoadout($h, (array) ($in['skills'] ?? [])),

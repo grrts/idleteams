@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const D = window.IT_DATA, C = D.C, E = window.IT_ENGINE;
-  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng, Dungeons: Dg } = E;
+  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng, Dungeons: Dg, Legends: LG } = E;
   const BATTLE_SECONDS = 150, CHEST_SECONDS = 90, OFFLINE_CAP = 43200, MAX_CATCH_UP = 12, PARTY_SIZE = 5, GUILD_MAX = 100, MAX_TEMPER = 15;
   const BOSS_DROP = [0.35, 0.45, 0.6];
   const KEY = 'idleteams-play-v1';
@@ -62,7 +62,7 @@
   // ------------------------------------------------------------------ Game
 
   const equipped = (h) => db.items.filter((i) => i.owner === h.id && i.equipped);
-  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, keystones: h.keystones, talents: h.talents, heritage: h.heritage, culture: h.culture, backstory: h.backstory, story: h.story, items: equipped(h).map(I.spec) });
+  const build = (h) => ({ race: h.race, cls: h.cls, origin: h.origin, level: h.level, spent: h.spent, path: h.path, legend: h.legend || null, keystones: h.keystones, talents: h.talents, heritage: h.heritage, culture: h.culture, backstory: h.backstory, story: h.story, items: equipped(h).map(I.spec) });
   function loadout(h) {
     const avail = Cb.available(h.cls, h.level, h.path, h.talents);
     const ids = h.loadout.filter((id) => avail[id]);
@@ -274,7 +274,7 @@
     return {
       attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
-      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
+      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
@@ -287,7 +287,7 @@
   function heroCard(h) {
     const g = guildOf(h);
     return {
-      id: h.id, name: h.name, race: h.race, culture: h.culture, backstory: h.backstory, heritageRank: heritageRank(h), cls: h.cls, origin: h.origin, path: h.path, role: role(h), level: h.level, look: look(h), marks: h.marks,
+      id: h.id, name: h.name, race: h.race, culture: h.culture, backstory: h.backstory, heritageRank: heritageRank(h), cls: h.cls, origin: h.origin, path: h.path, legend: h.legend || null, title: (LG.get(h.path, h.legend) || [null])[0], role: role(h), level: h.level, look: look(h), marks: h.marks,
       guild: g ? { id: g.id, name: g.name, tag: g.tag } : null, party: h.party, keystones: h.keystones, codex: h.codex.length, demo: isDemo(h),
     };
   }
@@ -311,7 +311,7 @@
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
       attributes: attrs.total, sources: attrs.sources, effective: S.effective(attrs.total), stats, k: S.k(L), curves,
-      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h),
+      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
@@ -432,6 +432,23 @@
     h.marks = uniq([...h.marks, 'signature']);
     const base = R.classSkills(h.cls)[skill][0];
     post(heroChannel(h), h.name + ' made ' + base + " their Signature: " + h.name + "'s " + (name || base) + '.', { type: 'hero', hero: h.id });
+  }
+  function legendView(h) {
+    if (h.level < C.LEGEND_LEVEL || !h.path) return null;
+    const view = (id, f) => ({ id, title: f[0], titled: LG.titled(h.name, h.path, id), flavour: f[1], capstone: f[2], capstoneText: T.describe({ stat: f[3] }),
+      ultimate: f[4], ultimateText: T.describe({ skill: LG.effect(h.cls, h.path, id).skill }, 1, h.cls) });
+    const f = LG.get(h.path, h.legend);
+    if (f) return { open: false, form: view(h.legend, f) };
+    return { open: true, forms: Object.entries(D.LEGENDS[h.path] || {}).map(([id, x]) => view(id, x)) };
+  }
+  function chooseLegend(h, form) {
+    if (h.level < C.LEGEND_LEVEL) fail('Legend forms open at level ' + C.LEGEND_LEVEL + '.');
+    if (h.legend) fail('Your Legend form is taken for good.');
+    const f = LG.get(h.path, form);
+    if (!f) fail('Pick one of the two forms of your Path.');
+    h.legend = form;
+    h.marks = uniq([...h.marks, 'legend']);
+    post('tavern', h.name + ' has become a Legend: ' + LG.titled(h.name, h.path, form) + '. ' + f[1], { type: 'hero', hero: h.id });
   }
   function chooseKeystone(h, level, id) {
     if (!keystoneLevels(h.level).includes(level)) fail('That Keystone level is not open yet.');
@@ -892,7 +909,7 @@
     const acts = {
       spend: () => spend(h, Object.fromEntries(Object.entries(input.points || {}).map(([k, v]) => [k, int(v)]))),
       autoSpend: () => autoSpend(h), path: () => choosePath(h, String(input.path || '')),
-      keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')), signature: () => chooseSignature(h, String(input.skill || ''), input.name),
+      keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')), signature: () => chooseSignature(h, String(input.skill || ''), input.name), legend: () => chooseLegend(h, String(input.form || '')),
       resetRanks: () => resetRanks(h), loadout: () => setLoadout(h, [].concat(input.skills || [])), lootPolicy: () => setLootPolicy(h, String(input.policy || '')),
       talent: () => learnTalent(h, [].concat(input.nodes || input.node || []).map(String)), resetTalents: () => resetTalents(h),
       culture: () => chooseCulture(h, String(input.culture || '')), story: () => writeStory(h, input.story), heritage: () => learnHeritage(h, [].concat(input.nodes || input.node || []).map(String)),

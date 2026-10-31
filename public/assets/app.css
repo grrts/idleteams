@@ -875,3 +875,8 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .report:first-child { border-top: 0; }
 .report p { margin: 4px 0 8px; }
 .row.wrap { flex-wrap: wrap; gap: 6px; }
+
+/* Legend form (level 50) */
+.legend-title { font-size: 0.6em; font-weight: normal; }
+.panel.legend.open { box-shadow: 0 0 0 2px #f0c23a55, 0 0 24px #f0c23a22; }
+.panel.legend .choice .eyebrow { color: #ffd25a; }

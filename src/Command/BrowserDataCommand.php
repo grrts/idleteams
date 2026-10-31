@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Lore;
+use App\Game\Legends;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Simulator;
@@ -31,8 +32,9 @@ class BrowserDataCommand extends Command
                 'POINTS_PER_LEVEL' => Rules::POINTS_PER_LEVEL, 'SOFT_CAP_SHARE' => Rules::SOFT_CAP_SHARE, 'OATH_LEVEL' => Rules::OATH_LEVEL,
                 'PATH_LEVEL' => Rules::PATH_LEVEL, 'KEYSTONE_LEVELS' => Rules::KEYSTONE_LEVELS, 'ULTIMATE_LEVEL' => Rules::ULTIMATE_LEVEL,
                 'REFORGE_LEVEL' => Rules::REFORGE_LEVEL, 'LOADOUT_SIZE' => Rules::LOADOUT_SIZE, 'ORIGIN_POINTS' => Rules::ORIGIN_POINTS,
-                'SIGNATURE_LEVEL' => Rules::SIGNATURE_LEVEL, 'SIGNATURE_TRAITS' => Rules::SIGNATURE_TRAITS,
+                'SIGNATURE_LEVEL' => Rules::SIGNATURE_LEVEL, 'SIGNATURE_TRAITS' => Rules::SIGNATURE_TRAITS, 'LEGEND_LEVEL' => Legends::LEVEL,
             ],
+            'LEGENDS' => Legends::FORMS,
             'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),
             'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,

@@ -107,6 +107,10 @@ class Hero
     #[ORM\Column(options: ['default' => 0])]
     public int $signatureXp = 0;
 
+    /** Level 50: the Legend form of this hero's Path (permanent). */
+    #[ORM\Column(length: 30, nullable: true)]
+    public ?string $legend = null;
+
     /** Career counters: battles, dungeons (full clears), bossKills, deaths, legendaries. */
     #[ORM\Column(type: 'json')]
     public array $career = [];

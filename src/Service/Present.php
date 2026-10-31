@@ -16,6 +16,7 @@ use App\Game\Combatants;
 use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Items;
+use App\Game\Legends;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Stats;
@@ -43,7 +44,7 @@ class Present
             'rarities' => Rules::RARITIES, 'glyphs' => Rules::GLYPHS, 'powers' => Rules::LEGENDARY_POWERS, 'caps' => Stats::CAPS,
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
-            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
+            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'legendLevel' => Legends::LEVEL, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
@@ -84,11 +85,30 @@ class Present
         ];
     }
 
+    /** The Legend panel: nothing before level 50, both forms of the Path to choose from, then the form taken. */
+    public function legend(Hero $h): ?array
+    {
+        if ($h->level < Legends::LEVEL || !$h->path) {
+            return null;
+        }
+        $view = fn (string $id, array $f) => [
+            'id' => $id, 'title' => $f[0], 'titled' => Legends::titled($h->name, $h->path, $id), 'flavour' => $f[1], 'capstone' => $f[2],
+            'capstoneText' => Talents::describe(['stat' => $f[3]]), 'ultimate' => $f[4],
+            'ultimateText' => Talents::describe(['skill' => Legends::effect($h->cls, $h->path, $id)['skill']], 1, $h->cls),
+        ];
+        if ($h->legend && ($f = Legends::get($h->path, $h->legend))) {
+            return ['open' => false, 'form' => $view($h->legend, $f)];
+        }
+
+        return ['open' => true, 'forms' => array_values(array_map($view, array_keys(Legends::forPath($h->path)), Legends::forPath($h->path)))];
+    }
+
     /** A hero card other players see: name, look, level, role and a few highlights. */
     public function heroCard(Hero $h): array
     {
         return [
             'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'culture' => $h->culture, 'backstory' => $h->backstory, 'heritageRank' => $h->heritageRank(), 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
+            'legend' => $h->legend, 'title' => Legends::get($h->path, $h->legend)[0] ?? null,
             'role' => $h->role(), 'level' => $h->level, 'look' => $this->game->look($h), 'marks' => $h->marks,
             'guild' => $h->guild ? ['id' => $h->guild->id, 'name' => $h->guild->name, 'tag' => $h->guild->tag] : null,
             'party' => $h->party?->id, 'keystones' => $h->keystones, 'codex' => count($h->codex), 'demo' => $h->user->demo,
@@ -146,7 +166,7 @@ class Present
             'attributes' => $attrs['total'], 'sources' => $attrs['sources'], 'effective' => Stats::effective($attrs['total']),
             'stats' => $stats, 'k' => Stats::k($L), 'curves' => $curves,
             'skills' => $skills, 'skillPoints' => $h->skillPoints(), 'loadout' => $this->game->loadout($h),
-            'signature' => $this->signature($h),
+            'signature' => $this->signature($h), 'legendForm' => $this->legend($h),
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
             'resonance' => Stats::resonance($build['items']), 'guildRank' => $h->guildRank,

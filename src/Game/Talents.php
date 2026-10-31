@@ -568,6 +568,9 @@ final class Talents
                 $sets[] = [['nodes' => ['b' => ['name' => $b[0], 'max' => 1, 'effect' => Heritage::backstoryEffect($build['race'], $build['backstory'], $build['culture'] ?? null)]]], ['b' => 1], 'Backstory'];
             }
         }
+        if (!empty($build['legend']) && ($le = Legends::effect($build['cls'], $build['path'] ?? null, $build['legend']))) {
+            $sets[] = [['nodes' => ['l' => ['name' => Legends::get($build['path'], $build['legend'])[2], 'max' => 1, 'effect' => $le]]], ['l' => 1], 'Legend'];
+        }
         foreach ($sets as [$tree, $have, $label]) {
             foreach ($have as $id => $rank) {
                 $n = $tree['nodes'][$id] ?? null;
