@@ -157,6 +157,25 @@ final class Art
         return $bases;
     }
 
+    /** Bases that drop and can be crafted: every base but the shop's ("shop": true), which only the shop gives. */
+    public static function dropBases(): array
+    {
+        static $drop = null;
+        if ($drop !== null) {
+            return $drop;
+        }
+        $drop = self::bases();
+        foreach (self::KINDS as $kind => $slot) {
+            foreach ($slot === null ? [] : self::parts($kind) as $id => $p) {
+                if (!empty($p['shop'])) {
+                    unset($drop[$slot][$id]);
+                }
+            }
+        }
+
+        return $drop;
+    }
+
     /** What is wrong with a part, or null. */
     public static function check(string $kind, string $id, mixed $p): ?string
     {

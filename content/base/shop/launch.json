@@ -1,0 +1,13 @@
+{
+ "offers": {
+  "emberCrown": {"name": "Ember Crown", "kind": "look", "price": 299, "looks": ["head|emberCrown|#b8401a|#ffd25a|#e8b84a"], "text": "A crown of banked fire, for heroes who walked out of Ember Hollow."},
+  "starWeaver": {"name": "Star-weaver's Hat", "kind": "look", "price": 249, "looks": ["head|starWeaver|#2f3f8a|#e8c870|#c0c8d0"], "text": "A tall hat stitched with the old sky."},
+  "foxHood": {"name": "Fox Hood", "kind": "look", "price": 199, "looks": ["head|foxHood|#d96a2a|#f4ead8|#b8c2cc"], "text": "Ears up. Felkin swear it is not a joke about them."},
+  "emberBrand": {"name": "Emberbrand", "kind": "look", "price": 349, "looks": ["weapon|emberBrand|#3a2a22|#ff8a2a|#e8b84a"], "text": "A blade with a coal for a heart. Hits exactly as hard as the sword you wear under it."},
+  "moonwardStaff": {"name": "Moonward Staff", "kind": "look", "price": 349, "looks": ["weapon|moonwardStaff|#20202a|#9ac8ff|#d8dee4"], "text": "A crescent on a pale staff, for the healers who keep the night watch."},
+  "spiritLantern": {"name": "Spirit Lantern", "kind": "look", "price": 199, "looks": ["offhand|spiritLantern|#2a3a4a|#7af0d0|#c0c8d0"], "text": "It lights nothing but the way home."},
+  "royalCoat": {"name": "Royal Coat", "kind": "look", "price": 299, "looks": ["top|royalCoat|#6a1a2a|#ffd25a|#e8b84a", "top|royalCoat|#1b4f5a|#e8c870|#c0c8d0"], "text": "Two coats, wine and teal, with gold down the front."},
+  "supporter": {"name": "Supporter, 30 days", "kind": "supporter", "price": 499, "days": 30, "looks": ["head|patronCirclet|#6a1a2a|#ff5a8a|#e8b84a"], "text": "A star by your name in chat and the Patron's Circlet to keep. Pays for the servers. Does not renew by itself."},
+  "seasonTrack": {"name": "Season track", "kind": "track", "price": 799, "text": "Every premium look on this season's track: twenty of them, earned by playing. The ones you already reached arrive at once."}
+ }
+}

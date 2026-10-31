@@ -58,6 +58,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => 0])]
     public int $mutedUntil = 0;
 
+    /** A supporter until this time (the shop's supporter pass): a star by their name, never any power. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $supporterUntil = 0;
+
+    /** Season track points by season id (src/Game/Seasons.php). */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $seasonPoints = null;
+
+    /** Season ids whose premium track this account bought. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $seasonPremium = null;
+
     /** Hero ids whose chat lines and invites this player never sees. */
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $blocked = null;
@@ -75,6 +87,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPassword(): string
     {
         return $this->password;
+    }
+
+    public function isSupporter(?int $now = null): bool
+    {
+        return $this->supporterUntil > ($now ?? time());
     }
 
     public function isMuted(?int $now = null): bool

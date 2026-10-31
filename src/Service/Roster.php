@@ -75,4 +75,21 @@ class Roster
             }
         }
     }
+
+    /** Gives every hero on the account these looks (shop and season track). */
+    public function grant(User $u, array $looks): void
+    {
+        foreach ($this->heroes($u) as $h) {
+            $h->wardrobe = array_values(array_unique([...($h->wardrobe ?? []), ...$looks]));
+        }
+    }
+
+    /** Takes looks back (a refund); a hero showing one goes back to what they wear. */
+    public function revoke(User $u, array $looks): void
+    {
+        foreach ($this->heroes($u) as $h) {
+            $h->wardrobe = array_values(array_diff($h->wardrobe ?? [], $looks));
+            $h->outfit = array_filter($h->outfit ?? [], fn ($k) => !in_array($k, $looks, true));
+        }
+    }
 }

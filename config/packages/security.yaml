@@ -26,7 +26,7 @@ security:
                 path: api_logout
 
     access_control:
-        - { path: ^/api/(login|register|config|lore|password|health), roles: PUBLIC_ACCESS }
+        - { path: ^/api/(login|register|config|lore|password|health|shop/webhook), roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:

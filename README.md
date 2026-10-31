@@ -77,6 +77,15 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   `LEGAL_CONTACT` before launch and have a lawyer read both. Fonts are served from `public/assets/fonts/`, so no
   request leaves for Google; one session cookie is the only cookie. The service worker keeps the game's files and shows
   an offline note.
+- Shop (★ Shop, top right): looks for the wardrobe, a 30-day supporter pass (a star in chat and a circlet, no
+  renewal) and the season track's premium side. Nothing sold adds power. Offers are data (`content/<pack>/shop/`), and
+  shop-only art carries `"shop": true` so it never drops or gets crafted. Payment is Stripe Checkout: set
+  `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, and point a Stripe webhook at `/api/shop/webhook` for
+  `checkout.session.completed`, `checkout.session.async_payment_succeeded` and `charge.refunded`. Nothing is given
+  until the signed webhook says it is paid; a full refund takes it back. Without a key the shop shows but is closed.
+- Seasons are data (`content/<pack>/seasons/`): a start Monday, a length and a cosmetic track of 20 tiers. Runs earn
+  track points for the account (a clear, each boss, more on Heroic and Mythic); every second tier has a free look and
+  every tier a premium one. Rules in `src/Game/Seasons.php`.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

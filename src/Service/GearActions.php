@@ -223,7 +223,7 @@ class GearActions
         if (!isset(Art::bases()[$slot]) || $slot === 'ring2') {
             throw new GameError('Pick a slot.');
         }
-        if ($base !== null && !isset(Art::bases()[$slot][$base])) {
+        if ($base !== null && !isset(Art::dropBases()[$slot][$base])) {
             throw new GameError('Pick a style for that slot.');
         }
         $cost = self::craftCost($h->level);

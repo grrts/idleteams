@@ -1,0 +1,93 @@
+{
+ "id": "s1",
+ "number": 1,
+ "name": "The Sundered Season",
+ "starts": "2026-11-02",
+ "weeks": 8,
+ "summary": "The Sundered Keep has opened its gates. Wear the Keep's teal and gold, the ember wine of its throne room and the moonlit black of its watchmen.",
+ "track": {
+  "tierPoints": 300,
+  "tiers": [
+   {
+    "free": null,
+    "premium": "head|feathered|#1b4f5a|#e8c870|#c0c8d0"
+   },
+   {
+    "free": "cape|scarf|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "top|nobleCoat|#1b4f5a|#e8c870|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "cape|cape|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": "head|beanie|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "weapon|runeblade|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": null,
+    "premium": "head|witchHat|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": "top|tabard|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "offhand|heater|#1b4f5a|#e8c870|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "top|starRobe|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": "shoes|boots|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "weapon|staff|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "head|wingedHelm|#1b4f5a|#e8c870|#c0c8d0"
+   },
+   {
+    "free": "head|tricorn|#4a1a2a|#ff8a5a|#e0b04a",
+    "premium": "offhand|orb|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "top|gambeson|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": "gloves|leather|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "head|kabuto|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": null,
+    "premium": "weapon|katana|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": "top|doublet|#4a1a2a|#ff8a5a|#e0b04a",
+    "premium": "bottom|kilt|#1b4f5a|#e8c870|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "offhand|mirrorShield|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": "weapon|sabre|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "head|tiara|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "top|furCollar|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": "head|laurel|#20202a|#9ac8ff|#d8dee4",
+    "premium": "weapon|flamberge|#4a1a2a|#ff8a5a|#e0b04a"
+   },
+   {
+    "free": null,
+    "premium": "cape|scarf|#20202a|#9ac8ff|#d8dee4"
+   },
+   {
+    "free": "cape|cape|#1b4f5a|#e8c870|#c0c8d0",
+    "premium": "head|sunderedHelm|#4a1a2a|#ff8a5a|#e0b04a"
+   }
+  ]
+ }
+}

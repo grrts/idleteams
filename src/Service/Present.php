@@ -395,7 +395,7 @@ class Present
             $card['markText'] = Marks::ALL[$card['mark']][1] ?? '';
         }
 
-        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls, 'tag' => $m->author->guild && in_array('banners', GuildHall::opened(GuildHall::level($m->author->guild->xp)), true) ? $m->author->guild->tag : null] : null];
+        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls, 'tag' => $m->author->guild && in_array('banners', GuildHall::opened(GuildHall::level($m->author->guild->xp)), true) ? $m->author->guild->tag : null, 'supporter' => $m->author->user->isSupporter()] : null];
     }
 
     /** A battle for playback (running) or for its report and chest (chest, done). */

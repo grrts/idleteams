@@ -28,7 +28,7 @@ class BrowserDataCommand extends Command
     {
         $data = [
             'ATTRIBUTES' => Rules::ATTRIBUTES, 'RACES' => Rules::RACES, 'ORIGINS' => Rules::ORIGINS, 'CLASSES' => Rules::CLASSES,
-            'KEYSTONES' => Rules::KEYSTONES, 'SLOTS' => Rules::SLOTS, 'BASES' => Art::bases(), 'ART' => Art::all(), 'AFFIXES' => Rules::AFFIXES,
+            'KEYSTONES' => Rules::KEYSTONES, 'SLOTS' => Rules::SLOTS, 'BASES' => Art::bases(), 'DROP_BASES' => Art::dropBases(), 'ART' => Art::all(), 'AFFIXES' => Rules::AFFIXES,
             'RARITIES' => Rules::RARITIES, 'GLYPHS' => Rules::GLYPHS, 'POWERS' => Rules::LEGENDARY_POWERS,
             'C' => [
                 'POINTS_PER_LEVEL' => Rules::POINTS_PER_LEVEL, 'SOFT_CAP_SHARE' => Rules::SOFT_CAP_SHARE, 'OATH_LEVEL' => Rules::OATH_LEVEL,

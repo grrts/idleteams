@@ -187,8 +187,8 @@
     const link = location.hash.match(/^#\/(verify|reset)\?(.*)$/), q = link ? new URLSearchParams(link[2]) : null;
     if (link) history.replaceState(null, '', location.pathname + '#/battle');
     if (link && link[1] === 'reset') S.reset = { u: q.get('u') || '', t: q.get('t') || '' };
-    window.addEventListener('hashchange', () => { S.view = location.hash.slice(2) || 'battle'; S.sel = null; if (S.view === 'settings') S.reports = null; render(); loadView(); });
-    S.view = location.hash.slice(2) || 'battle';
+    window.addEventListener('hashchange', () => { S.view = location.hash.slice(2).split('?')[0] || 'battle'; S.sel = null; if (S.view === 'settings') S.reports = null; render(); loadView(); });
+    S.view = location.hash.slice(2).split('?')[0] || 'battle';
     await refresh();
     if (link && link[1] === 'verify') {
       if (!S.st) toast('Log in first, then open the link from the mail again.');
@@ -227,6 +227,7 @@
     if (S.view === 'group') { S.tavern = await get('/tavern').catch(() => null); render(); }
     if (S.view === 'guild') { S.guilds = await get('/guilds').catch(() => null); render(); }
     if (S.view === 'market') loadMarket();
+    if (S.view === 'shop') loadShop();
     if (S.view === 'gear' && !S.craftCost) { S.craftCost = await get('/craft/cost').catch(() => null); render(); }
     pollChat();
   }
@@ -646,12 +647,12 @@
 
   // [view, title, icon, hotkey]. The battle view is the open scene; every other view opens as a window over it.
   const VIEWS = [['battle', 'Dungeon', 'battle', '1'], ['hero', 'Hero', 'hero', '2'], ['skills', 'Skills', 'skills', '3'], ['talents', 'Talents', 'talents', '4'], ['heritage', 'Heritage', 'heritage', '5'], ['gear', 'Gear', 'gear', '6'], ['group', 'Group', 'group', '7'], ['guild', 'Guild', 'guild', '8'], ['market', 'Market', 'market', '9'], ['runs', 'Runs', 'chest', '0'], ['lore', 'Lore', 'lore', 'l']];
-  const WIN_TITLE = { story: ['Life story', 'heritage'], settings: ['Settings', 'hero'], workshop: ['Art workshop', 'gear'] };
+  const WIN_TITLE = { story: ['Life story', 'heritage'], settings: ['Settings', 'hero'], shop: ['Shop', 'gold'], workshop: ['Art workshop', 'gear'] };
   function shell() {
     const h = S.st.hero, p = S.st.party, cur = S.battle && S.battle.current, cfg = S.cfg;
     if (S.chatInit == null) { S.chatInit = 1; S.chatOpen = window.innerWidth > 1100; }
     const dots = { battle: 0, runs: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (p ? p.requests.filter((r) => r.kind === 'application').length : 0) };
-    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView, workshop: () => (window.ITW ? ITW.view() : '') };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView, shop: shopView, workshop: () => (window.ITW ? ITW.view() : '') };
     const isWin = S.view !== 'battle' && views[S.view];
     // top: who you are, where the run is, what you carry
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(h.title || className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
@@ -659,7 +660,7 @@
     if (dg) ITA.setDungeon(dg);
     const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· ' + (modeLabel(cur.mode, cur.tier) ? esc(modeLabel(cur.mode, cur.tier)) + ' · ' : '') + 'level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + (cur.plan || dg.plan).map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
       : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
-    const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
+    const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span>' + (window.IT_SERVER ? '' : '<a class="small cog btn" href="#/shop" title="Shop: looks, the season track and the supporter pass">★<span class="lbl"> Shop</span></a>') + '<a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
     // left: the group's unit frames, live during a run
     const roster = cur ? cur.roster : p ? p.members.map((m) => ({ id: m.id, name: m.name, cls: m.cls, level: m.level, look: m.look, resource: cfg.classes[m.cls].resource, role: m.role })) : [{ id: h.id, name: h.name, cls: h.cls, level: h.level, look: h.look, resource: cfg.classes[h.cls].resource }];
     const frames = '<div class="hud-party">' + roster.map((r, i) => '<div class="uf' + (r.id === h.id ? ' me' : '') + '" id="fr' + i + '">' + por(r.look, 'pframe sm') + '<div class="uf-body"><div class="uf-nm"><b>' + esc(r.name) + '</b><span>' + r.level + '</span></div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div></div>').join('') +
@@ -1500,7 +1501,7 @@
       const card = chatCard(m.card);
       if (!m.author) return '<div class="msg sys">' + esc(m.body) + card + '</div>';
       const who = m.author.id === S.st.hero.id ? '<span class="a">' + esc(m.author.name) + '</span>' : '<button class="a who" data-act="chatWho" data-id="' + m.id + '" title="Report or block">' + esc(m.author.name) + '</button>';
-      const tag = m.author.tag ? '<span class="chip tag">' + esc(m.author.tag) + '</span>' : '';
+      const tag = (m.author.supporter ? '<span class="gold" title="Supporter: keeps the servers running">★</span>' : '') + (m.author.tag ? '<span class="chip tag">' + esc(m.author.tag) + '</span>' : '');
       return '<div class="msg">' + tag + who + esc(m.body) + card + '</div>';
     }).join('');
     return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div>' + chatInput() + '';
@@ -1585,6 +1586,47 @@
       (S.st.catchUp > 1 ? '<p class="small good">Catch-up: ' + esc(S.st.hero.name) + ' earns ×' + S.st.catchUp + ' XP until they near your best hero.</p>' : '') +
       '<p class="small muted">Up to ' + S.st.maxHeroes + ' heroes. They share the wardrobe and the Codex; each keeps its own group, gear, gold and story. Heroes far behind your best earn more XP.</p>' +
       (all.length < S.st.maxHeroes ? '<button class="small" data-act="newHero">New hero</button>' : '') + '</div>';
+  }
+  // ------------------------------------------------------------------ shop
+
+  async function loadShop() {
+    try { S.shop = await get('/shop'); } catch (e) { S.shop = { error: e.message }; }
+    const paid = /paid=(\d+)/.exec(location.hash);
+    if (paid && S.shop && !S.shop.error) { toast('Thank you! Your purchase arrives as soon as the payment is through.', true); history.replaceState(null, '', '#/shop'); setTimeout(() => { if (S.view === 'shop') loadShop(); }, 4000); }
+    render();
+  }
+  const money = (cents, cur) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: (cur || 'eur').toUpperCase() }).format(cents / 100); } catch (e) { return (cents / 100).toFixed(2) + ' ' + cur; } };
+  // A look key (slot|base|cloth|trim|metal) worn by the player's own hero, for a preview.
+  function lookOn(key) {
+    const [slot, base, d1, d2, m] = key.split('|'), layer = S.cfg.slots[slot][1], look = { ...S.st.hero.look, tint: { ...(S.st.hero.look.tint || {}) } };
+    look[layer] = base;
+    look.tint[layer] = [d1, d2, m];
+    return look;
+  }
+  function shopView() {
+    const sh = S.shop;
+    if (!sh) { loadShop(); return '<p class="muted">Opening the shop…</p>'; }
+    if (sh.error) return '<p class="bad">' + esc(sh.error) + '</p>';
+    const now = Date.now() / 1000, sup = sh.supporterUntil > now;
+    const buy = (o) => o.owned ? '<span class="small good">Yours</span>' : sh.open ? '<button class="small primary" data-act="shopBuy" data-o="' + o.id + '">' + money(o.price, o.currency) + '</button>' : '<span class="small muted">' + money(o.price, o.currency) + '</span>';
+    const card = (o) => '<div class="panel tight shopcard"><div class="row" style="gap:10px;align-items:flex-start">' + (o.looks.length ? '<div class="row" style="gap:2px">' + o.looks.map((k) => spr(lookOn(k), 2, 'idle')).join('') + '</div>' : '') +
+      '<div class="stack tight" style="flex:1;min-width:0"><b>' + esc(o.name) + '</b><span class="small muted">' + esc(o.text) + '</span><div class="row between">' + buy(o) + '</div></div></div></div>';
+    const looks = sh.offers.filter((o) => o.kind === 'look'), other = sh.offers.filter((o) => o.kind !== 'look');
+    let season = '';
+    if (sh.season) {
+      const s = sh.season, n = s.tiers.length, into = s.points - s.tier * s.tierPoints;
+      const cell = (t, i) => { const got = i < s.tier, mk = (k, prem) => k ? '<div class="tcell' + (got && (!prem || s.premium) ? ' got' : '') + (prem ? ' prem' : '') + '" title="' + esc(S.cfg.bases[k.split('|')[0]][k.split('|')[1]] || '') + '">' + spr(lookOn(k), 1) + '</div>' : '<div class="tcell empty"></div>';
+        return '<div class="tcol"><span class="small' + (got ? ' gold' : ' muted') + '">' + (i + 1) + '</span>' + mk(t.free, false) + mk(t.premium, true) + '</div>'; };
+      season = '<div class="panel"><div class="head"><h3>' + esc(s.name) + '</h3><span class="small muted">Ends ' + new Date(s.endsAt * 1000).toLocaleDateString() + '</span></div><p class="small muted">' + esc(s.summary) + '</p>' +
+        '<p class="small">Tier <b>' + s.tier + '</b> of ' + n + (s.tier < n ? ' · ' + into + ' / ' + s.tierPoints + ' points to the next' : ' · the whole track') + '. Runs earn points: a clear, every boss, more on Heroic and Mythic. Every second tier has a free look' + (s.premium ? '; you have the premium track.' : '; the premium track has one on every tier.') + '</p>' +
+        '<span class="bar gbar"><i style="width:' + (100 * Math.min(1, s.points / (n * s.tierPoints))) + '%"></i></span><div class="track-grid">' + s.tiers.map(cell).join('') + '</div></div>';
+    } else if (sh.next) season = '<div class="panel"><h3>Next season</h3><p class="small muted">' + esc(sh.next.name) + ' starts ' + new Date(sh.next.startsAt * 1000).toLocaleDateString() + '. Its track fills from your runs.</p></div>';
+    const history = sh.purchases.length ? '<div class="panel"><h3>Your purchases</h3><ul class="plain small">' + sh.purchases.map((p) => '<li>' + new Date(p.at * 1000).toLocaleDateString() + ' · ' + esc(p.offer) + ' · ' + money(p.amount, p.currency) + (p.state === 'refunded' ? ' · refunded' : '') + '</li>').join('') + '</ul></div>' : '';
+    return '<div class="stack">' + (sh.open ? '' : '<p class="panel small muted">The shop is not open yet. Everything here is a look: nothing sold makes a hero stronger.</p>') +
+      (sup ? '<p class="small gold">★ Supporter until ' + new Date(sh.supporterUntil * 1000).toLocaleDateString() + '. Thank you.</p>' : '') + season +
+      '<div class="panel"><h3>Supporter and season</h3><div class="shopgrid">' + other.map(card).join('') + '</div></div>' +
+      '<div class="panel"><h3>Looks</h3><p class="small muted">A look goes into the wardrobe of every hero on your account. Show it over any item in that slot from the Gear page.</p><div class="shopgrid">' + looks.map(card).join('') + '</div></div>' + history +
+      '<p class="small muted">Prices include VAT. Paid through Stripe; we never see your card. <a href="/terms" target="_blank">Terms</a> · <a href="/privacy" target="_blank">Privacy</a></p></div>';
   }
   function dataView() {
     if (window.IT_SERVER) return '';
@@ -1808,6 +1850,11 @@
       if (c.name.length < 3) { toast('Give your hero a name of 3 to 20 letters.'); S.creatorStep = 'name'; render(); const n = $('#cname'); if (n) n.focus(); return; }
       try { await post('/hero', c); if (S.newHero) { location.hash = '#/hero'; location.reload(); return; } S.creator = null; S.storyAt = {}; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); }
     },
+    shopBuy: (d) => {
+      const o = S.shop.offers.find((x) => x.id === d.o);
+      modal('<h3>' + esc(o.name) + ' · ' + money(o.price, o.currency) + '</h3><p class="small">' + esc(o.text) + '</p><form data-form="shopBuy" data-o="' + o.id + '" class="stack tight"><label class="row small" style="gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0"><input type="checkbox" name="waive" value="1" style="width:auto"> <span>Deliver it at once. I understand that I lose my 14-day right of withdrawal once it is delivered.</span></label>' +
+        '<div class="row"><button class="primary" type="submit">Pay with Stripe</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
+    },
     newHero: () => { S.newHero = true; S.creator = null; S.creatorStep = 'race'; render(); window.scrollTo(0, 0); },
     cancelNewHero: () => { S.newHero = false; S.creator = null; render(); },
     switchHero: async (d) => {
@@ -1980,6 +2027,11 @@
     }
     if (f.dataset.form === 'reset') {
       try { await post('/password/reset', { username: S.reset.u, token: S.reset.t, password: data.password }); S.reset = null; location.hash = '#/battle'; await refresh(); render(); toast('Password changed. Welcome back!', true); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (f.dataset.form === 'shopBuy') {
+      if (!data.waive) { toast('Tick the box to have it delivered at once.'); return; }
+      try { const r = await post('/shop/checkout', { offer: f.dataset.o, waive: true }); location.href = r.url; } catch (err) { toast(err.message); }
       return;
     }
     if (f.dataset.form === 'closeAccount') {

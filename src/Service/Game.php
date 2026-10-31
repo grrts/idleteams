@@ -16,6 +16,7 @@ use App\Game\Items;
 use App\Game\Marks;
 use App\Game\Modes;
 use App\Game\Rules;
+use App\Game\Seasons;
 use App\Game\Simulator;
 use App\Game\Stats;
 use Doctrine\ORM\EntityManagerInterface;
@@ -295,6 +296,19 @@ class Game
             $xp = (int) round(Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']) * $catchUp);
             if ($catchUp > 1) {
                 $rep['heroes'][$k]['catchUp'] = $catchUp;
+            }
+            // The season track: points for the account, and any looks the new tiers bring.
+            if (($season = Seasons::current($b->endsAt)) && !$h->user->demo) {
+                $u = $h->user;
+                $sp = $u->seasonPoints ?? [];
+                $before = $sp[$season['id']] ?? 0;
+                $sp[$season['id']] = $before + Seasons::points($rep, $b->mode, $b->tier);
+                $u->seasonPoints = $sp;
+                [$t0, $t1] = [Seasons::tier($season, $before), Seasons::tier($season, $sp[$season['id']])];
+                if ($t1 > $t0) {
+                    (new Roster($this->em))->grant($u, Seasons::rewards($season, $t0, $t1, in_array($season['id'], $u->seasonPremium ?? [], true)));
+                    $rep['heroes'][$k]['seasonTier'] = $t1;
+                }
             }
             // Heritage: Renown for running with your own race, twice for your own culture.
             $others = [];

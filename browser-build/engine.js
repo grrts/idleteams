@@ -294,7 +294,7 @@
     generate(r, ilvl, rarity, slot = null, base = null, prefer = []) {
       const slots = keys(D.SLOTS);
       slot = slot || slots[r.getInt(0, slots.length - 1)];
-      const bases = keys(D.BASES[slot]);
+      const bases = keys(D.DROP_BASES[slot]);
       base = base || bases[r.getInt(0, bases.length - 1)];
       let [, nAffix, sockets] = D.RARITIES[rarity];
       if (['ring1', 'ring2', 'amulet', 'trinket'].includes(slot)) nAffix = Math.min(4, nAffix + 1);

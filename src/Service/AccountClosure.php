@@ -44,6 +44,7 @@ class AccountClosure
                 'requests' => $q(PartyRequest::class, ['hero' => $h]),
             ], $heroes),
             'reportsMade' => $q(ChatReport::class, ['reporter' => $u]),
+            'purchases' => $q(\App\Entity\Purchase::class, ['user' => $u]),
             'notices' => $q(Notice::class, ['user' => $u]),
             'pushSubscriptions' => array_map(fn (PushSubscription $s) => ['endpoint' => parse_url($s->endpoint, PHP_URL_HOST), 'createdAt' => $s->createdAt], $this->em->getRepository(PushSubscription::class)->findBy(['user' => $u])),
         ];
@@ -81,6 +82,8 @@ class AccountClosure
         foreach ([[ChatReport::class, 'reporter'], [ChatReport::class, 'target'], [Notice::class, 'user'], [PushSubscription::class, 'user']] as [$class, $field]) {
             $this->gone($class, $field, [$u]);
         }
+        // Purchases stay for the tax records, without the account.
+        $this->em->createQueryBuilder()->update(\App\Entity\Purchase::class, 'p')->set('p.user', 'NULL')->where('p.user = :u')->setParameter('u', $u)->getQuery()->execute();
         $this->em->remove($u);
         $this->em->flush();
     }

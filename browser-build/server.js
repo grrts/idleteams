@@ -845,7 +845,7 @@
   const craftCost = (level) => ({ gold: Math.round(20 * 1.045 ** (2 * level)), materials: 4 + Math.floor(level / 4) });
   function craft(h, slot, base) {
     if (!D.BASES[slot] || slot === 'ring2') fail('Pick a slot.');
-    if (base !== null && !D.BASES[slot][base]) fail('Pick a style for that slot.');
+    if (base !== null && !D.DROP_BASES[slot][base]) fail('Pick a style for that slot.');
     const cost = craftCost(h.level); pay(h, cost.gold, cost.materials);
     const r = new Rng(rnd(1, 2000000000)), x = r.getFloat(0, 1), rarity = x < 0.03 ? 'epic' : x < 0.25 ? 'rare' : 'common';
     return ins('items', Object.assign(itemRecord(I.generate(r, 2 * h.level, rarity, slot, base)), { owner: h.id }));
