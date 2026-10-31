@@ -16,6 +16,11 @@ class Item
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     public ?Hero $owner = null;
 
+    /** In a guild bank (then it has no owner). */
+    #[ORM\ManyToOne(targetEntity: Guild::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    public ?Guild $bank = null;
+
     #[ORM\Column(length: 12)]
     public string $slot = 'weapon';
 

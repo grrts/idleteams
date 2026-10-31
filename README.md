@@ -56,7 +56,11 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   may step down to any tier up to one past the best cleared), and item levels and rewards grow with the tier. The
   week's affixes (Monday to Monday, UTC) change fights: Fortified or Tyrannical from tier 1, and Volcanic, Raging,
   Bolstering or Quaking from tier 4. Every fifth new best posts to the guild. Rules in `src/Game/Modes.php`.
-- Guilds and chat (tavern, guild and group channels).
+- Guilds and chat (tavern, guild and group channels). The guild hall: a bank for items and gold (members take two
+  items a day, the leader and officers anything, and every move is logged), a notice board, ranks (leader and
+  officers), and three weekly goals from a pool scaled to the guild's size that members' runs fill; a finished goal
+  pays everyone who helped. Guild levels open rooms (notice board, trophy wall, a bigger vault, guild tags in chat, a
+  Mythic gallery), never combat power. Rules in `src/Game/GuildHall.php`.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

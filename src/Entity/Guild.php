@@ -30,6 +30,32 @@ class Guild
     #[ORM\Column]
     public int $createdAt = 0;
 
+    /** Pinned by the leader or an officer (the notice board, guild level 2). */
+    #[ORM\Column(length: 400, options: ['default' => ''])]
+    public string $notice = '';
+
+    /** Gold in the bank. */
+    #[ORM\Column(type: 'bigint', options: ['default' => 0])]
+    public string $bankGold = '0';
+
+    /** The latest bank moves, newest first: [time, hero name, hero id, what, item name or gold]. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $bankLog = null;
+
+    /** The week the goals belong to (src/Game/Modes.php week), the goals, and who helped: hero id => points. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $week = 0;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $goals = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $helpers = null;
+
+    /** Records for the trophy wall: bestMythic [tier, dungeon, names], heroic clears, bosses, goals finished. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $trophies = null;
+
     /** @var Collection<int, Hero> */
     #[ORM\OneToMany(targetEntity: Hero::class, mappedBy: 'guild')]
     public Collection $members;

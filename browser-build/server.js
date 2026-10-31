@@ -231,8 +231,9 @@
         const now = R.signatureMastery(h.signatureXp);
         if (Math.floor(now / 10) > Math.floor(before / 10)) post(heroChannel(h), h.name + "'s " + (h.signatureName || R.classSkills(h.cls)[h.signature][0]) + ' reached Mastery ' + now + '.', { type: 'hero', hero: h.id });
       }
-      earnMarks(h, k, rep, group, dungeon.id);
-      const g = guildOf(h); if (g) g.xp += Math.round(units);
+      const newMarks = earnMarks(h, k, rep, group, dungeon.id);
+      const g = guildOf(h);
+      if (g) { g.xp += Math.round(units); guildProgress(h, GH.gains(rep, mode, tier, heroes.filter((o) => o.guild === h.guild).length, newMarks), b.endsAt); }
     });
     p.battlesTogether++;
 
@@ -250,6 +251,10 @@
       // The ladder: a clear opens the next tier and the group moves up to it.
       const best = p.mythicBest || 0;
       p.mythicBest = Math.max(best, tier); p.mythicTier = Math.min(tier + 1, p.mythicBest + 1);
+      for (const h of heroes) {
+        const g = guildOf(h);
+        if (g && ((g.trophies || {}).bestMythic || [0])[0] < tier) g.trophies = Object.assign({ heroic: 0, bosses: 0, goals: 0 }, g.trophies, { bestMythic: [tier, dungeon.name, heroes.filter((o) => o.guild === h.guild).map((o) => o.name)] });
+      }
       line += ' Next: Mythic ' + p.mythicTier + '.';
       if (p.mythicBest > best && p.mythicBest % 5 === 0) {
         const byGuild = {};
@@ -277,12 +282,91 @@
     const what = h.path ? D.CLASSES[h.cls].paths[h.path][0] : 'their Path';
     post(heroChannel(h), 'Oath Day: ' + h.name + ' swore to ' + what + '.', { type: 'hero', hero: h.id });
   }
+  // ------------------------------------------------------------------ guild hall (src/Game/GuildHall.php, GuildActions.php)
+  const GH = {
+    ROOMS: [[1, 'hall', 'Great hall', 'The roster, the guild channel and the bank.'], [2, 'notice', 'Notice board', 'The leader and officers pin a notice every member sees.'], [3, 'trophies', 'Trophy wall', "The guild's records: its best Mythic, its Heroic clears and its boss count."], [4, 'vault', 'Deep vault', 'The bank grows by 10 slots at every guild level from here.'], [6, 'banners', 'Banner hall', "The guild tag shows beside members' names in chat."], [8, 'gallery', 'Mythic gallery', "Every member's best Mythic tier, ranked."]],
+    MEMBER_WITHDRAWALS: 2, LOG_SIZE: 30,
+    GOALS: { clears: ['Clear {n} dungeons', 3, 10], bosses: ['Defeat {n} bosses', 8, 25], heroic: ['Clear {n} Heroic or Mythic runs', 1, 3], mythic: ['Clear {n} Mythic tiers (a tier 4 clear counts 4)', 2, 6], together: ['Run {n} times with three or more guildmates in the group', 1, 3], marks: ['Earn {n} Marks', 1, 4] },
+    opened: (level) => GH.ROOMS.filter((r) => r[0] <= level).map((r) => r[1]),
+    bankSize: (level) => Math.min(100, 20 + 10 * Math.max(0, level - 3)),
+    goals(week, gid, n) {
+      const r = new Rng(week * 7919 + gid), ids = keys(GH.GOALS);
+      for (let i = ids.length - 1; i > 0; i--) { const j = r.getInt(0, i); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+      return ids.slice(0, 3).sort().map((id) => ({ id, target: Math.max(GH.GOALS[id][2], GH.GOALS[id][1] * n), progress: 0, done: false }));
+    },
+    label: (g) => GH.GOALS[g.id][0].replace('{n}', g.target),
+    reward: (level) => ({ gold: Math.round(40 * 1.045 ** (2 * level)), materials: 20 + level, guildXp: 60 }),
+    gains: (rep, mode, tier, mates, marks) => ({ clears: rep.wiped ? 0 : 1, bosses: rep.bossesKilled, heroic: !rep.wiped && mode !== 'normal' ? 1 : 0, mythic: !rep.wiped && mode === 'mythic' ? tier : 0, together: mates >= 3 ? 1 : 0, marks }),
+  };
+  function guildWeek(g, now = time()) {
+    const week = Md.week(now);
+    if (g.week !== week || !g.goals) { g.week = week; g.goals = GH.goals(week, g.id, Math.max(1, guildMembers(g).length)); g.helpers = {}; }
+  }
+  function guildProgress(h, gains, at) {
+    const g = guildOf(h); guildWeek(g, at);
+    const t = Object.assign({ heroic: 0, bosses: 0, goals: 0, bestMythic: null }, g.trophies);
+    t.heroic += gains.heroic; t.bosses += gains.bosses;
+    for (const goal of g.goals) {
+      const add = gains[goal.id] || 0;
+      if (goal.done || add <= 0) continue;
+      goal.progress = Math.min(goal.target, goal.progress + add);
+      g.helpers[h.id] = (g.helpers[h.id] || 0) + add;
+      if (goal.progress >= goal.target) {
+        goal.done = true; t.goals++; g.xp += GH.reward(1).guildXp;
+        const paid = guildMembers(g).filter((m) => g.helpers[m.id]);
+        for (const m of paid) { const pay = GH.reward(m.level); m.gold += pay.gold; m.materials += pay.materials; }
+        post('guild:' + g.id, 'Weekly goal done: ' + GH.label(goal) + '. ' + paid.length + ' helped and were paid.');
+      }
+    }
+    g.trophies = t;
+  }
+  function guildLog(g, h, what, detail) { g.bankLog = [[time(), h.name, h.id, what, detail], ...(g.bankLog || [])].slice(0, GH.LOG_SIZE); }
+  const takenToday = (g, h) => (g.bankLog || []).filter((e) => e[0] >= time() - 86400 && e[2] === h.id && e[3] === 'out').length;
+  function guildBank(h, action, b) {
+    const g = guildOf(h) || fail('You are not in a guild.'), officer = h.guildRank !== 'member';
+    if (action === 'deposit') {
+      const i = must('items', b.id);
+      if (i.owner !== h.id) fail('That is not yours.');
+      if (db.items.filter((x) => x.bank === g.id).length >= GH.bankSize(guildLevel(g.xp))) fail("The bank is full. It grows with the guild's level.");
+      Object.assign(i, { equipped: null, price: null, owner: null, bank: g.id }); guildLog(g, h, 'in', I.name(I.spec(i)));
+    } else if (action === 'withdraw') {
+      const i = must('items', b.id);
+      if (i.bank !== g.id) fail("That is not in your guild's bank.");
+      if (!officer && takenToday(g, h) >= GH.MEMBER_WITHDRAWALS) fail('Members may take ' + GH.MEMBER_WITHDRAWALS + ' items a day; officers and the leader have no limit.');
+      Object.assign(i, { bank: null, owner: h.id }); guildLog(g, h, 'out', I.name(I.spec(i)));
+    } else if (action === 'goldIn') {
+      const gold = Math.trunc(+b.gold || 0);
+      if (gold < 1 || h.gold < gold) fail('You do not have that much gold.');
+      h.gold -= gold; g.bankGold = (g.bankGold || 0) + gold; guildLog(g, h, 'goldIn', String(gold));
+    } else if (action === 'goldOut') {
+      const gold = Math.trunc(+b.gold || 0);
+      if (!officer) fail('Only the leader and officers can do that.');
+      if (gold < 1 || (g.bankGold || 0) < gold) fail('The bank does not hold that much gold.');
+      g.bankGold -= gold; h.gold += gold; guildLog(g, h, 'goldOut', String(gold));
+    } else fail('Not found.');
+  }
+  function guildNotice(h, text) {
+    const g = guildOf(h) || fail('You are not in a guild.');
+    if (h.guildRank === 'member') fail('Only the leader and officers can do that.');
+    if (!GH.opened(guildLevel(g.xp)).includes('notice')) fail('The notice board opens at guild level 2.');
+    g.notice = String(text || '').trim().slice(0, 400);
+  }
+  function guildRank(leader, who, rank) {
+    const g = guildOf(leader) || fail('You are not in a guild.');
+    if (leader.guildRank !== 'leader') fail('Only the leader changes ranks.');
+    if (who.guild !== g.id || who === leader) fail('Pick another member of your guild.');
+    if (!['leader', 'officer', 'member'].includes(rank)) fail('Ranks are leader, officer and member.');
+    who.guildRank = rank; if (rank === 'leader') leader.guildRank = 'officer';
+    post('guild:' + g.id, who.name + ' is now ' + (rank === 'leader' ? 'the guild leader' : rank === 'officer' ? 'an officer' : 'a member') + '.');
+  }
+
   function earnMarks(h, k, rep, group, dungeon) {
     const fresh = uniq(E.Marks.fromBattle({ level: h.level, career: h.career }, k, rep, group, dungeon, Object.keys(D.DUNGEONS))).filter((m) => !h.marks.includes(m));
     h.marks = [...h.marks, ...fresh];
     // New marks are shown off where the hero's people will see them: the guild, else the group.
     const channel = h.guild ? 'guild:' + h.guild : h.party ? 'party:' + h.party : null;
     if (channel && !(userOf(h) || {}).demo) for (const m of fresh) post(channel, h.name + ' earned the mark ' + (D.MARKS[m] || [m])[0] + '.', { type: 'mark', hero: h.id, mark: m });
+    return fresh.length;
   }
 
   function roll(b, h, idx, choice) {
@@ -352,6 +436,7 @@
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, dyes: D.DYES, metals: D.METALS, dyeCost: D.DYE_COST, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
+      guildHall: { rooms: GH.ROOMS, memberWithdrawals: GH.MEMBER_WITHDRAWALS },
       modes: { affixes: D.MODE_AFFIXES, mythicLevel: Md.MYTHIC_LEVEL, secondAt: Md.SECOND_AT, weekly: Md.weekly(Md.week(time())) },
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
@@ -426,9 +511,21 @@
     return { id: t.id, kind: t.kind, text: t.text, roles: t.roles, createdAt: t.createdAt, author: heroCard(find('heroes', t.author)), party: p ? { id: p.id, name: p.name, members: members(p).map(heroCard) } : null };
   }
   const guildLevel = (xp) => 1 + Math.floor(Math.sqrt(xp / 20));
-  function presentGuild(g, roster = false) {
-    const ms = guildMembers(g), out = { id: g.id, name: g.name, tag: g.tag, motto: g.motto, xp: g.xp, level: guildLevel(g.xp), size: ms.length, max: GUILD_MAX };
-    if (roster) out.members = ms.sort((a, b) => b.level - a.level).map((m) => Object.assign(heroCard(m), { rank: m.guildRank, lastSeen: isDemo(m) ? null : userOf(m).lastSeenAt }));
+  function presentGuild(g, roster = false, viewer = null) {
+    const ms = guildMembers(g), level = guildLevel(g.xp), out = { id: g.id, name: g.name, tag: g.tag, motto: g.motto, xp: g.xp, level, size: ms.length, max: GUILD_MAX, nextLevelXp: 20 * level ** 2 };
+    if (roster) {
+      out.members = ms.sort((a, b) => b.level - a.level).map((m) => Object.assign(heroCard(m), { rank: m.guildRank, lastSeen: isDemo(m) ? null : userOf(m).lastSeenAt, mythicBest: (m.career || {}).mythicBest || 0 }));
+      guildWeek(g);
+      const rooms = GH.opened(level);
+      out.hall = {
+        rooms, notice: rooms.includes('notice') ? g.notice || '' : null,
+        bank: db.items.filter((i) => i.bank === g.id).sort((a, b) => b.id - a.id).map((i) => presentItem(i, viewer)), bankSize: GH.bankSize(level), bankGold: g.bankGold || 0,
+        log: g.bankLog || [], taken: viewer ? takenToday(g, viewer) : 0,
+        goals: g.goals.map((x) => Object.assign({}, x, { label: GH.label(x) })), helped: viewer ? (g.helpers || {})[viewer.id] || 0 : 0,
+        reward: viewer ? GH.reward(viewer.level) : null, weekEnds: (Md.week(time()) + 1) * 604800 + 345600,
+        trophies: rooms.includes('trophies') ? Object.assign({ heroic: 0, bosses: 0, goals: 0, bestMythic: null }, g.trophies) : null,
+      };
+    }
     return out;
   }
   // Inspect (Present::inspect): locked choices, carved attributes, key stats, gear, marks and career.
@@ -452,7 +549,7 @@
     if (card && (card.type === 'hero' || card.type === 'mark') && card.hero) card = Object.assign({}, card, { chip: heroChip(find('heroes', card.hero)) });
     if (card && card.type === 'mark') card = Object.assign({}, card, { markName: (D.MARKS[card.mark] || [card.mark])[0], markText: (D.MARKS[card.mark] || ['', ''])[1] });
     if (card && card.type === 'item' && card.spec) card = Object.assign({}, card, { spec: Object.assign({}, card.spec, { tint: I.tint(card.spec) }) });
-    return { id: m.id, channel: m.channel, body: m.body, card, at: m.createdAt, author: a ? { id: a.id, name: a.name, cls: a.cls } : null };
+    return { id: m.id, channel: m.channel, body: m.body, card, at: m.createdAt, author: a ? { id: a.id, name: a.name, cls: a.cls, tag: a.guild && GH.opened(guildLevel((find('guilds', a.guild) || { xp: 0 }).xp)).includes('banners') ? find('guilds', a.guild).tag : null } : null };
   }
   function presentBattle(b, viewer, withTimeline) {
     const chest = b.chest.map((c, idx) => ({
@@ -918,7 +1015,7 @@
     const rest = guildMembers(g);
     if (h.guildRank === 'leader' && rest.length) rest[0].guildRank = 'leader';
     h.guildRank = 'member';
-    if (!rest.length) del('guilds', g); else post('guild:' + g.id, h.name + ' left the guild.');
+    if (!rest.length) { for (const i of db.items.filter((x) => x.bank === g.id)) Object.assign(i, { bank: null, owner: h.id }); h.gold += g.bankGold || 0; del('guilds', g); } else post('guild:' + g.id, h.name + ' left the guild.');
   }
   function channels(h) {
     const out = { tavern: 'Tavern' };
@@ -1126,10 +1223,13 @@
     }],
     ['POST', /^\/tavern$/, (m, b) => presentPost(postTavern(hero(), String(b.kind || ''), String(b.text || ''), [].concat(b.roles || [])))],
     ['DELETE', /^\/tavern\/(\d+)$/, (m) => { removeTavern(hero(), must('posts', m[1])); return { ok: true }; }],
-    ['GET', /^\/guilds$/, () => { const h = hero(), g = guildOf(h); return { mine: g ? presentGuild(g, true) : null, all: [...db.guilds].sort((a, c) => c.xp - a.xp).slice(0, 50).map((x) => presentGuild(x)) }; }],
+    ['GET', /^\/guilds$/, () => { const h = hero(), g = guildOf(h); return { mine: g ? presentGuild(g, true, h) : null, all: [...db.guilds].sort((a, c) => c.xp - a.xp).slice(0, 50).map((x) => presentGuild(x)) }; }],
     ['POST', /^\/guild\/create$/, (m, b) => { createGuild(hero(), b); return { ok: true }; }],
     ['POST', /^\/guild\/(\d+)\/join$/, (m) => { joinGuild(hero(), must('guilds', m[1])); return { ok: true }; }],
     ['POST', /^\/guild\/leave$/, () => { leaveGuild(hero()); return { ok: true }; }],
+    ['POST', /^\/guild\/bank\/(deposit|withdraw|goldIn|goldOut)$/, (m, b) => { guildBank(hero(), m[1], b); return { ok: true }; }],
+    ['POST', /^\/guild\/notice$/, (m, b) => { guildNotice(hero(), b.notice); return { ok: true }; }],
+    ['POST', /^\/guild\/rank$/, (m, b) => { guildRank(hero(), must('heroes', b.hero), String(b.rank || '')); return { ok: true }; }],
     ['GET', /^\/chat$/, (m, b, q) => readChat(hero(), q.get('channel') || 'tavern', int(q.get('after'))).map(presentChat)],
     ['POST', /^\/chat\/(\d+)\/report$/, (m) => { hero(); must('chat', m[1]); return { ok: true }; }],
     ['POST', /^\/block$/, (m, b) => { const h = hero(); return block(h, b.hero !== undefined ? must('heroes', b.hero) : (db.heroes.find((x) => x.name === String(b.name || '').trim()) || fail('No hero called ' + b.name + '.'))); }],

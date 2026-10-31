@@ -4,11 +4,13 @@ namespace App\Service;
 
 use App\Entity\Battle;
 use App\Entity\ChatMessage;
+use App\Entity\Guild;
 use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
 use App\Game\Combatants;
 use App\Game\Dungeons;
+use App\Game\GuildHall;
 use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Marks;
@@ -332,9 +334,11 @@ class Game
             }
             $this->addXp($h, $xp);
             $this->addSignatureXp($h, (int) ($rep['heroes'][$k]['sigXp'] ?? 0));
-            $this->earnMarks($h, $k, $rep, $group, $dungeon['id']);
+            $newMarks = $this->earnMarks($h, $k, $rep, $group, $dungeon['id']);
             if ($h->guild) {
                 $h->guild->xp += (int) round($units);
+                $mates = count(array_filter($heroes, fn (Hero $o) => $o->guild === $h->guild));
+                $this->guildProgress($h, GuildHall::gains($rep, $b->mode, $b->tier, $mates, $newMarks), $b->endsAt);
             }
         }
         $b->party->battlesTogether++;
@@ -367,6 +371,13 @@ class Game
             $best = $p->mythicBest;
             $p->mythicBest = max($p->mythicBest, $b->tier);
             $p->mythicTier = min($b->tier + 1, $p->mythicBest + 1);
+            foreach ($heroes as $h) {
+                $t = $h->guild?->trophies ?? [];
+                if ($h->guild && ($t['bestMythic'][0] ?? 0) < $b->tier) {
+                    $t['bestMythic'] = [$b->tier, $dungeon['name'], array_values(array_map(fn (Hero $o) => $o->name, array_filter($heroes, fn (Hero $o) => $o->guild === $h->guild)))];
+                    $h->guild->trophies = $t + ['heroic' => 0, 'bosses' => 0, 'goals' => 0];
+                }
+            }
             $line .= sprintf(' Next: Mythic %d.', $p->mythicTier);
             if ($p->mythicBest > $best && $p->mythicBest % 5 === 0) {
                 $byGuild = [];
@@ -444,7 +455,7 @@ class Game
         $this->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('Oath Day: %s swore to %s.', $h->name, $what), ['type' => 'hero', 'hero' => $h->id]);
     }
 
-    private function earnMarks(Hero $h, int $k, array $rep, array $group, string $dungeon): void
+    private function earnMarks(Hero $h, int $k, array $rep, array $group, string $dungeon): int
     {
         $hero = ['level' => $h->level, 'role' => $h->role(), 'career' => $h->career];
         $new = array_values(array_diff(array_unique(Marks::fromBattle($hero, $k, $rep, $group, $dungeon, array_keys(Dungeons::all()))), $h->marks));
@@ -456,6 +467,60 @@ class Game
                 $this->post($channel, sprintf('%s earned the mark %s.', $h->name, Marks::ALL[$mark][0] ?? $mark), ['type' => 'mark', 'hero' => $h->id, 'mark' => $mark]);
             }
         }
+
+        return count($new);
+    }
+
+    // ------------------------------------------------------------------ guild week
+
+    /** Starts the guild's week: new goals when the week has turned. */
+    public function guildWeek(Guild $g, ?int $now = null): void
+    {
+        $week = Modes::week($now ?? time());
+        if ($g->week !== $week || $g->goals === null) {
+            $g->week = $week;
+            $g->goals = GuildHall::goals($week, (int) $g->id, max(1, $g->members->count()));
+            $g->helpers = [];
+        }
+    }
+
+    /** A member's run adds to the week's goals; a goal that fills pays everyone who helped. */
+    private function guildProgress(Hero $h, array $gains, int $at): void
+    {
+        $g = $h->guild;
+        $this->guildWeek($g, $at);
+        $goals = $g->goals;
+        $helpers = $g->helpers ?? [];
+        $t = ($g->trophies ?? []) + ['heroic' => 0, 'bosses' => 0, 'goals' => 0, 'bestMythic' => null];
+        $t['heroic'] += $gains['heroic'];
+        $t['bosses'] += $gains['bosses'];
+        foreach ($goals as &$goal) {
+            $add = $gains[$goal['id']] ?? 0;
+            if ($goal['done'] || $add <= 0) {
+                continue;
+            }
+            $goal['progress'] = min($goal['target'], $goal['progress'] + $add);
+            $helpers[(string) $h->id] = ($helpers[(string) $h->id] ?? 0) + $add;
+            if ($goal['progress'] >= $goal['target']) {
+                $goal['done'] = true;
+                ++$t['goals'];
+                $g->xp += GuildHall::reward(1)['guildXp'];
+                $names = [];
+                foreach ($g->members as $m) {
+                    if (isset($helpers[(string) $m->id])) {
+                        $pay = GuildHall::reward($m->level);
+                        $m->gold = (string) ((int) $m->gold + $pay['gold']);
+                        $m->materials += $pay['materials'];
+                        $names[] = $m->name;
+                    }
+                }
+                $this->post('guild:'.$g->id, sprintf('Weekly goal done: %s. %d helped and were paid.', GuildHall::label($goal), count($names)));
+            }
+        }
+        unset($goal);
+        $g->goals = $goals;
+        $g->helpers = $helpers;
+        $g->trophies = $t;
     }
 
     // ------------------------------------------------------------------ chest

@@ -14,6 +14,7 @@ use App\Entity\TavernPost;
 use App\Entity\User;
 use App\Game\Art;
 use App\Game\Combatants;
+use App\Game\GuildHall;
 use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Items;
@@ -51,6 +52,7 @@ class Present
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
+            'guildHall' => ['rooms' => GuildHall::ROOMS, 'memberWithdrawals' => GuildHall::MEMBER_WITHDRAWALS],
             'modes' => ['affixes' => Modes::AFFIXES, 'mythicLevel' => Modes::MYTHIC_LEVEL, 'secondAt' => Modes::SECOND_AT, 'weekly' => Modes::weekly(Modes::week(time()))],
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
@@ -302,13 +304,27 @@ class Present
         ];
     }
 
-    public function guild(Guild $g, bool $roster = false): array
+    public function guild(Guild $g, bool $roster = false, ?Hero $viewer = null): array
     {
-        $out = ['id' => $g->id, 'name' => $g->name, 'tag' => $g->tag, 'motto' => $g->motto, 'xp' => $g->xp, 'level' => $this->guildLevel($g->xp), 'size' => $g->members->count(), 'max' => Guild::MAX_MEMBERS];
+        $level = $this->guildLevel($g->xp);
+        $out = ['id' => $g->id, 'name' => $g->name, 'tag' => $g->tag, 'motto' => $g->motto, 'xp' => $g->xp, 'level' => $level, 'size' => $g->members->count(), 'max' => Guild::MAX_MEMBERS,
+            'nextLevelXp' => 20 * $level ** 2];
         if ($roster) {
             $members = $g->members->toArray();
             usort($members, fn (Hero $a, Hero $b) => $b->level <=> $a->level);
-            $out['members'] = array_map(fn (Hero $m) => $this->heroCard($m) + ['rank' => $m->guildRank, 'lastSeen' => $m->user->demo ? null : $m->user->lastSeenAt], $members);
+            $out['members'] = array_map(fn (Hero $m) => $this->heroCard($m) + ['rank' => $m->guildRank, 'lastSeen' => $m->user->demo ? null : $m->user->lastSeenAt, 'mythicBest' => $m->career['mythicBest'] ?? 0], $members);
+            // The hall: rooms by level, the notice, the bank, the week's goals and the trophy wall.
+            $this->game->guildWeek($g);
+            $rooms = GuildHall::opened($level);
+            $bank = $this->em->getRepository(Item::class)->findBy(['bank' => $g], ['id' => 'DESC']);
+            $out['hall'] = [
+                'rooms' => $rooms, 'notice' => in_array('notice', $rooms, true) ? $g->notice : null,
+                'bank' => array_map(fn (Item $i) => $this->item($i, $viewer), $bank), 'bankSize' => GuildHall::bankSize($level), 'bankGold' => (int) $g->bankGold,
+                'log' => $g->bankLog ?? [], 'taken' => $viewer ? count(array_filter($g->bankLog ?? [], fn ($e) => $e[0] >= time() - 86400 && $e[2] === $viewer->id && $e[3] === 'out')) : 0,
+                'goals' => array_map(fn ($x) => $x + ['label' => GuildHall::label($x)], $g->goals ?? []), 'helped' => $viewer ? ($g->helpers[(string) $viewer->id] ?? 0) : 0,
+                'reward' => $viewer ? GuildHall::reward($viewer->level) : null, 'weekEnds' => (Modes::week(time()) + 1) * 604800 + 345600,
+                'trophies' => in_array('trophies', $rooms, true) ? ($g->trophies ?? []) + ['heroic' => 0, 'bosses' => 0, 'goals' => 0, 'bestMythic' => null] : null,
+            ];
         }
 
         return $out;
@@ -352,7 +368,7 @@ class Present
             $card['markText'] = Marks::ALL[$card['mark']][1] ?? '';
         }
 
-        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls] : null];
+        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls, 'tag' => $m->author->guild && in_array('banners', GuildHall::opened(GuildHall::level($m->author->guild->xp)), true) ? $m->author->guild->tag : null] : null];
     }
 
     /** A battle for playback (running) or for its report and chest (chest, done). */

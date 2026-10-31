@@ -20,7 +20,7 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class Social
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game, private Notifier $notifier)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Notifier $notifier, private GuildActions $guilds)
     {
     }
 
@@ -387,6 +387,7 @@ class Social
         }
         $h->guildRank = 'member';
         if ($g->members->isEmpty()) {
+            $this->guilds->emptyInto($g, $h);
             $this->em->remove($g);
         } else {
             $this->game->post('guild:'.$g->id, sprintf('%s left the guild.', $h->name));

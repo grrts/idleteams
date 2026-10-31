@@ -949,3 +949,10 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .ws textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
 .ws textarea.bad { outline: 2px solid #e04a4a; }
 .ws .warn { color: #ffb08a; }
+
+/* guild hall */
+ul.plain, ol.plain { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.panel.locked { opacity: .5; }
+.msg .chip.tag { font-size: .62rem; padding: 0 4px; margin-right: 4px; vertical-align: 1px; }
+.bar.gbar { display: block; min-width: 120px; }
+.bar.gbar > i { background: linear-gradient(90deg, #ffb340, var(--gold)); }

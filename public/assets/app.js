@@ -1399,14 +1399,42 @@
   function guildView() {
     const g = S.guilds;
     if (!g) return '<div class="panel muted">Loading…</div>';
-    if (g.mine) {
-      const m = g.mine;
-      return '<div class="stack"><div class="panel banner-head"><div class="crest">' + esc(m.tag) + '</div><div class="stack tight"><div class="eyebrow">Guild level ' + m.level + ' · ' + m.size + '/' + m.max + ' members</div><h1>' + esc(m.name) + '</h1><p class="muted"><q>' + esc(m.motto) + '</q></p><p class="small muted">Guild XP comes from every run by every member. Guild levels unlock looks, never combat power.</p><div><button class="small danger" data-act="leaveGuild">Leave guild</button></div></div></div>' +
-        '<div class="panel"><h2>Members</h2><div class="cards">' + m.members.map((x) => memberCard(x, '<div class="row" style="gap:6px;margin-top:4px">' + (x.rank === 'leader' ? '<span class="chip gold">Leader</span>' : '') + '<span class="tiny muted">' + (x.party ? 'In a group' : 'Looking for a group') + '</span></div>')).join('') + '</div></div></div>';
-    }
+    if (g.mine) return guildHall(g.mine);
     return '<div class="stack"><div class="panel"><h2>Guilds</h2><p class="small" style="margin-bottom:10px">Guilds are where people meet, chat and form groups. Join one, or found your own for 100 gold.</p><div class="cards">' +
       g.all.map((x) => '<div class="panel tight banner-head" style="grid-template-columns:auto minmax(0,1fr)"><div class="crest" style="width:52px;height:64px;font-size:1rem">' + esc(x.tag) + '</div><div class="stack tight"><b class="num" style="font-size:1.1rem">' + esc(x.name) + '</b><span class="small muted">Level ' + x.level + ' · ' + x.size + '/' + x.max + '</span><span class="small">' + esc(x.motto) + '</span><div><button class="small primary" data-act="joinGuild" data-id="' + x.id + '">Join</button></div></div></div>').join('') + '</div></div>' +
       '<div class="panel"><h3>Found a guild</h3><div class="row"><input id="gName" placeholder="Name" style="width:200px" aria-label="Guild name"><input id="gTag" placeholder="Tag" maxlength="4" style="width:80px" aria-label="Tag"><input id="gMotto" placeholder="Motto" style="flex:1;min-width:160px" aria-label="Motto"><button class="primary" data-act="createGuild">Found (100g)</button></div></div></div>';
+  }
+
+  // The guild hall: the banner, the notice board, the week's goals, the bank, the trophy wall, rooms and members.
+  function guildHall(m) {
+    const H = m.hall, me = S.st.hero, rank = (m.members.find((x) => x.id === me.id) || {}).rank || 'member', officer = rank !== 'member';
+    const room = (id) => H.rooms.includes(id), cfgRooms = S.cfg.guildHall.rooms;
+    const pct = (a, b) => Math.min(100, (100 * a) / Math.max(1, b));
+    const days = Math.max(0, Math.ceil((H.weekEnds - Date.now() / 1000) / 86400));
+    const head = '<div class="panel banner-head"><div class="crest">' + esc(m.tag) + '</div><div class="stack tight"><div class="eyebrow">Guild level ' + m.level + ' · ' + m.size + '/' + m.max + ' members · you are ' + (rank === 'leader' ? 'the leader' : 'a' + (rank === 'officer' ? 'n officer' : ' member')) + '</div><h1>' + esc(m.name) + '</h1><p class="muted"><q>' + esc(m.motto) + '</q></p>' +
+      '<div class="row"><span class="bar gbar" style="width:220px"><i style="width:' + pct(m.xp - 20 * (m.level - 1) ** 2, m.nextLevelXp - 20 * (m.level - 1) ** 2) + '%"></i></span><span class="small muted">' + fmt(m.xp) + ' / ' + fmt(m.nextLevelXp) + ' guild XP to level ' + (m.level + 1) + '</span></div>' +
+      '<p class="small muted">Guild XP comes from every run by every member and from weekly goals. Levels open rooms in the hall, never combat power.</p><div><button class="small danger" data-act="leaveGuild">Leave guild</button></div></div></div>';
+    const notice = room('notice') ? '<div class="panel"><h3>Notice board</h3>' + (officer ? '<textarea id="gNotice" rows="3" maxlength="400" style="width:100%" aria-label="Notice">' + esc(H.notice || '') + '</textarea><div class="row"><button class="small" data-act="guildNotice">Pin notice</button></div>' : '<p>' + (H.notice ? esc(H.notice) : '<span class="muted">Nothing pinned.</span>') + '</p>') + '</div>' : '';
+    const goals = '<div class="panel"><div class="head"><h3>This week\'s goals</h3><span class="small muted">' + days + ' day' + (days === 1 ? '' : 's') + ' left</span></div><div class="stack tight">' +
+      H.goals.map((x) => '<div><div class="row between"><span>' + (x.done ? '<b class="good">Done:</b> ' : '') + esc(x.label) + '</span><span class="small muted">' + fmt(x.progress) + ' / ' + fmt(x.target) + '</span></div><span class="bar gbar"><i style="width:' + pct(x.progress, x.target) + '%"></i></span></div>').join('') +
+      '</div><p class="small muted" style="margin-top:8px">Every run by a member counts. Each finished goal pays everyone who helped this week ' + (H.reward ? fmt(H.reward.gold) + ' gold and ' + H.reward.materials + ' materials (at your level)' : 'gold and materials') + ', and the guild ' + 60 + ' XP. You have helped ' + fmt(H.helped) + ' time' + (H.helped === 1 ? '' : 's') + '.</p></div>';
+    const bag = S.st.inventory.filter((i) => !i.equipped && i.price == null);
+    const left = rank === 'member' ? Math.max(0, S.cfg.guildHall.memberWithdrawals - H.taken) : null;
+    const logLine = (e) => '<li class="small"><span class="muted">' + new Date(e[0] * 1000).toLocaleString() + '</span> ' + esc(e[1]) + ' ' + ({ in: 'put in', out: 'took', goldIn: 'put in', goldOut: 'took' }[e[3]]) + ' ' + (e[3].startsWith('gold') ? fmt(+e[4]) + ' gold' : esc(e[4])) + '</li>';
+    const bank = '<div class="panel"><div class="head"><h3>Bank</h3><span class="small muted">' + H.bank.length + ' / ' + H.bankSize + ' slots · ' + fmt(H.bankGold) + ' gold</span></div>' +
+      '<div class="row"><select id="gDeposit" aria-label="Item to put in"><option value="">Put an item in…</option>' + bag.map((i) => '<option value="' + i.id + '">' + esc(itemName(i)) + ' (ilvl ' + i.ilvl + ')</option>').join('') + '</select><button class="small" data-act="guildDeposit">Put in</button>' +
+      '<input id="gGold" type="number" min="1" placeholder="Gold" style="width:110px" aria-label="Gold"><button class="small" data-act="guildGold" data-a="goldIn">Put gold in</button>' + (officer ? '<button class="small" data-act="guildGold" data-a="goldOut">Take gold</button>' : '') + '</div>' +
+      '<p class="small muted">' + (left === null ? 'As ' + rank + ' you may take anything.' : 'Members may take ' + S.cfg.guildHall.memberWithdrawals + ' items a day; ' + left + ' left today. Only the leader and officers take gold.') + '</p>' +
+      '<div class="market">' + (H.bank.map((i) => itemCard(i, '<button class="small" data-act="guildWithdraw" data-id="' + i.id + '"' + (left === 0 ? ' disabled' : '') + '>Take</button>')).join('') || '<p class="muted">The bank is empty.</p>') + '</div>' +
+      (H.log.length ? '<details><summary class="small">Bank log</summary><ul class="plain">' + H.log.map(logLine).join('') + '</ul></details>' : '') + '</div>';
+    const T = H.trophies;
+    const trophies = T ? '<div class="panel"><h3>Trophy wall</h3><div class="row"><span class="chip">' + (T.bestMythic ? 'Best Mythic: tier ' + T.bestMythic[0] + ', ' + esc(T.bestMythic[1]) + ' (' + T.bestMythic[2].map(esc).join(', ') + ')' : 'No Mythic clear yet') + '</span><span class="chip">' + fmt(T.heroic) + ' Heroic and Mythic clears</span><span class="chip">' + fmt(T.bosses) + ' bosses</span><span class="chip">' + fmt(T.goals) + ' weekly goals</span></div></div>' : '';
+    const rooms = '<div class="panel"><h3>The hall</h3><div class="cards">' + cfgRooms.map(([lv, id, name, what]) => '<div class="panel tight' + (room(id) ? '' : ' locked') + '"><b>' + esc(name) + '</b><div class="small muted">' + (room(id) ? esc(what) : 'Opens at guild level ' + lv + '.') + '</div></div>').join('') + '</div></div>';
+    const lead = rank === 'leader';
+    const rankPick = (x) => lead && x.id !== me.id ? '<select class="small" data-act-change="guildRank" data-id="' + x.id + '" aria-label="Rank">' + ['member', 'officer', 'leader'].map((r) => '<option value="' + r + '"' + (r === x.rank ? ' selected' : '') + '>' + (r === 'leader' ? 'Make leader' : r[0].toUpperCase() + r.slice(1)) + '</option>').join('') + '</select>' : '';
+    const members = '<div class="panel"><h2>Members</h2><div class="cards">' + m.members.map((x) => memberCard(x, '<div class="row" style="gap:6px;margin-top:4px">' + (x.rank !== 'member' ? '<span class="chip gold">' + (x.rank === 'leader' ? 'Leader' : 'Officer') + '</span>' : '') + rankPick(x) + '<span class="tiny muted">' + (x.party ? 'In a group' : 'Looking for a group') + '</span></div>')).join('') + '</div></div>';
+    const gallery = room('gallery') ? '<div class="panel"><h3>Mythic gallery</h3><ol class="plain">' + m.members.filter((x) => x.mythicBest).sort((a, b) => b.mythicBest - a.mythicBest).map((x) => '<li>' + esc(x.name) + ' <span class="chip">Mythic ' + x.mythicBest + '</span></li>').join('') + '</ol>' + (m.members.some((x) => x.mythicBest) ? '' : '<p class="muted small">No member has cleared a Mythic tier yet.</p>') + '</div>' : '';
+    return '<div class="stack">' + head + notice + goals + bank + trophies + gallery + rooms + members + '</div>';
   }
 
   // ------------------------------------------------------------------ market
@@ -1428,7 +1456,8 @@
       const card = chatCard(m.card);
       if (!m.author) return '<div class="msg sys">' + esc(m.body) + card + '</div>';
       const who = m.author.id === S.st.hero.id ? '<span class="a">' + esc(m.author.name) + '</span>' : '<button class="a who" data-act="chatWho" data-id="' + m.id + '" title="Report or block">' + esc(m.author.name) + '</button>';
-      return '<div class="msg">' + who + esc(m.body) + card + '</div>';
+      const tag = m.author.tag ? '<span class="chip tag">' + esc(m.author.tag) + '</span>' : '';
+      return '<div class="msg">' + tag + who + esc(m.body) + card + '</div>';
     }).join('');
     return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div>' + chatInput() + '';
   }
@@ -1817,6 +1846,10 @@
     reloadTavern: () => reloadTavern(),
     // guild
     joinGuild: (d) => act(() => post('/guild/' + d.id + '/join'), 'Welcome to the guild!').then(reloadGuilds),
+    guildNotice: () => act(() => post('/guild/notice', { notice: $('#gNotice').value }), 'Pinned.').then(reloadGuilds),
+    guildDeposit: () => { const id = +$('#gDeposit').value; if (id) act(() => post('/guild/bank/deposit', { id }), 'In the bank.').then(reloadGuilds); },
+    guildWithdraw: (d) => act(() => post('/guild/bank/withdraw', { id: +d.id }), 'In your bags.').then(reloadGuilds),
+    guildGold: (d) => act(() => post('/guild/bank/' + d.a, { gold: +$('#gGold').value }), d.a === 'goldIn' ? 'Gold put in.' : 'Gold taken.').then(reloadGuilds),
     leaveGuild: () => confirmBox('Leave your guild?', () => act(() => post('/guild/leave')).then(reloadGuilds)),
     createGuild: () => act(() => post('/guild/create', { name: $('#gName').value, tag: $('#gTag').value, motto: $('#gMotto').value }), 'Guild founded.').then(reloadGuilds),
     // chest
@@ -1847,6 +1880,7 @@
     const el = e.target;
     const a = el.dataset.actChange;
     if (a === 'dungeon') act(() => post('/party/settings', { dungeon: el.value || null }), 'The next run goes there.');
+    if (a === 'guildRank') act(() => post('/guild/rank', { hero: +el.dataset.id, rank: el.value }), 'Rank changed.').then(reloadGuilds);
     if (a === 'difficulty') act(() => post('/party/settings', { difficulty: el.value }), 'The next run uses the new difficulty.');
     if (a === 'mythicTier') act(() => post('/party/settings', { mythicTier: +el.value }), 'The next run uses that tier.');
     if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next run uses the new level.');
