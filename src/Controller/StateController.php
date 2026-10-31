@@ -7,6 +7,7 @@ use App\Entity\Hero;
 use App\Entity\PartyRequest;
 use App\Service\Bots;
 use App\Service\Game;
+use App\Service\Moderation;
 use App\Service\Present;
 use App\Service\Social;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,7 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class StateController extends ApiController
 {
     #[Route('/api/state', methods: ['GET'])]
-    public function state(Game $game, Present $present, Bots $bots, Social $social): JsonResponse
+    public function state(Game $game, Present $present, Bots $bots, Social $social, Moderation $moderation): JsonResponse
     {
         $user = $this->me();
         $user->lastSeenAt = time();
@@ -51,7 +52,7 @@ class StateController extends ApiController
 
         return $this->json([
             'serverTime' => time(),
-            'user' => ['username' => $user->username],
+            'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0],
             'hero' => $present->hero($hero),
             'inventory' => $present->inventory($hero),
             'party' => $present->party($hero->party, $hero),

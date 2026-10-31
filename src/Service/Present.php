@@ -4,12 +4,14 @@ namespace App\Service;
 
 use App\Entity\Battle;
 use App\Entity\ChatMessage;
+use App\Entity\ChatReport;
 use App\Entity\Guild;
 use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
+use App\Entity\User;
 use App\Game\Combatants;
 use App\Game\Heritage;
 use App\Game\LifeStory;
@@ -208,6 +210,24 @@ class Present
     public function guildLevel(int $xp): int
     {
         return 1 + (int) floor(sqrt($xp / 20));
+    }
+
+    /** @return array<array{id:int,name:string}> heroes this account has blocked */
+    public function blocked(User $u): array
+    {
+        $ids = $u->blockedIds();
+        if (!$ids) {
+            return [];
+        }
+
+        return array_map(fn (Hero $h) => ['id' => $h->id, 'name' => $h->name], $this->em->getRepository(Hero::class)->findBy(['id' => $ids]));
+    }
+
+    public function report(ChatReport $r): array
+    {
+        return ['id' => $r->id, 'message' => $r->message->id, 'channel' => $r->message->channel, 'body' => $r->body, 'reason' => $r->reason, 'at' => $r->createdAt,
+            'author' => ['user' => $r->target->username, 'hero' => $r->message->author?->name, 'mutedUntil' => $r->target->isMuted() ? $r->target->mutedUntil : 0],
+            'reporter' => $r->reporter->username];
     }
 
     public function chat(ChatMessage $m): array

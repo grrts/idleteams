@@ -360,6 +360,7 @@
     try { story = E.LifeStory.clean(input.race, input.story); } catch (e) { fail(e.message); }
     const lk = {};
     for (const k of LOOK) { const v = (input.look || {})[k]; if ((typeof v === 'string' && /^[#a-zA-Z0-9]{1,16}$/.test(v)) || typeof v === 'number') lk[k] = v; }
+    for (const [k, v] of Object.entries({ skin: '#e2b394', hairColor: '#5a3a22', eyeColor: '#3a6ea5', dye1: '#2f6fd0', dye2: '#f1c40f', metal: '#b8c2cc' })) if (lk[k] === undefined) lk[k] = v;
     const h = ins('heroes', {
       user: u.id, name, race: input.race, cls: input.cls, origin: input.origin, path: null, oathTaken: false, look: lk, level: 1, xp: 0, spent: {}, carved: {}, skillRanks: {},
       loadout: [], keystones: {}, talents: {}, heritage: {}, culture: null, renown: 0, codex: [], marks: [], career: {}, gold: 0, materials: 0, essence: 0, lootPolicy: 'upgrades', party: null, guild: null, guildRank: 'member', createdAt: time(),
@@ -712,7 +713,15 @@
   }
   function readChat(h, channel, after = 0, limit = 60) {
     if (!channels(h)[channel]) fail('You cannot read that channel.');
-    return db.chat.filter((m) => m.channel === channel && (after <= 0 || m.id > after)).slice(-limit);
+    const blocked = new Set(userOf(h).blocked || []);
+    return db.chat.filter((m) => m.channel === channel && (after <= 0 || m.id > after) && !(m.author && blocked.has(m.author))).slice(-limit);
+  }
+  // Moderation in the playable build: block works, reports are accepted (there is no moderator here).
+  const userCard = (u) => ({ username: u.username, email: null, emailVerified: false, admin: false, mutedUntil: 0, reports: 0, blocked: (u.blocked || []).map((id) => db.heroes.find((x) => x.id === id)).filter(Boolean).map((x) => ({ id: x.id, name: x.name })) });
+  function block(h, other) {
+    if (other.id === h.id) fail('You cannot block yourself.');
+    const u = userOf(h); u.blocked = uniq([...(u.blocked || []), other.id]);
+    return { blocked: userCard(u).blocked };
   }
   function say(h, channel, body, card = null) {
     if (!channels(h)[channel]) fail('You cannot write to that channel.');
@@ -809,7 +818,7 @@
   function state() {
     const u = me(); u.lastSeenAt = time();
     const h = db.heroes.find((x) => x.user === u.id);
-    if (!h) return { serverTime: time(), user: { username: u.username }, hero: null };
+    if (!h) return { serverTime: time(), user: userCard(u), hero: null };
     // What app:tick does on the server: move groups along and let the demo heroes play.
     for (const p of [...db.parties]) if (find('parties', p.id)) progress(p);
     for (const d of db.heroes) think(d);
@@ -819,7 +828,7 @@
     let pendingRolls = 0;
     if (p) for (const b of db.battles.filter((x) => x.party === p.id && x.state === 'chest')) for (const c of b.chest) if (b.roster.some((x) => x.id === h.id) && c.rolls[h.id] === undefined) ++pendingRolls;
     return {
-      serverTime: time(), user: { username: u.username }, hero: presentHero(h), inventory: inventory(h), party: presentParty(p, h),
+      serverTime: time(), user: userCard(u), hero: presentHero(h), inventory: inventory(h), party: presentParty(p, h),
       invites: db.requests.filter((r) => r.hero === h.id).map(presentRequest),
       battle: battle ? { id: battle.id, startedAt: battle.startedAt, endsAt: battle.endsAt, dungeonLevel: battle.dungeonLevel } : null,
       pendingRolls, channels: channels(h),
@@ -902,6 +911,9 @@
     ['POST', /^\/guild\/(\d+)\/join$/, (m) => { joinGuild(hero(), must('guilds', m[1])); return { ok: true }; }],
     ['POST', /^\/guild\/leave$/, () => { leaveGuild(hero()); return { ok: true }; }],
     ['GET', /^\/chat$/, (m, b, q) => readChat(hero(), q.get('channel') || 'tavern', int(q.get('after'))).map(presentChat)],
+    ['POST', /^\/chat\/(\d+)\/report$/, (m) => { hero(); must('chat', m[1]); return { ok: true }; }],
+    ['POST', /^\/block$/, (m, b) => { const h = hero(); return block(h, b.hero !== undefined ? must('heroes', b.hero) : (db.heroes.find((x) => x.name === String(b.name || '').trim()) || fail('No hero called ' + b.name + '.'))); }],
+    ['DELETE', /^\/block\/(\d+)$/, (m) => { const u = userOf(hero()); u.blocked = (u.blocked || []).filter((id) => id !== int(m[1])); return { blocked: userCard(u).blocked }; }],
     ['POST', /^\/chat$/, (m, b) => presentChat(say(hero(), String(b.channel || 'tavern'), String(b.body || ''), b.item !== undefined ? { type: 'item', item: int(b.item) } : null))],
   ];
 

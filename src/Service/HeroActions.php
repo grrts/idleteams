@@ -66,6 +66,8 @@ class HeroActions
                 $look[$k] = $v;
             }
         }
+        // The renderer needs every colour; a client that sends none still gets a drawable hero.
+        $look += ['skin' => '#e2b394', 'hairColor' => '#5a3a22', 'eyeColor' => '#3a6ea5', 'dye1' => '#2f6fd0', 'dye2' => '#f1c40f', 'metal' => '#b8c2cc'];
         $h = new Hero();
         $h->user = $user;
         $h->name = $name;

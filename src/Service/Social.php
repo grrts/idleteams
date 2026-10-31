@@ -337,6 +337,10 @@ class Social
             $q->andWhere('m.id > :a')->setParameter('a', $after);
         }
 
+        if ($blocked = $h->user->blockedIds()) {
+            $q->andWhere('m.author IS NULL OR m.author NOT IN (:b)')->setParameter('b', $blocked);
+        }
+
         return array_reverse($q->getQuery()->getResult());
     }
 
@@ -344,6 +348,9 @@ class Social
     {
         if (!isset($this->channels($h)[$channel])) {
             throw new GameError('You cannot write to that channel.');
+        }
+        if ($h->user->isMuted()) {
+            throw new GameError(sprintf('You are muted in chat until %s UTC.', gmdate('j M H:i', $h->user->mutedUntil)));
         }
         $body = trim($body);
         if ($body === '' && !$card) {

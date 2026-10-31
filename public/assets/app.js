@@ -178,9 +178,17 @@
   async function boot() {
     [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
-    window.addEventListener('hashchange', () => { S.view = location.hash.slice(2) || 'battle'; S.sel = null; render(); loadView(); });
+    // Links from mails: #/verify?t=… and #/reset?u=…&t=…
+    const link = location.hash.match(/^#\/(verify|reset)\?(.*)$/), q = link ? new URLSearchParams(link[2]) : null;
+    if (link) history.replaceState(null, '', location.pathname + '#/battle');
+    if (link && link[1] === 'reset') S.reset = { u: q.get('u') || '', t: q.get('t') || '' };
+    window.addEventListener('hashchange', () => { S.view = location.hash.slice(2) || 'battle'; S.sel = null; if (S.view === 'settings') S.reports = null; render(); loadView(); });
     S.view = location.hash.slice(2) || 'battle';
     await refresh();
+    if (link && link[1] === 'verify') {
+      if (!S.st) toast('Log in first, then open the link from the mail again.');
+      else { try { await post('/account/verify', { token: q.get('t') || '' }); await refresh(); toast('Your email is confirmed.', true); } catch (e) { toast(e.message); } }
+    }
     loadView();
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) refresh(); }, 5000);
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) pollChat(); }, 4000);
@@ -264,11 +272,14 @@
   }
 
   function authView() {
+    const logo = '<div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div>';
+    if (S.reset) return '<div class="auth panel stack">' + logo + '<p class="center">Choose a new password for <b>' + esc(S.reset.u) + '</b>.</p><form data-form="reset"><label for="pw">New password</label><input id="pw" name="password" type="password" minlength="8" autocomplete="new-password" required style="width:100%"><div style="margin-top:14px"><button class="primary" type="submit">Save and log in</button></div></form></div>';
+    if (S.authMode === 'forgot') return '<div class="auth panel stack">' + logo + '<p class="muted center">Enter the email on your account and we will send a link to choose a new password.</p><form data-form="forgot"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="email" required style="width:100%"><div class="row between" style="margin-top:14px"><button class="primary" type="submit">Send the link</button><button type="button" class="ghost small" data-act="authMode" data-mode="login">Back to log in</button></div></form></div>';
     const reg = S.authMode === 'register';
     return '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
       '<div class="tabs"><button class="' + (!reg ? 'on' : '') + '" data-act="authMode" data-mode="login">Log in</button><button class="' + (reg ? 'on' : '') + '" data-act="authMode" data-mode="register">Create account</button></div>' +
       '<form data-form="' + (reg ? 'register' : 'login') + '"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required style="width:100%"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
-      '<div style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button></div></form></div>';
+      '<div class="row between" style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button>' + (reg || window.IT_SERVER ? '' : '<button type="button" class="ghost small" data-act="authMode" data-mode="forgot">Forgot your password?</button>') + '</div></form></div>';
   }
 
   // ------------------------------------------------------------------ lore
@@ -570,18 +581,18 @@
 
   // [view, title, icon, hotkey]. The battle view is the open scene; every other view opens as a window over it.
   const VIEWS = [['battle', 'Dungeon', 'battle', '1'], ['hero', 'Hero', 'hero', '2'], ['skills', 'Skills', 'skills', '3'], ['talents', 'Talents', 'talents', '4'], ['heritage', 'Heritage', 'heritage', '5'], ['gear', 'Gear', 'gear', '6'], ['group', 'Group', 'group', '7'], ['guild', 'Guild', 'guild', '8'], ['market', 'Market', 'market', '9'], ['runs', 'Runs', 'chest', '0'], ['lore', 'Lore', 'lore', 'l']];
-  const WIN_TITLE = { story: ['Life story', 'heritage'] };
+  const WIN_TITLE = { story: ['Life story', 'heritage'], settings: ['Settings', 'hero'] };
   function shell() {
     const h = S.st.hero, p = S.st.party, cur = S.battle && S.battle.current, cfg = S.cfg;
     if (S.chatInit == null) { S.chatInit = 1; S.chatOpen = window.innerWidth > 1100; }
     const dots = { battle: 0, runs: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (p ? p.requests.filter((r) => r.kind === 'application').length : 0) };
-    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView };
     const isWin = S.view !== 'battle' && views[S.view];
     // top: who you are, where the run is, what you carry
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
     const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(cfg.dungeon.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + cfg.dungeon.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
       : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
-    const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><button class="small cog" data-act="logout" title="' + (window.IT_SERVER ? 'New game' : 'Log out') + '">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div>';
+    const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
     // left: the group's unit frames, live during a run
     const roster = cur ? cur.roster : p ? p.members.map((m) => ({ id: m.id, name: m.name, cls: m.cls, level: m.level, look: m.look, resource: cfg.classes[m.cls].resource, role: m.role })) : [{ id: h.id, name: h.name, cls: h.cls, level: h.level, look: h.look, resource: cfg.classes[h.cls].resource }];
     const frames = '<div class="hud-party">' + roster.map((r, i) => '<div class="uf' + (r.id === h.id ? ' me' : '') + '" id="fr' + i + '">' + por(r.look, 'pframe sm') + '<div class="uf-body"><div class="uf-nm"><b>' + esc(r.name) + '</b><span>' + r.level + '</span></div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div></div>').join('') +
@@ -1260,10 +1271,50 @@
     S.chat.channel = ch;
     const msgs = (S.chat.msgs[ch] || []).map((m) => {
       const card = m.card && m.card.type === 'item' && m.card.spec ? ' <span class="card r-' + m.card.spec.rarity + '"><img class="ico" alt="" src="' + ITA.icon(m.card.spec) + '">' + esc(itemName(m.card.spec)) + '</span>' : '';
-      return m.author ? '<div class="msg"><span class="a">' + esc(m.author.name) + '</span>' + esc(m.body) + card + '</div>' : '<div class="msg sys">' + esc(m.body) + card + '</div>';
+      if (!m.author) return '<div class="msg sys">' + esc(m.body) + card + '</div>';
+      const who = m.author.id === S.st.hero.id ? '<span class="a">' + esc(m.author.name) + '</span>' : '<button class="a who" data-act="chatWho" data-id="' + m.id + '" title="Report or block">' + esc(m.author.name) + '</button>';
+      return '<div class="msg">' + who + esc(m.body) + card + '</div>';
     }).join('');
-    return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div><form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off" aria-label="Message"><button type="submit">Send</button></form>';
+    return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div>' + chatInput() + '';
   }
+  function chatInput() {
+    const mute = S.st.user && S.st.user.mutedUntil;
+    if (mute) return '<form class="chat-in" data-form="chat"><input disabled placeholder="Muted until ' + new Date(mute * 1000).toLocaleString([], mute - Date.now() / 1000 > 72000 ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' }) + '" title="A moderator muted this account" aria-label="Message"><button type="submit" disabled>Send</button></form>';
+    return '<form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off" aria-label="Message"><button type="submit">Send</button></form>';
+  }
+  const REPORT_REASONS = [['abuse', 'Abuse or harassment'], ['spam', 'Spam or selling gold'], ['cheat', 'Cheating'], ['other', 'Something else']];
+  function chatWho(id) {
+    const m = Object.values(S.chat.msgs).flat().find((x) => x.id === +id);
+    if (!m || !m.author) return;
+    modal('<h3>' + esc(m.author.name) + '</h3><p class="small muted">“' + esc(m.body) + '”</p>' +
+      '<div class="eyebrow">Report this line</div><div class="row wrap">' + REPORT_REASONS.map(([k, n]) => '<button class="small" data-act="report" data-id="' + m.id + '" data-r="' + k + '">' + n + '</button>').join('') + '</div>' +
+      '<div class="eyebrow">Or stop seeing them</div><div class="row"><button class="small" data-act="blockHero" data-hid="' + m.author.id + '">Block ' + esc(m.author.name) + '</button><button class="small ghost" data-act="closeModal">Cancel</button></div>' +
+      '<p class="small muted">Blocked heroes\' lines disappear from your chat. You can unblock them in Settings.</p>');
+  }
+
+  // ------------------------------------------------------------------ settings, account and moderation
+
+  function settingsView() {
+    const u = S.st.user || {}, blocked = u.blocked || [];
+    const email = window.IT_SERVER ? '<p class="small muted">Email and password reset need the real server; this playable build keeps everything in your browser.</p>'
+      : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
+        (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
+    const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' +
+      '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
+      mod + '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+  }
+  function modView() {
+    if (!S.reports) { loadReports(); return '<p class="small muted">Loading reports…</p>'; }
+    if (!S.reports.length) return '<p class="small muted">No open reports.</p>';
+    return S.reports.map((r) => '<div class="report"><div class="small muted">' + esc(r.reporter) + ' reported <b>' + esc(r.author.hero || r.author.user) + '</b> (' + esc(r.author.user) + ') for ' + esc(r.reason) + (r.author.mutedUntil ? ' · muted now' : '') + '</div><p>“' + esc(r.body) + '”</p>' +
+      '<div class="row wrap"><button class="small" data-act="modDo" data-id="' + r.id + '" data-o="dismiss">Nothing wrong</button><button class="small" data-act="modDo" data-id="' + r.id + '" data-o="remove">Remove line</button><button class="small" data-act="modDo" data-id="' + r.id + '" data-o="mute" data-h="24">Remove and mute 24h</button><button class="small" data-act="modDo" data-id="' + r.id + '" data-o="mute" data-h="168">Mute a week</button></div></div>').join('');
+  }
+  async function loadReports() {
+    try { S.reports = await get('/admin/reports'); } catch (e) { S.reports = []; toast(e.message); }
+    if (S.view === 'settings') render();
+  }
+
   async function pollChat() {
     const ch = S.chat.channel;
     try {
@@ -1405,6 +1456,11 @@
       if (window.IT_SERVER) { location.hash = ''; location.reload(); return; }
       S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render();
     },
+    chatWho: (d) => chatWho(d.id),
+    report: async (d) => { try { await post('/chat/' + d.id + '/report', { reason: d.r }); closeModal(); toast('Thanks. A moderator will look at it.', true); } catch (e) { toast(e.message); } },
+    blockHero: async (d) => { try { await post('/block', { hero: +d.hid }); closeModal(); S.chat.msgs = {}; S.chat.last = {}; await refresh(); await pollChat(); toast('Blocked. Their lines are hidden now.', true); } catch (e) { toast(e.message); } },
+    unblock: async (d) => { try { await api('DELETE', '/block/' + d.hid); S.chat.msgs = {}; S.chat.last = {}; await refresh(); render(); pollChat(); } catch (e) { toast(e.message); } },
+    modDo: async (d) => { try { await post('/admin/reports/' + d.id, { outcome: d.o, hours: +(d.h || 24) }); S.reports = null; render(); } catch (e) { toast(e.message); } },
     toggleChat: () => { S.chatOpen = !S.chatOpen; render(); if (S.chatOpen) { const c = $('#chatBody'); if (c && window.innerWidth > 900) c.focus(); } },
     toggleLog: () => { S.logShut = !S.logShut; render(); },
     rewardClose: () => celebrate.close(),
@@ -1513,6 +1569,18 @@
     if (f.dataset.form === 'chat') {
       if (!data.body.trim()) return;
       try { await post('/chat', { channel: S.chat.channel, body: data.body }); f.reset(); S.chatJump = true; await pollChat(); const b = $('.msgs'); if (b) b.scrollTop = b.scrollHeight; const inp = $('#chatBody'); if (inp) { inp.value = ''; inp.focus(); } } catch (err) { toast(err.message); }
+      return;
+    }
+    if (f.dataset.form === 'forgot') {
+      try { await post('/password/forgot', data); S.authMode = 'login'; render(); toast('If that address belongs to an account, a mail is on its way.', true); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (f.dataset.form === 'reset') {
+      try { await post('/password/reset', { username: S.reset.u, token: S.reset.t, password: data.password }); S.reset = null; location.hash = '#/battle'; await refresh(); render(); toast('Password changed. Welcome back!', true); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (f.dataset.form === 'email') {
+      try { await post('/account/email', data); await refresh(); render(); toast('Check your inbox for the confirmation link.', true); } catch (err) { toast(err.message); }
       return;
     }
     try { await post('/' + f.dataset.form, data); await refresh(); loadView(); } catch (err) { toast(err.message); }

@@ -771,7 +771,7 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
   .plate .lv { left: 30px; top: 30px; height: 20px; min-width: 22px; font-size: .78rem; }
   .pl-txt b { font-size: .98rem; } .pl-txt > span:not(.xpbar) { display: none; } .xpbar { width: 120px; }
   .coin { padding: 3px 6px 4px 4px; font-size: .82rem; gap: 3px; } .coin .ico { width: 16px; height: 16px; }
-  .purse { gap: 4px; } .purse .cog { display: none; }
+  .purse { gap: 4px; } .purse .cog { padding: 4px 7px; } .purse .cog .lbl { display: none; }
   .hud-stage { left: 0; top: var(--hud-top); bottom: auto; height: 56.25vw; }
   .hud-stage::before { left: 0; }
   .hud-stage canvas { object-fit: contain; }
@@ -863,3 +863,15 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .loreitem b { font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; color: var(--text); }
 .loreitem .small { color: var(--muted); line-height: 1.45; }
 @media (max-width: 860px) { .lorebook { grid-template-columns: 1fr; } }
+
+/* settings, report and block */
+.purse .cog { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; text-decoration: none; color: var(--text); border-image: var(--ui-slot) 4 fill / 8px round; border-style: solid; font-family: var(--f-pixel); font-size: .82rem; }
+.purse .cog:hover { color: var(--gold); }
+.purse .cog .gem { position: absolute; right: -6px; top: -8px; min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; font-size: .7rem; color: #fff; border-radius: 9px; background: radial-gradient(circle at 35% 30%, #ff9a7a, #c0201a 70%); }
+.msg button.who { all: unset; cursor: pointer; font-weight: 800; color: var(--gold); margin-right: 4px; }
+.msg button.who:hover, .msg button.who:focus-visible { text-decoration: underline; }
+.chat-in input:disabled { opacity: .6; font-style: italic; }
+.report { padding: 10px 0; border-top: 1px solid rgba(255,220,160,.12); }
+.report:first-child { border-top: 0; }
+.report p { margin: 4px 0 8px; }
+.row.wrap { flex-wrap: wrap; gap: 6px; }

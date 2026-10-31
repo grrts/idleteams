@@ -9,9 +9,11 @@ use App\Game\Talents;
 use App\Service\GameError;
 use App\Service\Present;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 
 class AuthController extends ApiController
@@ -49,8 +51,11 @@ class AuthController extends ApiController
     }
 
     #[Route('/api/register', methods: ['POST'])]
-    public function register(Request $r, UserPasswordHasherInterface $hasher, Security $security): JsonResponse
+    public function register(Request $r, UserPasswordHasherInterface $hasher, Security $security, #[Autowire(service: 'limiter.register')] RateLimiterFactory $registerLimiter): JsonResponse
     {
+        if (!$registerLimiter->create('ip-'.$r->getClientIp())->consume()->isAccepted()) {
+            throw new GameError('Too many new accounts from this address. Try again in an hour.');
+        }
         $in = $this->body($r);
         $username = strtolower(trim((string) ($in['username'] ?? '')));
         $password = (string) ($in['password'] ?? '');

@@ -58,6 +58,13 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   choices, and the Lore page is the whole book with shelves and search. Lore is data in `lore/`, in packs: an
   expansion is a new folder that adds entries or grows existing ones (see `lore/README.md`).
 
+- Accounts: an optional email address, confirmed through a link in a mail, and password reset by mail (Settings
+  window, and "Forgot your password?" on the login screen).
+- Safety: tap a name in chat to report the line or block the hero. Three different players reporting the same author
+  within a day mute them for an hour until a moderator looks. Moderators (`php bin/console app:admin <username>`; the
+  account logs in again after) get a queue in Settings: dismiss, remove the line, or remove and mute. Login attempts,
+  sign-ups, mails, chat lines and API calls are rate limited (`config/packages/rate_limiter.yaml`).
+
 ## Run it locally
 
 Requirements: PHP 8.2+ (8.3 recommended) with `pdo_sqlite`, `intl` is optional, and Composer.
@@ -102,11 +109,15 @@ a database and cron.
    GAME_BATTLE_SECONDS=10800      # 3 hour battles
    GAME_CHEST_SECONDS=3600        # chest stays open 1 hour
    GAME_OFFLINE_CAP_SECONDS=43200 # battles keep chaining 12 hours after the last member was seen; a wipe stops the chain until a member sends the group back in
+   MAILER_DSN=smtp://user:pass@smtp.example.com:587   # for verification and password reset mails
+   MAILER_FROM="Idle Teams <noreply@your-domain>"
+   APP_URL=https://your-domain                         # links in mails point here
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
-   time and applies new migrations after that. When you change an entity, run `php bin/console doctrine:migrations:diff`
-   against a copy of the production database, review the generated file and commit it.
+   time and applies new migrations after that. When you change an entity, run
+   `php bin/console app:migration "what changed"`: it writes the migration with Doctrine's schema API, so the same file
+   works on SQLite, MySQL and Postgres. Read it before committing; a test fails if the migrations and entities differ.
    A database made earlier with `doctrine:schema:create` already has the baseline tables: mark it as migrated once with
    `php bin/console doctrine:migrations:version 'DoctrineMigrations\Version20261031000000' --add -n`.
 4. **Web server**: point the document root at `public/`. Nginx:
