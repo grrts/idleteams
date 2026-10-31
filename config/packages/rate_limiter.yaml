@@ -11,6 +11,11 @@ framework:
             policy: sliding_window
             limit: 5
             interval: '1 hour'
+        # App logins (POST /api/token) per address and username, like the website's login throttling.
+        login:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
         # Password reset and verification mails per IP address.
         mail:
             policy: sliding_window
@@ -28,4 +33,6 @@ when@test:
             api:
                 policy: no_limit
             register:
+                policy: no_limit
+            login:
                 policy: no_limit

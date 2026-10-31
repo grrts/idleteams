@@ -51,7 +51,7 @@ class AuthController extends ApiController
     }
 
     #[Route('/api/register', methods: ['POST'])]
-    public function register(Request $r, UserPasswordHasherInterface $hasher, Security $security, #[Autowire(service: 'limiter.register')] RateLimiterFactory $registerLimiter): JsonResponse
+    public function register(Request $r, UserPasswordHasherInterface $hasher, Security $security, \App\Service\ApiTokens $tokens, #[Autowire(service: 'limiter.register')] RateLimiterFactory $registerLimiter): JsonResponse
     {
         if (!$registerLimiter->create('ip-'.$r->getClientIp())->consume()->isAccepted()) {
             throw new GameError('Too many new accounts from this address. Try again in an hour.');
@@ -76,8 +76,10 @@ class AuthController extends ApiController
         $this->em->persist($u);
         $this->em->flush();
         $security->login($u, 'json_login', 'main');
+        // the native apps ask for a token straight away (src/Controller/TokenController.php)
+        $platform = (string) ($in['platform'] ?? '');
 
-        return $this->json(['ok' => true, 'username' => $u->username]);
+        return $this->json(['ok' => true, 'username' => $u->username] + ($platform !== '' ? ['token' => $tokens->issue($u, $platform)] : []));
     }
 
     /** The json_login authenticator handles the POST; this runs after a successful login. */

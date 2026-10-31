@@ -59,7 +59,7 @@ class StateController extends ApiController
 
         return $this->json([
             'serverTime' => time(),
-            'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0],
+            'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0, 'steamLinked' => $user->steamId !== null],
             'hero' => $present->hero($hero),
             'heroes' => array_map(fn (Hero $x) => $present->heroCard($x) + ['active' => $x === $hero], $roster->heroes($user)), 'maxHeroes' => Roster::MAX, 'catchUp' => \App\Game\Rules::catchUp($hero->level, $roster->best($user)),
             'inventory' => $present->inventory($hero),
@@ -77,6 +77,11 @@ class StateController extends ApiController
     {
         if (!$live->enabled()) {
             return null;
+        }
+        if (\App\Service\ApiTokens::fromHeader($request->headers->get('Authorization'))) {
+            $url = $live->subscribeUrlWithToken($topics);
+
+            return $url ? ['url' => $url] : null;
         }
         try {
             $auth->setCookie($request, $topics);

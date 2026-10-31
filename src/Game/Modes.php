@@ -37,6 +37,7 @@ final class Modes
         'quaking' => ['Quaking', 'Every 15 seconds the ground shakes and hurts every hero.'],
         // season affixes: a season names one of these
         'sundering' => ['Sundering', 'Season affix. Every 12 seconds the ground splits under the healer and one other hero.'],
+        'frostbite' => ['Frostbite', 'Season affix. Every 10 seconds frost bites the tank and the hero lowest on health.'],
     ];
 
     /** Weeks since the first Monday of 1970 (Thursday 1 January + 4 days); weeks start Monday 00:00 UTC. */

@@ -32,7 +32,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /** Turns entities into the JSON the menus read. */
 class Present
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game, private WebPush $push)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private WebPush $push, private Fcm $fcm)
     {
     }
 
@@ -63,6 +63,7 @@ class Present
             'backstories' => Heritage::backstoryInfo(), 'backstoryNodes' => Heritage::BACKSTORY_NODES, 'backstoryRenown' => Heritage::BACKSTORY_RENOWN,
             'lifeStory' => ['chapters' => LifeStory::CHAPTERS, 'questions' => LifeStory::QUESTIONS, 'scenes' => LifeStory::SCENES, 'tale' => LifeStory::TALE, 'notesMax' => LifeStory::NOTES_MAX, 'lean' => [LifeStory::LEAN_ATTRS, LifeStory::LEAN_POINTS]],
             'pushKey' => $this->push->enabled() ? $this->push->publicKey() : null,
+            'nativePush' => $this->fcm->enabled(),
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
         ];
     }

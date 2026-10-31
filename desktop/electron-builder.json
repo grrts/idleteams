@@ -1,0 +1,10 @@
+{
+  "appId": "com.idleteams.desktop",
+  "productName": "Idle Teams",
+  "directories": { "output": "dist" },
+  "files": ["main.js", "preload.js", "steam.json", "app/**/*"],
+  "asarUnpack": ["node_modules/steamworks.js/dist/**"],
+  "win": { "target": "dir" },
+  "linux": { "target": "dir" },
+  "mac": { "target": "dir", "category": "public.app-category.role-playing-games" }
+}

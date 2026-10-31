@@ -77,12 +77,17 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   `LEGAL_CONTACT` before launch and have a lawyer read both. Fonts are served from `public/assets/fonts/`, so no
   request leaves for Google; one session cookie is the only cookie. The service worker keeps the game's files and shows
   an offline note.
-- Shop (★ Shop, top right): looks for the wardrobe, a 30-day supporter pass (a star in chat and a circlet, no
-  renewal) and the season track's premium side. Nothing sold adds power. Offers are data (`content/<pack>/shop/`), and
-  shop-only art carries `"shop": true` so it never drops or gets crafted. Payment is Stripe Checkout: set
-  `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, and point a Stripe webhook at `/api/shop/webhook` for
-  `checkout.session.completed`, `checkout.session.async_payment_succeeded` and `charge.refunded`. Nothing is given
-  until the signed webhook says it is paid; a full refund takes it back. Without a key the shop shows but is closed.
+- Shop (★ Shop, top right): looks for the wardrobe, the supporter tier (a star in chat and a circlet) and the season
+  track's premium side. Nothing sold adds power. Offers are data (`content/<pack>/shop/`), and shop-only art carries
+  `"shop": true` so it never drops or gets crafted. Buying happens in the apps: iOS and Android through RevenueCat
+  (App Store, Google Play; the supporter tier is a monthly subscription there), Steam through Steam's in-game
+  purchases (30 days at a time). The website shows the offers and points to the apps. Every purchase is one row keyed
+  by the store's transaction, so it is paid once and the account has it on every platform; refunds take it back.
+  Setup per store is in `mobile/README.md` and `desktop/README.md`; `php bin/console app:launch-check` says what is
+  still missing.
+- Phone and Steam apps: `mobile/` (Capacitor) and `desktop/` (Electron with steamworks.js) ship the same client and log
+  in with a token (`POST /api/token`, `Authorization: Bearer ...`). The Steam version logs in with the linked Steam
+  account. Phones get push through Firebase Cloud Messaging (`FCM_SERVICE_ACCOUNT`).
 - Seasons are data (`content/<pack>/seasons/`): a start Monday, a length and a cosmetic track of 20 tiers. Runs earn
   track points for the account (a clear, each boss, more on Heroic and Mythic); every second tier has a free look and
   every tier a premium one. Rules in `src/Game/Seasons.php`.
@@ -167,7 +172,12 @@ a database and cron.
    MERCURE_PUBLIC_URL=https://your-domain/.well-known/mercure
    MERCURE_JWT_SECRET=<32+ random characters, the same as the hub's>
    ERROR_WEBHOOK_URL=https://hooks.slack.com/services/...  # optional: server errors are posted here
+   LEGAL_OPERATOR=... LEGAL_ADDRESS=... LEGAL_CONTACT=...  # shown in /terms and /privacy
+   RC_PUBLIC_IOS_KEY=appl_... RC_PUBLIC_ANDROID_KEY=goog_... RC_SECRET_KEY=sk_... RC_WEBHOOK_AUTH=<random>  # phone shop
+   STEAM_WEB_API_KEY=... STEAM_APP_ID=...                   # Steam login and shop
+   FCM_SERVICE_ACCOUNT=/etc/idleteams/firebase.json        # push to the phone apps
    ```
+   Every key and what to do with it is in `.env`. `php bin/console app:launch-check` lists what is still missing.
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
    time and applies new migrations after that. When you change an entity, run
@@ -190,8 +200,9 @@ a database and cron.
 5. **Cron**: once a minute, so chests close and offline groups move on even when nobody has the game open:
    ```
    * * * * * cd /var/www/idleteams && php bin/console app:tick > /dev/null 2>&1
+   17 * * * * cd /var/www/idleteams && php bin/console app:steam-refunds > /dev/null 2>&1
    ```
-   The game also moves forward whenever a member opens it, so a missed tick never loses rewards.
+   The second line takes back Steam refunds (Steam sends no refund calls). The game also moves forward whenever a member opens it, so a missed tick never loses rewards.
 6. **Live updates** (optional): run a [Mercure hub](https://mercure.rocks) next to the app and proxy
    `/.well-known/mercure` on the game's own domain to it, so the subscriber cookie reaches it. Give the hub the same
    secret as `MERCURE_JWT_SECRET` for both publishers and subscribers. With nginx:
@@ -247,7 +258,7 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup`, `app:load-test`, `app:pacing` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup`, `app:load-test`, `app:pacing`, `app:steam-refunds`, `app:launch-check` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes

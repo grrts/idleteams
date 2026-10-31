@@ -17,7 +17,7 @@ class Notifier
     /** A player seen this recently is looking at the game, so no push. */
     public const ONLINE_SECONDS = 90;
 
-    public function __construct(private EntityManagerInterface $em, private WebPush $push)
+    public function __construct(private EntityManagerInterface $em, private WebPush $push, private Fcm $fcm)
     {
     }
 
@@ -44,18 +44,23 @@ class Notifier
         if (!$pending) {
             return 0;
         }
-        $byUser = [];
+        $byUser = $notices = [];
         foreach ($pending as $n) {
             $n->pushedAt = $now;
             $byUser[$n->user->id] = $n->user;
+            $notices[$n->user->id][] = $n;
         }
         $sent = 0;
         foreach ($byUser as $u) {
-            if ($u->lastSeenAt > $now - self::ONLINE_SECONDS || !$this->push->enabled()) {
+            if ($u->lastSeenAt > $now - self::ONLINE_SECONDS) {
                 continue;
             }
             foreach ($this->em->getRepository(PushSubscription::class)->findBy(['user' => $u]) as $s) {
-                $status = $this->push->send($s->endpoint);
+                if ($s->platform === 'web' ? !$this->push->enabled() : !$this->fcm->enabled()) {
+                    continue;
+                }
+                // a browser gets a bare ping and asks what to show (public/sw.js); the apps get the newest notice itself
+                $status = $s->platform === 'web' ? $this->push->send($s->endpoint) : $this->native($s, $notices[$u->id]);
                 if ($status === 404 || $status === 410) {
                     $this->em->remove($s);
                 } elseif ($status >= 200 && $status < 300) {
@@ -69,6 +74,15 @@ class Notifier
         $this->em->flush();
 
         return $sent;
+    }
+
+    /** @param Notice[] $list oldest first */
+    private function native(PushSubscription $s, array $list): int
+    {
+        $n = end($list);
+        $more = count($list) - 1;
+
+        return $this->fcm->send($s->endpoint, $n->title, $n->body.($more > 0 ? sprintf(' (and %d more)', $more) : ''), $n->url, count($list));
     }
 
     /** Old notices are of no use to anyone. The cron tick clears them. */
@@ -101,6 +115,21 @@ class Notifier
         $s = $this->em->getRepository(PushSubscription::class)->findOneBy(['endpoint' => $endpoint]) ?? new PushSubscription();
         $s->user = $u;
         $s->endpoint = $endpoint;
+        $s->createdAt = time();
+        $s->failures = 0;
+        $this->em->persist($s);
+    }
+
+    /** The iOS or Android app's Firebase device token. */
+    public function device(User $u, string $token, string $platform): void
+    {
+        if (!in_array($platform, ['ios', 'android'], true) || !preg_match('/^[A-Za-z0-9_:\-.]{20,490}$/', $token)) {
+            throw new GameError('That device token is not valid.');
+        }
+        $s = $this->em->getRepository(PushSubscription::class)->findOneBy(['endpoint' => $token]) ?? new PushSubscription();
+        $s->user = $u;
+        $s->endpoint = $token;
+        $s->platform = $platform;
         $s->createdAt = time();
         $s->failures = 0;
         $this->em->persist($s);

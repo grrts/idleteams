@@ -12,6 +12,13 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|assets)/
             security: false
+        # the native apps (iOS, Android, Steam) send "Authorization: Bearer <token>" instead of a session cookie
+        app:
+            request_matcher: App\Security\BearerRequestMatcher
+            stateless: true
+            provider: app_user_provider
+            custom_authenticators:
+                - App\Security\ApiTokenAuthenticator
         main:
             lazy: true
             provider: app_user_provider
@@ -26,7 +33,7 @@ security:
                 path: api_logout
 
     access_control:
-        - { path: ^/api/(login|register|config|lore|password|health|shop/webhook), roles: PUBLIC_ACCESS }
+        - { path: ^/api/(login|register|token|config|lore|password|health|shop/revenuecat), roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:

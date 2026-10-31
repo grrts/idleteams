@@ -1,0 +1,19 @@
+{
+  "name": "idleteams-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Idle Teams on Steam: the game client in Electron, with Steamworks for login, the overlay and purchases",
+  "main": "main.js",
+  "scripts": {
+    "build": "node ../scripts/native-web.mjs app",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win --linux --mac"
+  },
+  "dependencies": {
+    "steamworks.js": "^0.4.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}

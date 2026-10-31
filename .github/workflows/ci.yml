@@ -79,3 +79,18 @@ jobs:
       - run: php bin/console app:browser-data
       - name: browser-build/data.js matches the PHP rules
         run: git diff --exit-code --stat browser-build/
+
+  native-apps:
+    name: Phone and Steam apps build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Phone app web bundle (Capacitor bridge and client)
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund && IT_API=https://play.example.com npm run build && test -s www/native.js && test -s www/index.html
+      - name: Steam app (Electron main, preload and client)
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund --ignore-scripts && node --check main.js && node --check preload.js && IT_API=https://play.example.com npm run build && test -s app/index.html

@@ -20,6 +20,13 @@ class SeasonsTest extends TestCase
         $this->assertCount(3, Seasons::rewards($s, 0, 2, true));
         $this->assertSame(10 + 12 + 5 + 10, Seasons::points(['wiped' => false, 'bossesKilled' => 3], 'mythic', 5));
         $this->assertSame(4, Seasons::points(['wiped' => true, 'bossesKilled' => 1], 'mythic', 5));
+        // each season starts the Monday the one before ends, so there is never a week without one
+        $all = array_values(Seasons::all());
+        for ($i = 1; $i < count($all); ++$i) {
+            $this->assertSame($all[$i - 1]['endsAt'], $all[$i]['startsAt'], $all[$i]['id'].' starts when '.$all[$i - 1]['id'].' ends');
+            $this->assertCount(20, $all[$i]['track']['tiers']);
+        }
+        $this->assertSame('frostbite', Seasons::current(Seasons::get('s2')['startsAt'])['affix']);
     }
 
     public function testEveryLookOnTheTrackAndInTheShopIsDrawableAndShopArtNeverDrops(): void
