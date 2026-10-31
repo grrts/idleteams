@@ -378,7 +378,7 @@
     if (!S.crowd) { let x = 7; const rand = () => (x = (x * 16807) % 2147483647) / 2147483647; S.crowd = [0, 1, 2, 3, 4].map(() => ITP.randomHero(rand)); }
     const point = (icon, t, d) => '<div class="lp-point">' + ico(icon) + '<div><b>' + t + '</b><span class="small muted">' + d + '</span></div></div>';
     return '<div class="landing"><div class="lp-crowd">' + S.crowd.map((l, i) => spr(l, 3, i % 2 ? 'idle' : '')).join('') + '</div>' +
-      '<h1 class="lp-title">Five heroes. One long dungeon run.</h1><p class="lp-sub">An idle group RPG you play with other people. Free in your browser, nothing to install, and nothing for sale that makes a hero stronger.</p>' +
+      '<h1 class="lp-title">Five heroes. One long dungeon run.</h1><p class="lp-sub">An idle group RPG you play with other people. ' + (NATIVE ? 'Free to play' : 'Free in your browser, nothing to install') + ', and nothing for sale that makes a hero stronger.</p>' +
       '<div class="lp-points">' + point('heritage', 'A hero with a life story', 'Six races, seven classes and a tale told in seventeen answers. Your choices stay.') +
       point('group', 'A group that fights together', 'Tank, healer and damage. The run plays itself; your build and your group decide how far it goes.') +
       point('chest', 'It runs while you are away', 'Come back to loot in the chest, roll need or greed with your group, and a ping when you wipe.') +
@@ -1840,7 +1840,7 @@
     const p = S.push;
     let body;
     if (window.IT_SERVER) body = '<p class="small muted">Notifications need the real server; this playable build only runs while the page is open.</p>';
-    else if (!p) body = '<p class="small muted">Checking this browser…</p>';
+    else if (!p) body = '<p class="small muted">Checking…</p>';
     else if (NATIVE && !pushSupported()) body = '<p class="small muted">This build has no notifications. The phone apps do.</p>';
     else if (!pushSupported()) body = '<p class="small muted">This browser cannot show notifications. On iPhone, add Idle Teams to your home screen first.</p>';
     else if (!p.ok) body = '<p class="small muted">Notifications are not set up on this server yet.</p>';
