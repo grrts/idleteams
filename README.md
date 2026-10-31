@@ -86,6 +86,10 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 - Seasons are data (`content/<pack>/seasons/`): a start Monday, a length and a cosmetic track of 20 tiers. Runs earn
   track points for the account (a clear, each boss, more on Heroic and Mythic); every second tier has a free look and
   every tier a premium one. Rules in `src/Game/Seasons.php`.
+- First-day funnel: each account keeps when it first made a hero, finished the prologue, joined a group, ran, cleared,
+  reached levels 10 and 20, and came back the next day and after a week. Moderators see cohort totals by sign-up day
+  in Settings (First days) or with `php bin/console app:funnel --days=14`.
+- Front page: a logged-out visitor sees a group of random heroes, what the game is, and the login form.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

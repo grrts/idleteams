@@ -201,6 +201,9 @@ class Game
         $b->startedAt = $at;
         $b->endsAt = $at + $this->battleSeconds;
         $heroes = $party->members->toArray();
+        foreach ($heroes as $h) {
+            \App\Game\Funnel::mark($h->user, 'run', $at);
+        }
         $combatants = $this->lineUp($heroes, $b->dungeonLevel);
         $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed, Dungeons::get($b->dungeon), Modes::mods($b->mode, $b->tier, $b->affixes));
         $result['report']['mode'] = $b->mode;
@@ -296,6 +299,9 @@ class Game
             $xp = (int) round(Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']) * $catchUp);
             if ($catchUp > 1) {
                 $rep['heroes'][$k]['catchUp'] = $catchUp;
+            }
+            if (!$rep['wiped']) {
+                \App\Game\Funnel::mark($h->user, 'clear', $b->endsAt);
             }
             // The season track: points for the account, and any looks the new tiers bring.
             if (($season = Seasons::current($b->endsAt)) && !$h->user->demo) {
@@ -448,6 +454,9 @@ class Game
         while ($total >= Rules::xpForLevel($h->level)) {
             $total -= Rules::xpForLevel($h->level);
             ++$h->level;
+            if (in_array($h->level, [10, 20], true)) {
+                \App\Game\Funnel::mark($h->user, 'level'.$h->level);
+            }
             if ($h->level === Rules::OATH_LEVEL && !$h->oathTaken) {
                 $this->takeOath($h);
             }

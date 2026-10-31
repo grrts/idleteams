@@ -52,6 +52,7 @@ class Social
         $tier = $this->game->dungeonFor($p)['id'];
         $scarce = $answered && ($this->scarcity()[$tier]['role'] ?? null) === $h->role() && time() - $h->scarceAt >= 86400;
         $h->party = $p;
+        \App\Game\Funnel::mark($h->user, 'group');
         $p->members->add($h);
         foreach ($this->em->getRepository(PartyRequest::class)->findBy(['hero' => $h]) as $r) {
             $this->em->remove($r);

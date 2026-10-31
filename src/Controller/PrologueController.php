@@ -30,6 +30,7 @@ class PrologueController extends ApiController
     {
         $h = $this->hero();
         $h->prologueDone = true;
+        \App\Game\Funnel::mark($h->user, 'prologue');
         $this->em->flush();
 
         return $this->json($present->hero($h));

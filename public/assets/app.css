@@ -967,3 +967,19 @@ ul.plain, ol.plain { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4p
 .tcell.got { opacity: 1; border-color: var(--gold, #ffd25a); }
 .tcell.empty { opacity: .2; }
 .tcell .spr { max-height: 56px; width: auto; }
+table.funnel { border-collapse: collapse; min-width: 100%; }
+table.funnel th, table.funnel td { padding: 4px 6px; border-bottom: 1px solid rgba(255, 210, 90, .12); text-align: right; white-space: nowrap; }
+table.funnel th:first-child, table.funnel td:first-child { text-align: left; }
+
+/* front page for new players */
+.landing { max-width: 860px; margin: 5vh auto 0; padding: 0 16px; text-align: center; }
+.landing + .auth { margin-top: 20px; margin-bottom: 8vh; }
+.lp-crowd { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.lp-crowd .spr { image-rendering: pixelated; }
+.lp-title { font-family: 'Lilita One', system-ui, sans-serif; font-size: clamp(1.7rem, 4.5vw, 2.6rem); color: var(--gold, #ffd25a); margin: 10px 0 6px; font-weight: 400; }
+.lp-sub { max-width: 620px; margin: 0 auto 18px; color: #d8cbb4; }
+.lp-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; text-align: left; }
+.lp-point { display: flex; gap: 10px; align-items: flex-start; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 210, 90, .14); border-radius: 6px; padding: 10px; }
+.lp-point b { display: block; margin-bottom: 2px; }
+.lp-point .ico { width: 28px; height: 28px; flex: none; }
+@media (max-width: 600px) { .lp-crowd { flex-wrap: nowrap; gap: 2px; } .lp-crowd .spr { width: 18vw !important; height: auto !important; } .landing { margin-top: 3vh; } }

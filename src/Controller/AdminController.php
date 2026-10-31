@@ -43,4 +43,15 @@ class AdminController extends ApiController
 
         return $this->json(['ok' => true, 'mutedUntil' => $u->mutedUntil]);
     }
+
+    /** How far the last weeks' new players got: cohorts by sign-up day (src/Game/Funnel.php). */
+    #[Route('/api/admin/funnel', methods: ['GET'])]
+    public function funnel(Request $r): JsonResponse
+    {
+        $days = max(1, min(90, (int) $r->query->get('days', 14)));
+
+        return $this->json(['steps' => \App\Game\Funnel::STEPS, 'cohorts' => \App\Game\Funnel::cohorts($this->em->createQuery(
+            'SELECT u.createdAt, u.funnel FROM App\\Entity\\User u WHERE u.demo = false AND u.createdAt >= :since'
+        )->setParameter('since', time() - 86400 * $days)->toIterable())]);
+    }
 }

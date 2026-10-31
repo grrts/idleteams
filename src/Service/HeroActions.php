@@ -93,6 +93,7 @@ class HeroActions
         // An alternate hero starts with the account's wardrobe and Codex, and is the one played from now on.
         $this->em->flush();
         $user->activeHero = $h->id;
+        \App\Game\Funnel::mark($user, 'hero');
         (new Roster($this->em))->share($user);
 
         return $h;

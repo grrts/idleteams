@@ -70,6 +70,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $seasonPremium = null;
 
+    /** When this account first reached each step of the first days (src/Game/Funnel.php). */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $funnel = null;
+
     /** Hero ids whose chat lines and invites this player never sees. */
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $blocked = null;

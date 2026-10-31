@@ -72,6 +72,7 @@ class AuthController extends ApiController
         $u->username = $username;
         $u->password = $hasher->hashPassword($u, $password);
         $u->createdAt = $u->lastSeenAt = time();
+        \App\Game\Funnel::mark($u, 'registered');
         $this->em->persist($u);
         $this->em->flush();
         $security->login($u, 'json_login', 'main');

@@ -335,12 +335,24 @@
     return '<p class="small muted center legal">' + (reg ? 'By creating an account you accept the <a href="/terms" target="_blank">terms</a> and have read the <a href="/privacy" target="_blank">privacy policy</a>. ' : '<a href="/terms" target="_blank">Terms</a> · <a href="/privacy" target="_blank">Privacy</a> · ') +
       'One cookie keeps you logged in. Nothing tracks you.</p>';
   }
+  // The front page for someone new: what the game is, a group of random heroes, then the form.
+  function landing() {
+    if (window.IT_SERVER) return '';
+    if (!S.crowd) { let x = 7; const rand = () => (x = (x * 16807) % 2147483647) / 2147483647; S.crowd = [0, 1, 2, 3, 4].map(() => ITP.randomHero(rand)); }
+    const point = (icon, t, d) => '<div class="lp-point">' + ico(icon) + '<div><b>' + t + '</b><span class="small muted">' + d + '</span></div></div>';
+    return '<div class="landing"><div class="lp-crowd">' + S.crowd.map((l, i) => spr(l, 3, i % 2 ? 'idle' : '')).join('') + '</div>' +
+      '<h1 class="lp-title">Five heroes. One long dungeon run.</h1><p class="lp-sub">An idle group RPG you play with other people. Free in your browser, nothing to install, and nothing for sale that makes a hero stronger.</p>' +
+      '<div class="lp-points">' + point('heritage', 'A hero with a life story', 'Six races, seven classes and a tale told in seventeen answers. Your choices stay.') +
+      point('group', 'A group that fights together', 'Tank, healer and damage. The run plays itself; your build and your group decide how far it goes.') +
+      point('chest', 'It runs while you are away', 'Come back to loot in the chest, roll need or greed with your group, and a ping when you wipe.') +
+      point('guild', 'Guilds, raids and seasons', 'Heroic and Mythic dungeons, a 40-hero guild raid, and a new season every eight weeks.') + '</div></div>';
+  }
   function authView() {
     const logo = '<div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div>';
     if (S.reset) return '<div class="auth panel stack">' + logo + '<p class="center">Choose a new password for <b>' + esc(S.reset.u) + '</b>.</p><form data-form="reset"><label for="pw">New password</label><input id="pw" name="password" type="password" minlength="8" autocomplete="new-password" required style="width:100%"><div style="margin-top:14px"><button class="primary" type="submit">Save and log in</button></div></form></div>';
     if (S.authMode === 'forgot') return '<div class="auth panel stack">' + logo + '<p class="muted center">Enter the email on your account and we will send a link to choose a new password.</p><form data-form="forgot"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="email" required style="width:100%"><div class="row between" style="margin-top:14px"><button class="primary" type="submit">Send the link</button><button type="button" class="ghost small" data-act="authMode" data-mode="login">Back to log in</button></div></form></div>';
     const reg = S.authMode === 'register';
-    return '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
+    return landing() + '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
       '<div class="tabs"><button class="' + (!reg ? 'on' : '') + '" data-act="authMode" data-mode="login">Log in</button><button class="' + (reg ? 'on' : '') + '" data-act="authMode" data-mode="register">Create account</button></div>' +
       '<form data-form="' + (reg ? 'register' : 'login') + '"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required style="width:100%"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
       '<div class="row between" style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button>' + (reg || window.IT_SERVER ? '' : '<button type="button" class="ghost small" data-act="authMode" data-mode="forgot">Forgot your password?</button>') + '</div></form>' + legalLine(reg) + '</div>';
@@ -1570,7 +1582,7 @@
     const email = window.IT_SERVER ? '<p class="small muted">Email and password reset need the real server; this playable build keeps everything in your browser.</p>'
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
-    const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
+    const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div><div class="panel"><h3>First days</h3>' + funnelView() + '</div>' : '';
     return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
@@ -1633,6 +1645,16 @@
     return '<div class="panel"><h3>Your data</h3><p class="small muted">Download everything the game keeps about you, or delete your account and every hero on it for good. Read the <a href="/privacy" target="_blank">privacy policy</a> and the <a href="/terms" target="_blank">terms</a>.</p>' +
       '<div class="row wrap"><a class="btn small" href="/api/account/export" download>Download my data</a></div>' +
       '<form data-form="closeAccount" class="row wrap" style="margin-top:10px"><input name="password" type="password" required placeholder="Your password" autocomplete="current-password" style="flex:1;min-width:180px"><button type="submit" class="small danger">Delete my account</button></form></div>';
+  }
+  // Moderators: how far each day's new players got (GET /admin/funnel), as shares of that day's sign-ups.
+  function funnelView() {
+    if (!S.funnel) { S.funnel = { loading: true }; get('/admin/funnel').then((f) => { S.funnel = f; render(); }).catch(() => { S.funnel = { cohorts: [] }; }); }
+    const f = S.funnel;
+    if (!f.cohorts) return '<p class="small muted">Loading…</p>';
+    if (!f.cohorts.length) return '<p class="small muted">Nobody signed up in the last two weeks.</p>';
+    const keys = Object.keys(f.steps);
+    return '<div style="overflow-x:auto"><table class="small funnel"><tr><th>Day</th><th>Players</th>' + keys.map((k) => '<th>' + esc(f.steps[k]) + '</th>').join('') + '</tr>' +
+      f.cohorts.map((c) => '<tr><td>' + c.day + '</td><td>' + c.users + '</td>' + keys.map((k) => '<td title="' + c.steps[k].day1 + ' on their first day">' + Math.round((100 * c.steps[k].all) / c.users) + '%</td>').join('') + '</tr>').join('') + '</table></div><p class="small muted">Shares of each day\'s sign-ups who ever reached the step; hover for the first 24 hours.</p>';
   }
   function modView() {
     if (!S.reports) { loadReports(); return '<p class="small muted">Loading reports…</p>'; }

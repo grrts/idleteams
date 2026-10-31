@@ -26,6 +26,7 @@ class StateController extends ApiController
     {
         $user = $this->me();
         $user->lastSeenAt = time();
+        \App\Game\Funnel::seen($user);
         $roster = new Roster($this->em);
         $hero = $roster->active($user);
         $roster->share($user);
