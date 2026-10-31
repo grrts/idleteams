@@ -310,8 +310,11 @@
       return { slot: 'glyph', base: theme, rarity: 'rare', ilvl, value: Math.round(3 + ilvl * 0.12), affixes: [], sockets: 0, glyphs: [], power: null, imprint: null, temper: 0, seed: r.getInt(1, 999999) };
     },
     // An item record as stored: glyph items keep their attribute in affixes, like the PHP entity.
-    fromSpec(s) { return { slot: s.slot, base: s.base, rarity: s.rarity, ilvl: s.ilvl, affixes: s.slot === 'glyph' ? [[D.GLYPHS[s.base][1], s.value]] : s.affixes, sockets: s.sockets, glyphs: s.glyphs, power: s.power, imprint: s.imprint || null, temper: s.temper || 0, seed: s.seed, equipped: null, price: null, owner: null }; },
-    spec(i) { return { id: i.id, slot: i.slot, base: i.base, rarity: i.rarity, ilvl: i.ilvl, affixes: i.affixes, sockets: i.sockets, glyphs: i.glyphs, power: i.power, imprint: i.imprint, temper: i.temper, seed: i.seed, equipped: i.equipped, price: i.price, value: i.slot === 'glyph' ? (i.affixes[0] || [])[1] || 0 : null }; },
+    fromSpec(s) { return { slot: s.slot, base: s.base, rarity: s.rarity, ilvl: s.ilvl, affixes: s.slot === 'glyph' ? [[D.GLYPHS[s.base][1], s.value]] : s.affixes, sockets: s.sockets, glyphs: s.glyphs, power: s.power, imprint: s.imprint || null, temper: s.temper || 0, seed: s.seed, dye: s.dye || null, equipped: null, price: null, owner: null }; },
+    // An item's colours: its dye, else its rarity palette by seed; null wears the hero's own (Items::tint).
+    tint(spec) { if (spec.dye) return spec.dye; const p = D.ITEM_PALETTES[spec.rarity || 'common']; return p ? p[Math.abs(spec.seed || 0) % p.length] : null; },
+    lookKey(spec) { return [spec.slot, spec.base, ...(I.tint(spec) || ['', '', ''])].join('|'); },
+    spec(i) { return { id: i.id, slot: i.slot, base: i.base, rarity: i.rarity, ilvl: i.ilvl, affixes: i.affixes, sockets: i.sockets, glyphs: i.glyphs, power: i.power, imprint: i.imprint, temper: i.temper, seed: i.seed, dye: i.dye || null, equipped: i.equipped, price: i.price, value: i.slot === 'glyph' ? (i.affixes[0] || [])[1] || 0 : null }; },
     temperCost(item, anvil) { const t = item.temper, m = anvil ? 0.9 : 1; return { gold: Math.round((15 + 4 * item.ilvl) * 1.35 ** t * m), materials: Math.round((2 + item.ilvl / 20) * 1.3 ** t * m) }; },
     salvageValue: (item) => ({ common: 1, rare: 3, epic: 8, legendary: 25 }[item.rarity] || 1) + Math.floor(item.ilvl / 20),
   });

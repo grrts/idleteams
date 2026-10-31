@@ -388,41 +388,45 @@
     const bw = c.build || 1, hf = c.height || 1;
     const L = Math.round(R.leg * hf), T = Math.round(R.torso * hf), tw = R.tw * bw, lw = Math.max(2, R.limb * bw), A = R.arm * hf;
     const hip = FY - 2 - L, tt = hip - T + p.dy;
-    const skin = c.skin, d1 = c.dye1, d2 = c.dye2, metal = c.metal;
+    // Each worn layer may carry its own colours (look.tint[layer] = [cloth, trim, metal]); otherwise the hero's own.
+    const tn = c.tint || {}, tc = (layer) => (tn[layer] ? { dye1: tn[layer][0], dye2: tn[layer][1], metal: tn[layer][2] } : { dye1: c.dye1, dye2: c.dye2, metal: c.metal });
+    const TOP = tc("top"), BOT = tc("bottom"), SHO = tc("shoes"), GLO = tc("gloves"), CAP = tc("cape");
+    const skin = c.skin, d1 = TOP.dye1, d2 = TOP.dye2, metal = TOP.metal;
     const hxC = CX - 1, hyC = tt - R.head * 0.84, k = R.head / 12.5;
     const gk = 0.6 * Math.sqrt(A / 8); // gear scale follows arm length
     const top = c.top, robe = top === "robe";
     const leather = mix(d1, "#6e4a31", 0.55);
     const sleeve = top === "plate" ? metal : top === "leather" ? skin : d1;
-    const handC = c.gloves === "gauntlets" ? metal : c.gloves === "leather" ? "#6e4a31" : skin;
+    const handC = c.gloves === "gauntlets" ? GLO.metal : c.gloves === "leather" ? "#6e4a31" : skin;
     const SF = [CX - tw * 0.4, tt + 2], SB = [CX + tw * 0.5, tt + 2];
     const hand = (s0, a) => [s0[0] - A * Math.sin((a * Math.PI) / 180), s0[1] + A * Math.cos((a * Math.PI) / 180)];
     const HF = hand(SF, p.aF), HB = hand(SB, p.aB);
     const b = new Buf(SW, SH);
 
     // cape, tail and hair behind the body
-    if (c.cape === "cape") b.next().poly([[CX - tw * 0.3, tt + 1], [CX + tw * 0.9, tt + 1], [CX + tw + 6, hip + L * 0.5], [CX + tw + 7, FY - 3], [CX + 1, FY - 4]], mix(d2, "#2b2347", 0.08));
-    if (c.cape === "scarf") b.next().poly([[CX + 1, tt - 1], [CX + tw + 8, tt + 2], [CX + tw + 11, tt + 8], [CX + tw + 9, tt + 10], [CX + tw + 4, tt + 5], [CX, tt + 3]], d2);
+    if (c.cape === "cape") b.next().poly([[CX - tw * 0.3, tt + 1], [CX + tw * 0.9, tt + 1], [CX + tw + 6, hip + L * 0.5], [CX + tw + 7, FY - 3], [CX + 1, FY - 4]], mix(CAP.dye2, "#2b2347", 0.08));
+    if (c.cape === "scarf") b.next().poly([[CX + 1, tt - 1], [CX + tw + 8, tt + 2], [CX + tw + 11, tt + 8], [CX + tw + 9, tt + 10], [CX + tw + 4, tt + 5], [CX, tt + 3]], CAP.dye2);
     if (R.tail === "cat") { b.next().cap(CX + tw * 0.7, hip - 2, CX + tw + 4, hip - 8, lw * 0.8, skin); b.cap(CX + tw + 4, hip - 8, CX + tw + 6, hip - 13, lw * 0.8, skin); }
     if (R.tail === "dragon") b.next().poly([[CX + tw * 0.5, hip - 4], [CX + tw + 6, hip], [CX + tw + 11, FY - 1], [CX + tw + 4, hip + 4], [CX + tw * 0.4, hip + 2]], skin);
-    b.next(); head(b, cc, R, hxC, hyC, "back");
+    const hc = { ...cc, ...tc("hat") };
+    b.next(); head(b, hc, R, hxC, hyC, "back");
     // back arm and offhand-free hand
     b.next().cap(SB[0], SB[1], HB[0], HB[1], lw * (robe ? 1.3 : 1), mix(sleeve, "#2b2347", 0.12));
     b.next().ellipse(HB[0], HB[1], lw * 0.62, lw * 0.62, mix(handC, "#2b2347", 0.12));
     // legs and shoes
-    const legC = c.bottom === "greaves" ? metal : c.bottom === "shorts" || c.bottom === "kilt" ? skin : mix(d2, "#2b2347", 0.25);
-    const sc = c.shoes === "sabatons" ? metal : c.shoes === "sandals" ? "#a87a4a" : c.shoes === "curly" ? d1 : "#5a3a24";
+    const legC = c.bottom === "greaves" ? BOT.metal : c.bottom === "shorts" || c.bottom === "kilt" ? skin : mix(BOT.dye2, "#2b2347", 0.25);
+    const sc = c.shoes === "sabatons" ? SHO.metal : c.shoes === "sandals" ? "#a87a4a" : c.shoes === "curly" ? SHO.dye1 : "#5a3a24";
     [[CX + tw * 0.4, p.bdx, true], [CX - tw * 0.4, p.fdx, false]].forEach(([x, dx, back]) => {
       const sh = (col) => (back ? mix(col, "#2b2347", 0.14) : col);
       if (!robe) b.next().cap(x, hip, x + dx, FY - 2, lw * 1.1, sh(legC));
-      if (c.bottom === "shorts" && !robe) b.next().cap(x, hip, x + dx * 0.4, hip + Math.max(2, L * 0.45), lw * 1.3, sh(mix(d2, "#2b2347", 0.2)));
+      if (c.bottom === "shorts" && !robe) b.next().cap(x, hip, x + dx * 0.4, hip + Math.max(2, L * 0.45), lw * 1.3, sh(mix(BOT.dye2, "#2b2347", 0.2)));
       const sx = Math.round(x + dx), sw = Math.max(2, Math.round(lw * 0.7));
       b.next();
       if (c.shoes === "curly") { b.rect(sx - sw - 1, FY - 2, sw * 2 + 1, 3, sh(sc)); b.set(sx - sw - 2, FY - 1, sh(sc)); b.set(sx - sw - 3, FY - 2, sh(sc)); b.set(sx - sw - 3, FY - 3, sh(sc)); }
       else { b.rect(sx - sw - 1, FY - 1, sw * 2 + 2, 2, sh(sc)); b.rect(sx - sw, FY - 3, sw * 2, 2, sh(sc)); }
       if (c.shoes === "sandals") b.set(sx - 1, FY - 2, "#5a3a24", { flat: true });
     });
-    if (c.bottom === "kilt" && !robe) b.next().poly([[CX - tw * 0.95, hip - 1], [CX + tw * 0.95, hip - 1], [CX + tw * 1.1, hip + Math.max(3, L * 0.55)], [CX - tw * 1.1, hip + Math.max(3, L * 0.55)]], d2);
+    if (c.bottom === "kilt" && !robe) b.next().poly([[CX - tw * 0.95, hip - 1], [CX + tw * 0.95, hip - 1], [CX + tw * 1.1, hip + Math.max(3, L * 0.55)], [CX - tw * 1.1, hip + Math.max(3, L * 0.55)]], BOT.dye2);
     // torso
     b.next();
     const torsoBase = (bot) => [[CX - tw, tt + 1], [CX - tw + 1, tt], [CX + tw - 1, tt], [CX + tw, tt + 1], [CX + tw * 0.92, bot], [CX - tw * 0.92, bot]];
@@ -455,9 +459,9 @@
       b.next().poly([[CX - 2, tt], [CX, tt + 3], [CX + 2, tt]], d2);
     }
     // offhand, head, weapon, then the front arm over the grip
-    offhand(b, c, HB[0] - 1, HB[1] - 1, gk * 1.05);
-    b.next(); head(b, cc, R, hxC, hyC, "front");
-    weapon(b, c, HF[0], HF[1], gk, p.wA);
+    offhand(b, { ...c, ...tc("offhand") }, HB[0] - 1, HB[1] - 1, gk * 1.05);
+    b.next(); head(b, hc, R, hxC, hyC, "front");
+    weapon(b, { ...c, ...tc("weapon") }, HF[0], HF[1], gk, p.wA);
     b.next().cap(SF[0], SF[1], HF[0], HF[1], lw * (robe ? 1.35 : 1), sleeve);
     if (top === "plate") b.next().ellipse(SF[0] + 1, SF[1] - 0.5, tw * 0.45 + 0.6, tw * 0.36 + 0.6, metal);
     b.next().ellipse(HF[0], HF[1], lw * 0.66, lw * 0.66, handC);

@@ -37,6 +37,7 @@ class BrowserDataCommand extends Command
                 'NEWCOMER_DAYS' => Rules::NEWCOMER_DAYS, 'NEWCOMER_LEVEL' => Rules::NEWCOMER_LEVEL, 'MENTOR_LEVEL' => Rules::MENTOR_LEVEL, 'MENTOR_BONUS' => Rules::MENTOR_BONUS, 'SCARCE_ROLLS' => Rules::SCARCE_ROLLS,
             ],
             'LEGENDS' => Legends::FORMS,
+            'ITEM_PALETTES' => Rules::ITEM_PALETTES, 'DYES' => Rules::DYES, 'METALS' => Rules::METALS, 'DYE_COST' => Rules::DYE_COST,
             'PROLOGUE' => ['SECONDS' => Prologue::SECONDS, 'DUNGEON' => Prologue::DUNGEON, 'ENCOUNTERS' => Prologue::ENCOUNTERS, 'LEVEL' => Prologue::LEVEL, 'GUIDES' => Prologue::GUIDES],
             'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),

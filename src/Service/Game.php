@@ -187,19 +187,49 @@ class Game
     {
         $look = $hero->look + ['race' => $hero->race, 'hat' => 'none', 'top' => 'tunic', 'bottom' => 'pants', 'shoes' => 'boots', 'gloves' => 'none', 'cape' => 'none', 'weapon' => 'sword', 'offhand' => 'none'];
         $look['race'] = $hero->race;
+        $tint = [];
         $hasWeapon = false;
         foreach ($this->equipped($hero) as $i) {
             $layer = Rules::SLOTS[$i->equipped][1] ?? null;
             if ($layer) {
                 $look[$layer] = $i->base;
+                $tint[$layer] = Items::tint(Items::spec($i));
                 $hasWeapon = $hasWeapon || $layer === 'weapon';
             }
         }
         if (!$hasWeapon) {
             $look['weapon'] = Rules::CLASSES[$hero->cls]['kit']['weapon'];
         }
+        // The wardrobe: a chosen look shows instead of what is worn, and head and back can be hidden.
+        foreach (($hero->outfit ?? []) as $slot => $key) {
+            $layer = Rules::SLOTS[$slot][1] ?? null;
+            if (!$layer) {
+                continue;
+            }
+            if ($key === 'hidden') {
+                $look[$layer] = 'none';
+                unset($tint[$layer]);
+            } elseif (in_array($key, $hero->wardrobe ?? [], true)) {
+                [, $base, $d1, $d2, $m] = explode('|', $key);
+                $look[$layer] = $base;
+                $tint[$layer] = $d1 !== '' ? [$d1, $d2, $m] : null;
+            }
+        }
+        $look['tint'] = array_filter($tint);
 
         return $look;
+    }
+
+    /** Keep this item's look in the wardrobe. */
+    public function collectLook(Hero $hero, Item $i): void
+    {
+        if (!(Rules::SLOTS[$i->slot][1] ?? null)) {
+            return;
+        }
+        $key = Items::lookKey(Items::spec($i));
+        if (!in_array($key, $hero->wardrobe ?? [], true)) {
+            $hero->wardrobe = [...($hero->wardrobe ?? []), $key];
+        }
     }
 
     // ------------------------------------------------------------------ results
@@ -270,6 +300,9 @@ class Game
             $rep['heroes'][$k]['xp'] = $xp;
             $rep['heroes'][$k]['gold'] = $gold;
             $rep['heroes'][$k]['materials'] = $mats;
+            foreach ($this->equipped($h) as $worn) {
+                $this->collectLook($h, $worn);
+            }
             $this->addXp($h, $xp);
             $this->addSignatureXp($h, (int) ($rep['heroes'][$k]['sigXp'] ?? 0));
             $this->earnMarks($h, $k, $rep, $group, $dungeon['id']);

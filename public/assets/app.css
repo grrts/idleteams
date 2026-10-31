@@ -901,3 +901,13 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .scarcity .scarce { font-size: 0.9rem; opacity: 0.75; }
 .scarcity .scarce.mine { opacity: 1; color: #ffd25a; }
 .mentor-hint { border-left: 3px solid #6fd97a; padding: 4px 8px; }
+
+/* Dyes and the wardrobe */
+.dyebox { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; border: 1px solid #ffffff14; padding: 8px; border-radius: 4px; }
+.dyebox .stage { background: #00000033; padding: 4px; border-radius: 4px; }
+.dyes { gap: 3px; flex-wrap: wrap; }
+.sw { width: 18px; height: 18px; min-height: 0; padding: 0; border: 2px solid #00000066; border-radius: 3px; box-shadow: none; }
+.sw.on { border-color: #ffd25a; transform: scale(1.15); }
+.wr { gap: 8px; margin-top: 4px; }
+.wr select { flex: 1; min-width: 0; }
+@media (max-width: 600px) { .dyebox { grid-template-columns: 1fr; } }

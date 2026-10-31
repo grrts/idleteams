@@ -86,6 +86,7 @@ class HeroActions
             $item = Items::fromSpec(Items::generate($r, 1, 'common', $slot, $base, array_keys($c['suggest'])));
             $item->owner = $h;
             $item->equipped = $slot;
+            $this->game->collectLook($h, $item);
             $this->em->persist($item);
         }
         $this->game->post('tavern', sprintf('%s the %s %s arrived at the tavern.', $name, Rules::RACES[$h->race]['name'], $c['name']));

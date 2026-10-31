@@ -339,6 +339,20 @@ final class Rules
         'ring1' => ['Ring', null], 'ring2' => ['Ring', null], 'amulet' => ['Amulet', null], 'trinket' => ['Trinket', null],
     ];
 
+    /**
+     * Item looks. A dropped rare, epic or legendary gets one of its rarity's palettes from its seed, so two of the
+     * same base rarely look alike; commons wear the hero's own colours. Any worn item can be dyed from DYES and
+     * METALS. A palette is [cloth, trim, metal]; cloth and trim map to the renderer's dye1 and dye2.
+     */
+    public const ITEM_PALETTES = [
+        'rare' => [['#3f6fb8', '#e9e2cf', '#bfcadb'], ['#2e8a7a', '#f1e6c8', '#c8d2da'], ['#4a5a9c', '#d9a441', '#b8c2cc'], ['#3d7a3f', '#e4d6b0', '#a9b4a0'], ['#8a3a3a', '#ece4d4', '#c0c6cc'], ['#5a6a7a', '#7fc4e0', '#d8dee4']],
+        'epic' => [['#6b3fa8', '#f0c23a', '#b9a6d6'], ['#8a2f6a', '#f2d7a0', '#c9a6c0'], ['#2f3f8a', '#c084ff', '#a6b0d6'], ['#1f5e5a', '#e05aff', '#9fc4c0'], ['#5a1f2f', '#ffb0c8', '#d6a6b0'], ['#3a2a5a', '#7af0d0', '#b0a6d6']],
+        'legendary' => [['#b8401a', '#fff0b0', '#e8b84a'], ['#7a1a1a', '#ffd25a', '#f0c060'], ['#1a3a6a', '#ffe9a0', '#e0c070'], ['#2a2a2a', '#ff8a2a', '#d8a040']],
+    ];
+    public const DYES = ['#c0392b', '#e67e22', '#f1c40f', '#3aa655', '#2e8a7a', '#2f6fd0', '#4a5a9c', '#5b3fa8', '#8a2f6a', '#e98ab0', '#ece4d4', '#8c6a4c', '#5a3a24', '#3d3a44', '#1e1c22', '#9aa4ae'];
+    public const METALS = ['#b8c2cc', '#e0b04a', '#c58a5a', '#8a939e', '#d8dee4', '#3d3a44'];
+    public const DYE_COST = 25;
+
     public const BASES = [
         'head' => ['helm' => 'Iron Helm', 'viking' => 'Horned Helm', 'wizard' => 'Wizard Hat', 'pot' => 'Cooking Pot', 'frog' => 'Frog Hood', 'crown' => 'Little Crown', 'bandana' => 'Bandana', 'hood' => 'Hood'],
         'top' => ['plate' => 'Breastplate', 'leather' => 'Leather Vest', 'robe' => 'Robe', 'tunic' => 'Tunic', 'sweater' => 'Cozy Sweater'],

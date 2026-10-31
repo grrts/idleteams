@@ -107,6 +107,14 @@ class Hero
     #[ORM\Column(options: ['default' => 0])]
     public int $signatureXp = 0;
 
+    /** Every look this hero has worn (Items::lookKey), kept for the wardrobe. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $wardrobe = [];
+
+    /** Shown instead of the worn item, per slot: a wardrobe look, or 'hidden' for head and back. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $outfit = [];
+
     /** Joined a group in its tier's scarcest role: the next chests roll twice and keep the higher. */
     #[ORM\Column(options: ['default' => 0])]
     public int $bonusRolls = 0;

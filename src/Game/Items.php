@@ -106,10 +106,27 @@ final class Items
         return [
             'id' => $i->id, 'slot' => $i->slot, 'base' => $i->base, 'rarity' => $i->rarity, 'ilvl' => $i->ilvl,
             'affixes' => $i->affixes, 'sockets' => $i->sockets, 'glyphs' => $i->glyphs, 'power' => $i->power,
-            'imprint' => $i->imprint, 'temper' => $i->temper, 'seed' => $i->seed, 'equipped' => $i->equipped,
+            'imprint' => $i->imprint, 'temper' => $i->temper, 'seed' => $i->seed, 'dye' => $i->dye, 'equipped' => $i->equipped,
             'price' => $i->price !== null ? (int) $i->price : null,
             'value' => $i->slot === 'glyph' ? ($i->affixes[0][1] ?? 0) : null,
         ];
+    }
+
+    /** The colours an item is drawn in: its dye, else its rarity's palette from the seed; null wears the hero's own. */
+    public static function tint(array $spec): ?array
+    {
+        if (!empty($spec['dye'])) {
+            return $spec['dye'];
+        }
+        $p = Rules::ITEM_PALETTES[$spec['rarity'] ?? 'common'] ?? null;
+
+        return $p ? $p[abs((int) ($spec['seed'] ?? 0)) % count($p)] : null;
+    }
+
+    /** A look the wardrobe keeps: slot, base and colours, as one string. */
+    public static function lookKey(array $spec): string
+    {
+        return implode('|', [$spec['slot'], $spec['base'], ...(self::tint($spec) ?? ['', '', ''])]);
     }
 
     public static function fromSpec(array $s): Item
@@ -126,6 +143,7 @@ final class Items
         $i->imprint = $s['imprint'] ?? null;
         $i->temper = $s['temper'] ?? 0;
         $i->seed = $s['seed'];
+        $i->dye = $s['dye'] ?? null;
         $i->createdAt = time();
 
         return $i;

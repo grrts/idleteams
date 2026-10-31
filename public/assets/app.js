@@ -1266,6 +1266,7 @@
     const sel = inv.find((i) => i.id === S.sel);
     const cost = S.craftCost;
     return '<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))"><div class="stack"><div class="panel"><div class="head"><h2>Worn</h2><span class="small muted">Nothing binds. Wear, trade or sell anything.</span></div>' + doll + '</div>' +
+      wardrobeView() +
       '<div class="panel"><h3>Resonance</h3>' + resTxt + '</div>' +
       '<div class="panel"><div class="head"><h3>Craft</h3><span class="small muted">Item level ' + 2 * h.level + '. Usually common, sometimes rare, rarely epic.</span></div><div class="row"><select id="craftSlot" aria-label="Slot">' + Object.keys(cfg.slots).filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '">' + cfg.slots[s][0] + '</option>').join('') + '</select><button class="primary" data-act="craft">Craft' + (cost ? ' · ' + fmt(cost.gold) + 'g · ' + cost.materials + ' mats' : '') + '</button></div></div></div>' +
       '<div class="stack">' + (sel ? itemDetail(sel, worn) : '<div class="panel muted">Pick an item to see what you can do with it.</div>') +
@@ -1297,7 +1298,31 @@
       sock = '<div><h4>Sockets</h4>' + i.glyphs.map((g, k) => g ? '<div class="row small"><span class="sock" style="background:' + cfg.glyphs[g[0]][2] + '"></span>' + cfg.glyphs[g[0]][0] + ' +' + g[1] + ' <button class="small" data-act="item" data-a="unsocket" data-id="' + i.id + '" data-socket="' + k + '">Take out</button></div>' : '<div class="row small"><span class="sock"></span>Empty ' + (bagGlyphs.length ? '<select id="glyph' + k + '" aria-label="Glyph">' + bagGlyphs.map((x) => '<option value="' + x.id + '">' + esc(x.name) + ' +' + x.value + '</option>').join('') + '</select><button class="small" data-act="socket" data-id="' + i.id + '" data-socket="' + k + '">Socket</button>' : '<span class="muted">(no glyphs in your bag)</span>') + '</div>').join('') + '</div>';
     }
     const trade = i.equipped ? '' : '<hr><div class="row"><input id="giveTo" placeholder="Hero name" style="width:140px" aria-label="Give to"><button data-act="give" data-id="' + i.id + '">Give</button></div><div class="row" style="margin-top:8px"><input id="sellPrice" type="number" min="1" placeholder="Price" style="width:110px" aria-label="Price"><button data-act="sell" data-id="' + i.id + '">Sell on market</button><button class="danger" data-act="salvage" data-id="' + i.id + '">Salvage</button></div>';
-    return '<div class="panel stack tight">' + itemCard(i) + compare + '<div class="row">' + actions + '</div>' + sock + trade + '</div>';
+    return '<div class="panel stack tight">' + itemCard(i) + compare + '<div class="row">' + actions + '</div>' + dyeView(i) + sock + trade + '</div>';
+  }
+  // Dyes: two cloth colours and a metal for any item you can see, previewed on your hero before you pay.
+  const LAYER = { head: 'hat', top: 'top', bottom: 'bottom', shoes: 'shoes', gloves: 'gloves', cape: 'cape', weapon: 'weapon', offhand: 'offhand' };
+  function dyeView(i) {
+    const cfg = S.cfg, h = S.st.hero, layer = LAYER[i.slot];
+    if (!layer) return '';
+    if (!S.dye || S.dye.id !== i.id) return '<div class="row"><button class="small" data-act="dyeOpen" data-id="' + i.id + '">' + ico('materials') + ' Dye…</button>' + (i.dye ? '<span class="small muted">Dyed</span>' : '') + '</div>';
+    const cur = S.dye.c, look = JSON.parse(JSON.stringify(h.look));
+    look[layer] = i.base; look.tint = Object.assign({}, Array.isArray(look.tint) ? {} : look.tint, { [layer]: cur });
+    const row = (k, list, label) => '<div class="row dyes"><span class="small muted" style="width:44px">' + label + '</span>' + list.map((c) => '<button class="sw' + (cur[k] === c ? ' on' : '') + '" style="background:' + c + '" data-act="dyePick" data-k="' + k + '" data-c="' + c + '" aria-label="' + c + '"></button>').join('') + '</div>';
+    return '<div class="dyebox"><div class="stage">' + spr(look, 2, 'idle') + '</div><div class="stack tight">' + row(0, cfg.dyes, 'Cloth') + row(1, cfg.dyes, 'Trim') + row(2, cfg.metals, 'Metal') +
+      '<div class="row"><button class="primary small" data-act="dyeApply" data-id="' + i.id + '">Dye it (' + cfg.dyeCost + ' materials)</button>' + (i.dye ? '<button class="small" data-act="dyeUndo" data-id="' + i.id + '">Back to its own colours</button>' : '') + '<button class="small ghost" data-act="dyeClose">Cancel</button></div></div></div>';
+  }
+  // The wardrobe: every look you have worn, shown in a slot instead of what you wear now.
+  function wardrobeView() {
+    const h = S.st.hero, cfg = S.cfg, wr = h.wardrobe || {}, of = h.outfit || {};
+    const rows = Object.keys(LAYER).map((slot) => {
+      const looks = wr[slot] || [], cur = of[slot] || '';
+      const opts = '<option value="">What I wear</option>' + (slot === 'head' || slot === 'cape' ? '<option value="hidden"' + (cur === 'hidden' ? ' selected' : '') + '>Hidden</option>' : '') +
+        looks.map((l) => '<option value="' + esc(l.key) + '"' + (cur === l.key ? ' selected' : '') + '>' + esc(l.name) + (l.tint ? '' : ' (own colours)') + '</option>').join('');
+      const shown = looks.find((l) => l.key === cur);
+      return '<div class="row wr"><span class="small" style="width:76px">' + cfg.slots[slot][0] + '</span>' + (shown ? '<img class="ico lg" alt="" src="' + ITA.icon({ slot, base: shown.base, rarity: shown.tint ? 'rare' : 'common', seed: 0, tint: shown.tint }) + '">' : '') + '<select data-act-change="outfit" data-slot="' + slot + '" aria-label="' + cfg.slots[slot][0] + ' look">' + opts + '</select><span class="tiny muted">' + looks.length + ' kept</span></div>';
+    }).join('');
+    return '<div class="panel"><div class="head"><h3>Wardrobe</h3><span class="small muted">Every look you wear is kept. Show any of them instead, for free.</span></div>' + rows + '</div>';
   }
 
   // ------------------------------------------------------------------ group and tavern
@@ -1666,6 +1691,11 @@
     path: (d) => act(() => post('/hero/act', { action: 'path', path: d.id }), 'Path chosen. You can still change it until the Oath.'),
     legendPick: (d) => confirmBox('Become <b>' + esc(d.t) + '</b>? Your Legend form is permanent.', () => act(() => post('/hero/act', { action: 'legend', form: d.id }), 'You are a Legend now.')),
     skipPrologue: () => endPrologue(),
+    dyeOpen: (d) => { const i = S.st.inventory.find((x) => x.id === +d.id); S.dye = { id: +d.id, c: (i && (i.dye || i.tint)) || [S.st.hero.look.dye1, S.st.hero.look.dye2, S.st.hero.look.metal] }; render(); },
+    dyePick: (d) => { S.dye.c = S.dye.c.slice(); S.dye.c[+d.k] = d.c; render(); },
+    dyeClose: () => { S.dye = null; render(); },
+    dyeApply: (d) => act(() => post('/item/' + d.id + '/dye', { dye: S.dye.c }).then((r) => { S.dye = null; return r; }), 'Dyed.'),
+    dyeUndo: (d) => act(() => post('/item/' + d.id + '/dye', {}).then((r) => { S.dye = null; return r; }), 'Back to its own colours.'),
     sigPick: () => {
       const skill = $('#sigSkill').value, name = $('#sigName').value.trim(), s = S.st.hero.skills.find((x) => x.id === skill);
       confirmBox('Make <b>' + esc(s ? s.name : skill) + '</b> your Signature' + (name ? ', named <b>' + esc(name) + '</b>' : '') + '? This is permanent.', () => act(() => post('/hero/act', { action: 'signature', skill, name }), 'Your Signature is chosen.'));
@@ -1751,6 +1781,7 @@
     const a = el.dataset.actChange;
     if (a === 'dungeon') act(() => post('/party/settings', { dungeon: el.value || null }), 'The next run goes there.');
     if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next run uses the new level.');
+    if (a === 'outfit') act(() => post('/outfit', { slot: el.dataset.slot, look: el.value || null }), 'Wardrobe updated.');
     if (a === 'mSlot') { S.marketFilter.slot = el.value; loadMarket(); }
     if (a === 'mRarity') { S.marketFilter.rarity = el.value; loadMarket(); }
   });

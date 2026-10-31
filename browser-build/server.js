@@ -128,12 +128,50 @@
     const out = Object.assign({ race: h.race, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'sword', offhand: 'none' }, h.look);
     out.race = h.race;
     let hasWeapon = false;
+    const tint = {};
     for (const i of equipped(h)) {
       const layer = (D.SLOTS[i.equipped] || [])[1];
-      if (layer) { out[layer] = i.base; hasWeapon = hasWeapon || layer === 'weapon'; }
+      if (layer) { out[layer] = i.base; const t = I.tint(I.spec(i)); if (t) tint[layer] = t; hasWeapon = hasWeapon || layer === 'weapon'; }
     }
     if (!hasWeapon) out.weapon = D.CLASSES[h.cls].kit.weapon;
+    // The wardrobe: a chosen look shows instead of what is worn, and head and back can be hidden.
+    for (const [slot, key] of Object.entries(h.outfit || {})) {
+      const layer = (D.SLOTS[slot] || [])[1];
+      if (!layer) continue;
+      if (key === 'hidden') { out[layer] = 'none'; delete tint[layer]; }
+      else if ((h.wardrobe || []).includes(key)) { const [, base, d1, d2, m] = key.split('|'); out[layer] = base; if (d1) tint[layer] = [d1, d2, m]; else delete tint[layer]; }
+    }
+    out.tint = tint;
     return out;
+  }
+  function collectLook(h, i) {
+    if (!(D.SLOTS[i.slot] || [])[1]) return;
+    const key = I.lookKey(I.spec(i));
+    if (!(h.wardrobe || []).includes(key)) h.wardrobe = [...(h.wardrobe || []), key];
+  }
+  function wardrobeView(h) {
+    const out = {};
+    for (const key of h.wardrobe || []) { const [slot, base, d1, d2, m] = key.split('|'); (out[slot] = out[slot] || []).push({ key, base, name: (D.BASES[slot] || {})[base] || base, tint: d1 ? [d1, d2, m] : null }); }
+    return out;
+  }
+  function dye(h, i, d) {
+    if (!(D.SLOTS[i.slot] || [])[1]) fail('Only things you can see can be dyed.');
+    if (d) {
+      d = [].concat(d);
+      if (d.length !== 3 || !D.DYES.includes(d[0]) || !D.DYES.includes(d[1]) || !D.METALS.includes(d[2])) fail('Pick two dyes and a metal from the dye table.');
+      if (h.materials < D.DYE_COST) fail('Dyeing costs ' + D.DYE_COST + ' materials.');
+      h.materials -= D.DYE_COST;
+    }
+    i.dye = d || null;
+    collectLook(h, i);
+  }
+  function setOutfit(h, slot, key) {
+    if (!(D.SLOTS[slot] || [])[1]) fail('That slot has no look.');
+    const out = Object.assign({}, h.outfit || {});
+    if (!key) delete out[slot];
+    else if (key === 'hidden') { if (!['head', 'cape'].includes(slot)) fail('Only the head and back can be hidden.'); out[slot] = 'hidden'; }
+    else { if (!(h.wardrobe || []).includes(key) || key.split('|')[0] !== slot) fail('That look is not in your wardrobe for this slot.'); out[slot] = key; }
+    h.outfit = out;
   }
 
   function finish(b) {
@@ -170,6 +208,7 @@
       if (!rep.wiped) c.cleared = uniq([...(c.cleared || []), dungeon.id]);
       h.career = c;
       Object.assign(row, { xp, gold, materials: mats });
+      for (const w of equipped(h)) collectLook(h, w);
       addXp(h, xp);
       if (h.signature && row.sigXp > 0) {
         const before = R.signatureMastery(h.signatureXp || 0);
@@ -281,7 +320,7 @@
     return {
       attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
-      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
+      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, dyes: D.DYES, metals: D.METALS, dyeCost: D.DYE_COST, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
@@ -318,7 +357,7 @@
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
       attributes: attrs.total, sources: attrs.sources, effective: S.effective(attrs.total), stats, k: S.k(L), curves,
-      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h), bonusRolls: h.bonusRolls || 0, prologue: !h.prologueDone && h.level <= 2 && !((h.career || {}).battles),
+      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h), bonusRolls: h.bonusRolls || 0, wardrobe: wardrobeView(h), outfit: h.outfit || {}, prologue: !h.prologueDone && h.level <= 2 && !((h.career || {}).battles),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
@@ -329,7 +368,7 @@
   }
   function presentItem(i, viewer = null) {
     const spec = I.spec(i), owner = i.owner ? find('heroes', i.owner) : null;
-    const out = Object.assign({}, spec, { name: I.name(spec), owner: owner ? { id: owner.id, name: owner.name } : null });
+    const out = Object.assign({}, spec, { name: I.name(spec), tint: I.tint(spec), owner: owner ? { id: owner.id, name: owner.name } : null });
     if (viewer && i.slot !== 'glyph') {
       out.score = S.itemScore(spec, viewer.cls);
       out.base_stats = Object.fromEntries(Object.entries(S.itemBase(spec)).map(([k, v]) => [k, round1(v)]));
@@ -366,7 +405,7 @@
   }
   function presentBattle(b, viewer, withTimeline) {
     const chest = b.chest.map((c, idx) => ({
-      idx, item: Object.assign({}, c.spec, { name: I.name(c.spec), score: viewer && c.spec.slot !== 'glyph' ? S.itemScore(c.spec, viewer.cls) : null }),
+      idx, item: Object.assign({}, c.spec, { name: I.name(c.spec), tint: I.tint(c.spec), score: viewer && c.spec.slot !== 'glyph' ? S.itemScore(c.spec, viewer.cls) : null }),
       upgrade: viewer ? isUpgrade(viewer, c.spec) : false, rolls: c.rolls, numbers: c.numbers || {}, winner: c.winner,
     }));
     return {
@@ -400,7 +439,7 @@
     const c = D.CLASSES[h.cls], r = new Rng(E.crc(name));
     for (const [slot, base] of Object.entries(c.kit)) {
       if (base === 'none') continue;
-      ins('items', Object.assign(itemRecord(I.generate(r, 1, 'common', slot, base, keys(c.suggest))), { owner: h.id, equipped: slot }));
+      collectLook(h, ins('items', Object.assign(itemRecord(I.generate(r, 1, 'common', slot, base, keys(c.suggest))), { owner: h.id, equipped: slot })));
     }
     post('tavern', name + ' the ' + D.RACES[h.race].name + ' ' + c.name + ' arrived at the tavern.');
     return h;
@@ -608,6 +647,7 @@
     } else if (target !== i.slot) fail('That item does not fit there.');
     const old = worn(h, target); if (old) old.equipped = null;
     i.equipped = target;
+    collectLook(h, i);
   }
   function pay(h, gold, materials, essence = 0) {
     if (h.gold < gold) fail('That costs ' + gold + ' gold.');
@@ -975,6 +1015,7 @@
       equip: () => equip(h, i, input.slot || null), unequip: () => { i.equipped = null; }, temper: () => temper(h, i),
       socket: () => socket(h, i, own(h, int(input.glyph)), int(input.socket, -1)), unsocket: () => unsocket(h, i, int(input.socket, -1)),
       imprint: () => imprint(h, i, String(input.power || '')), reforge: () => reforge(h, i, int(input.affix, -1), String(input.attr || '')),
+      dye: () => dye(h, i, Array.isArray(input.dye) ? input.dye : null),
       salvage: () => { result = salvage(h, i); }, give: () => give(h, i, heroByName(input.to || '')), sell: () => sell(i, int(input.price)), unlist: () => { i.price = null; },
     };
     (acts[action] || (() => fail('Unknown action.')))();
@@ -998,6 +1039,7 @@
     ['POST', /^\/logout$/, () => { db = fresh(); seed(); return { ok: true }; }],
     ['GET', /^\/state$/, () => state()],
     ['GET', /^\/battle$/, (m, b, q) => battles(q)],
+    ['POST', /^\/outfit$/, (m, b) => { const h = hero(); setOutfit(h, String(b.slot || ''), b.look == null ? null : String(b.look)); return presentHero(h); }],
     ['GET', /^\/prologue$/, () => prologue(hero())],
     ['POST', /^\/prologue\/done$/, () => { const h = hero(); h.prologueDone = true; return presentHero(h); }],
     ['POST', /^\/battle\/(\d+)\/roll$/, (m, b) => { const h = hero(), bt = must('battles', m[1]); roll(bt, h, int(b.idx, -1), String(b.choice || '')); return presentBattle(bt, h, false); }],

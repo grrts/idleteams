@@ -44,7 +44,7 @@ class Present
             'rarities' => Rules::RARITIES, 'glyphs' => Rules::GLYPHS, 'powers' => Rules::LEGENDARY_POWERS, 'caps' => Stats::CAPS,
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
-            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'legendLevel' => Legends::LEVEL, 'scarceRolls' => Rules::SCARCE_ROLLS, 'mentorLevel' => Rules::MENTOR_LEVEL, 'mentorBonus' => Rules::MENTOR_BONUS, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
+            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'legendLevel' => Legends::LEVEL, 'scarceRolls' => Rules::SCARCE_ROLLS, 'dyes' => Rules::DYES, 'metals' => Rules::METALS, 'dyeCost' => Rules::DYE_COST, 'mentorLevel' => Rules::MENTOR_LEVEL, 'mentorBonus' => Rules::MENTOR_BONUS, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
@@ -83,6 +83,18 @@ class Present
             'traits' => Rules::signatureTraits($m), 'power' => round((1 + 0.01 * $m) * 1.1 ** Rules::signatureTraits($m)['potent'] - 1, 3),
             'inLoadout' => in_array($h->signature, [...$this->game->loadout($h), Rules::CLASSES[$h->cls]['ultimate'][0]], true),
         ];
+    }
+
+    /** Kept looks by slot: [slot => [['key', 'base', 'name', 'tint']]]. */
+    public function wardrobe(Hero $h): array
+    {
+        $out = [];
+        foreach ($h->wardrobe ?? [] as $key) {
+            [$slot, $base, $d1, $d2, $m] = explode('|', $key) + ['', '', '', '', ''];
+            $out[$slot][] = ['key' => $key, 'base' => $base, 'name' => Rules::BASES[$slot][$base] ?? $base, 'tint' => $d1 !== '' ? [$d1, $d2, $m] : null];
+        }
+
+        return $out;
     }
 
     /** The Legend panel: nothing before level 50, both forms of the Path to choose from, then the form taken. */
@@ -168,6 +180,7 @@ class Present
             'skills' => $skills, 'skillPoints' => $h->skillPoints(), 'loadout' => $this->game->loadout($h),
             'signature' => $this->signature($h), 'legendForm' => $this->legend($h),
             'bonusRolls' => $h->bonusRolls,
+            'wardrobe' => $this->wardrobe($h), 'outfit' => (object) ($h->outfit ?? []),
             'prologue' => !$h->prologueDone && $h->level <= 2 && ($h->career['battles'] ?? 0) === 0,
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
@@ -198,7 +211,7 @@ class Present
     public function item(Item $i, ?Hero $viewer = null): array
     {
         $spec = Items::spec($i);
-        $out = $spec + ['name' => Items::name($spec), 'owner' => $i->owner ? ['id' => $i->owner->id, 'name' => $i->owner->name] : null];
+        $out = $spec + ['name' => Items::name($spec), 'tint' => Items::tint($spec), 'owner' => $i->owner ? ['id' => $i->owner->id, 'name' => $i->owner->name] : null];
         if ($viewer && $i->slot !== 'glyph') {
             $out['score'] = Stats::itemScore($spec, $viewer->cls);
             $out['base_stats'] = array_map(fn ($v) => round($v, 1), Stats::itemBase($spec));
@@ -295,7 +308,7 @@ class Present
         foreach ($b->chest as $idx => $c) {
             $spec = $c['spec'];
             $chest[] = [
-                'idx' => $idx, 'item' => $spec + ['name' => Items::name($spec), 'score' => $viewer && $spec['slot'] !== 'glyph' ? Stats::itemScore($spec, $viewer->cls) : null],
+                'idx' => $idx, 'item' => $spec + ['name' => Items::name($spec), 'tint' => Items::tint($spec), 'score' => $viewer && $spec['slot'] !== 'glyph' ? Stats::itemScore($spec, $viewer->cls) : null],
                 'upgrade' => $viewer ? $this->game->isUpgrade($viewer, $spec) : false,
                 'rolls' => (object) $c['rolls'], 'numbers' => (object) ($c['numbers'] ?? []), 'winner' => $c['winner'],
             ];

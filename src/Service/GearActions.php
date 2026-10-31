@@ -55,6 +55,50 @@ class GearActions
             $old->equipped = null;
         }
         $i->equipped = $target;
+        $this->game->collectLook($h, $i);
+    }
+
+    /** Dye a worn-slot item: [cloth, trim, metal] from the dye and metal lists, or null to undo. */
+    public function dye(Hero $h, Item $i, ?array $dye): void
+    {
+        if (!(Rules::SLOTS[$i->slot][1] ?? null)) {
+            throw new GameError('Only things you can see can be dyed.');
+        }
+        if ($dye !== null) {
+            $dye = array_values($dye);
+            if (count($dye) !== 3 || !in_array($dye[0], Rules::DYES, true) || !in_array($dye[1], Rules::DYES, true) || !in_array($dye[2], Rules::METALS, true)) {
+                throw new GameError('Pick two dyes and a metal from the dye table.');
+            }
+            if ($h->materials < Rules::DYE_COST) {
+                throw new GameError(sprintf('Dyeing costs %d materials.', Rules::DYE_COST));
+            }
+            $h->materials -= Rules::DYE_COST;
+        }
+        $i->dye = $dye;
+        $this->game->collectLook($h, $i);
+    }
+
+    /** Show a wardrobe look in a slot instead of the worn item, 'hidden' for head or back, or null for the item. */
+    public function outfit(Hero $h, string $slot, ?string $key): void
+    {
+        if (!(Rules::SLOTS[$slot][1] ?? null)) {
+            throw new GameError('That slot has no look.');
+        }
+        $out = $h->outfit ?? [];
+        if ($key === null || $key === '') {
+            unset($out[$slot]);
+        } elseif ($key === 'hidden') {
+            if (!in_array($slot, ['head', 'cape'], true)) {
+                throw new GameError('Only the head and back can be hidden.');
+            }
+            $out[$slot] = 'hidden';
+        } else {
+            if (!in_array($key, $h->wardrobe ?? [], true) || explode('|', $key)[0] !== $slot) {
+                throw new GameError('That look is not in your wardrobe for this slot.');
+            }
+            $out[$slot] = $key;
+        }
+        $h->outfit = $out;
     }
 
     public function unequip(Item $i): void

@@ -12,6 +12,18 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class GearController extends ApiController
 {
+    /** The wardrobe: show a kept look in a slot instead of the worn item. */
+    #[Route('/api/outfit', methods: ['POST'])]
+    public function outfit(Request $r, GearActions $gear, Present $present): JsonResponse
+    {
+        $h = $this->hero();
+        $in = $this->body($r);
+        $gear->outfit($h, (string) ($in['slot'] ?? ''), isset($in['look']) ? (string) $in['look'] : null);
+        $this->em->flush();
+
+        return $this->json($present->hero($h));
+    }
+
     #[Route('/api/item/{id}/{action}', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function act(int $id, string $action, Request $r, GearActions $gear, Present $present): JsonResponse
     {
@@ -22,6 +34,7 @@ class GearController extends ApiController
         match ($action) {
             'equip' => $gear->equip($h, $i, $in['slot'] ?? null),
             'unequip' => $gear->unequip($i),
+            'dye' => $gear->dye($h, $i, isset($in['dye']) && is_array($in['dye']) ? $in['dye'] : null),
             'temper' => $gear->temper($h, $i),
             'socket' => $gear->socket($h, $i, $gear->own($h, (int) ($in['glyph'] ?? 0)), (int) ($in['socket'] ?? -1)),
             'unsocket' => $gear->unsocket($h, $i, (int) ($in['socket'] ?? -1)),

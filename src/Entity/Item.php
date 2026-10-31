@@ -53,6 +53,10 @@ class Item
     #[ORM\Column]
     public int $seed = 0;
 
+    /** Colours the owner dyed it: [cloth, trim, metal]. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $dye = null;
+
     /** Slot the item is worn in (ring1/ring2 for rings), or null in the bag. */
     #[ORM\Column(length: 12, nullable: true)]
     public ?string $equipped = null;

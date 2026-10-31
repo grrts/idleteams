@@ -161,8 +161,9 @@
   };
   const ROLE = (T, c) => (T[c] !== undefined ? T[c] || T.metal : c);
 
-  function drawIcon(slot, base, rarity, seed) {
-    const T = TIER[rarity] || TIER.common, b = new Buf(32, 32);
+  function drawIcon(slot, base, rarity, seed, tint) {
+    // An item's own colours (its dye, or its rarity palette picked by seed) replace the rarity's cloth, trim and metal.
+    const T0 = TIER[rarity] || TIER.common, T = tint ? { ...T0, cloth: tint[0], trim: tint[1], metal: tint[2] } : T0, b = new Buf(32, 32);
     b.mats = {};
     const col = (c) => ROLE(T, c);
     const shape = (d, c, mat, tx = 16, ty = 16, s = 1, rot = 0) => { b.next(); b.mats[b.part] = mat; b.path(d, tx, ty, s, col(c), null, rot); };
@@ -275,8 +276,9 @@
     if (T.glow && slot !== 'glyph') for (let i = 0; i < 4; i++) { const r = ((seed || 7) * (i + 3) * 7919) % 1000; b.glow(4 + (r % 24), 4 + (((r / 24) | 0) % 24), 1.6, '#ffffff'); }
     return softCanvas(b);
   }
-  A.iconCanvas = (it) => memo(['i', it.slot, it.base, it.rarity, (it.seed || 0) % 3].join(':'), () => drawIcon(it.slot === 'ring2' ? 'ring1' : it.slot, it.base, it.rarity, it.seed));
-  A.icon = (it) => url(['i', it.slot, it.base, it.rarity, (it.seed || 0) % 3].join(':'), () => A.iconCanvas(it));
+  const iconKey = (it) => ['i', it.slot, it.base, it.rarity, (it.seed || 0) % 3, (it.tint || []).join('')].join(':');
+  A.iconCanvas = (it) => memo(iconKey(it), () => drawIcon(it.slot === 'ring2' ? 'ring1' : it.slot, it.base, it.rarity, it.seed, it.tint || null));
+  A.icon = (it) => url(iconKey(it), () => A.iconCanvas(it));
 
   // ------------------------------------------------------------------ UI icons (16 x 16)
 
