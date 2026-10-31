@@ -24,11 +24,15 @@ class TokenController extends ApiController
     {
         $in = $this->body($r);
         $username = strtolower(trim((string) ($in['username'] ?? '')));
-        if (!$limiter->create($r->getClientIp().'-'.$username)->consume()->isAccepted()) {
+        // only wrong passwords count against the limit
+        $limit = $limiter->create($r->getClientIp().'-'.$username);
+        if (!$limit->consume(0)->isAccepted()) {
             throw new GameError('Too many tries. Wait a few minutes and try again.');
         }
         $u = $this->em->getRepository(User::class)->findOneBy(['username' => $username]);
         if (!$u || !$hasher->isPasswordValid($u, (string) ($in['password'] ?? ''))) {
+            $limit->consume();
+
             return $this->json(['error' => 'Wrong username or password.'], 401);
         }
 

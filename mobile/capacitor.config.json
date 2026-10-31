@@ -1,0 +1,11 @@
+{
+  "appId": "com.idleteams.app",
+  "appName": "Idle Teams",
+  "webDir": "www",
+  "backgroundColor": "#1a130b",
+  "ios": { "contentInset": "always" },
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "FirebaseMessaging": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}

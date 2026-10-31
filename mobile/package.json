@@ -1,0 +1,24 @@
+{
+  "name": "idleteams-mobile",
+  "private": true,
+  "description": "Idle Teams for iOS and Android: the game client in a Capacitor app, buying through RevenueCat",
+  "scripts": {
+    "build": "node ../scripts/native-web.mjs www && esbuild src/native.js --bundle --format=iife --target=es2020 --outfile=www/native.js",
+    "sync": "npm run build && cap sync",
+    "ios": "npm run sync && cap open ios",
+    "android": "npm run sync && cap open android"
+  },
+  "dependencies": {
+    "@capacitor-firebase/messaging": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
+    "@revenuecat/purchases-capacitor": "^14.0.0",
+    "firebase": "^12.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "esbuild": "^0.28.0"
+  }
+}

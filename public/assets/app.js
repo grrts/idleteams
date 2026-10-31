@@ -4,6 +4,10 @@
 (function () {
   'use strict';
   const ITP = window.ITP, ITA = window.ITA;
+  // In the iOS, Android and Steam apps a bridge (public/assets/native.js) says which platform this is, where the
+  // server is, and does what only the device can: keep the login token, buy through the store, register for push.
+  const NATIVE = window.IT_NATIVE || null, SITE = NATIVE ? NATIVE.api || (window.IT_APP || {}).api || '' : '';
+  const STORE = NATIVE ? { ios: 'the App Store', android: 'Google Play', steam: 'Steam' }[NATIVE.platform] : '';
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (n) => (n == null ? '' : Math.round(n).toLocaleString('en-US'));
@@ -24,9 +28,14 @@
     if (window.IT_SERVER) {
       try { return window.IT_SERVER.handle(method, path, body ? JSON.parse(JSON.stringify(body)) : null); } catch (e) { const err = new Error(e.message); err.status = e.status || 400; throw err; }
     }
-    const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+    // The native apps (mobile/, desktop/) call the server across origins with a token instead of the session cookie.
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const token = NATIVE ? await NATIVE.getToken() : null;
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const res = await fetch(SITE + '/api' + path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: NATIVE ? 'omit' : 'same-origin' });
     let data = null;
     try { data = await res.json(); } catch (e) { /* empty body */ }
+    if (res.status === 401 && token) await NATIVE.setToken(null);
     if (!res.ok) { const err = new Error((data && (data.error || data.message)) || 'Something went wrong (' + res.status + ')'); err.status = res.status; throw err; }
     return data;
   }
@@ -177,7 +186,7 @@
 
   async function boot() {
     // the installable app: the service worker keeps the files and shows an offline note (public/sw.js)
-    if (!window.IT_SERVER && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => null);
+    if (!window.IT_SERVER && !NATIVE && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => null);
     [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
     ITA.setDungeon(S.cfg.dungeon);
@@ -196,6 +205,7 @@
     }
     loadView();
     pushInit();
+    nativeReady();
     // With live updates the server says when something changed; polling stays as a slow safety net.
     const due = (k, ms) => { const now = Date.now(), slow = live.ok ? 6 : 1; if (now - (live.last[k] || 0) < ms * slow - 50) return false; live.last[k] = now; return true; };
     setInterval(() => { if (S.st && S.st.hero && !document.hidden && due('state', 5000)) refresh(); }, 5000);
@@ -332,8 +342,8 @@
   // One cookie keeps a player logged in and nothing tracks them, so a line under the form is the whole cookie notice.
   function legalLine(reg) {
     if (window.IT_SERVER) return '';
-    return '<p class="small muted center legal">' + (reg ? 'By creating an account you accept the <a href="/terms" target="_blank">terms</a> and have read the <a href="/privacy" target="_blank">privacy policy</a>. ' : '<a href="/terms" target="_blank">Terms</a> · <a href="/privacy" target="_blank">Privacy</a> · ') +
-      'One cookie keeps you logged in. Nothing tracks you.</p>';
+    return '<p class="small muted center legal">' + (reg ? 'By creating an account you accept the <a href="' + SITE + '/terms" target="_blank">terms</a> and have read the <a href="' + SITE + '/privacy" target="_blank">privacy policy</a>. ' : '<a href="' + SITE + '/terms" target="_blank">Terms</a> · <a href="' + SITE + '/privacy" target="_blank">Privacy</a> · ') +
+      (NATIVE ? 'Your login is kept on this device. Nothing tracks you.</p>' : 'One cookie keeps you logged in. Nothing tracks you.</p>');
   }
   // The front page for someone new: what the game is, a group of random heroes, then the form.
   function landing() {
@@ -352,7 +362,9 @@
     if (S.reset) return '<div class="auth panel stack">' + logo + '<p class="center">Choose a new password for <b>' + esc(S.reset.u) + '</b>.</p><form data-form="reset"><label for="pw">New password</label><input id="pw" name="password" type="password" minlength="8" autocomplete="new-password" required style="width:100%"><div style="margin-top:14px"><button class="primary" type="submit">Save and log in</button></div></form></div>';
     if (S.authMode === 'forgot') return '<div class="auth panel stack">' + logo + '<p class="muted center">Enter the email on your account and we will send a link to choose a new password.</p><form data-form="forgot"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="email" required style="width:100%"><div class="row between" style="margin-top:14px"><button class="primary" type="submit">Send the link</button><button type="button" class="ghost small" data-act="authMode" data-mode="login">Back to log in</button></div></form></div>';
     const reg = S.authMode === 'register';
-    return landing() + '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
+    const steam = NATIVE && NATIVE.platform === 'steam' ? '<button class="primary" data-act="steamLogin" style="width:100%">Log in with Steam</button>' +
+      (S.steamLink ? '<p class="small muted center">No game account is linked to this Steam account yet. Log in or create one below and it will be linked, so next time Steam logs you in.</p>' : '<p class="small muted center">or with a game account</p>') : '';
+    return (NATIVE ? '' : landing()) + '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' + steam +
       '<div class="tabs"><button class="' + (!reg ? 'on' : '') + '" data-act="authMode" data-mode="login">Log in</button><button class="' + (reg ? 'on' : '') + '" data-act="authMode" data-mode="register">Create account</button></div>' +
       '<form data-form="' + (reg ? 'register' : 'login') + '"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required style="width:100%"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
       '<div class="row between" style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button>' + (reg || window.IT_SERVER ? '' : '<button type="button" class="ghost small" data-act="authMode" data-mode="forgot">Forgot your password?</button>') + '</div></form>' + legalLine(reg) + '</div>';
@@ -1595,10 +1607,15 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div><div class="panel"><h3>First days</h3>' + funnelView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + rosterView() + pushView() + dataView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + steamView() + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+  }
+  function steamView() {
+    if (!NATIVE || NATIVE.platform !== 'steam') return '';
+    const on = S.st.user.steamLinked;
+    return '<div class="panel"><h3>Steam</h3><p class="small">' + (on ? '✓ Linked: Steam logs you in to this account.' : 'Link your Steam account and Steam logs you in from now on.') + '</p><div class="row"><button class="small" data-act="steamLink"' + (on ? ' data-off="1"' : '') + '>' + (on ? 'Unlink' : 'Link this Steam account') + '</button></div></div>';
   }
   // Alternate heroes: the account's heroes, one played at a time; they share the wardrobe and the Codex.
   function rosterView() {
@@ -1613,10 +1630,16 @@
   }
   // ------------------------------------------------------------------ shop
 
+  async function nativeReady() {
+    // the Steam build logs in by itself when the Steam account is linked
+    if (NATIVE && NATIVE.platform === 'steam' && !S.st && !S.steamTried) { S.steamTried = true; await handlers.steamLogin({}, true); }
+  }
   async function loadShop() {
     try { S.shop = await get('/shop'); } catch (e) { S.shop = { error: e.message }; }
-    const paid = /paid=(\d+)/.exec(location.hash);
-    if (paid && S.shop && !S.shop.error) { toast('Thank you! Your purchase arrives as soon as the payment is through.', true); history.replaceState(null, '', '#/shop'); setTimeout(() => { if (S.view === 'shop') loadShop(); }, 4000); }
+    // the phone apps start the store SDK as this account and show the store's own prices, in the player's currency
+    if (NATIVE && NATIVE.shop && S.shop && !S.shop.error) {
+      try { S.shop.prices = await NATIVE.shop(S.shop.revenuecat, S.shop.offers.map((o) => o.product)); } catch (e) { /* the shop's own prices then */ }
+    }
     render();
   }
   const money = (cents, cur) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: (cur || 'eur').toUpperCase() }).format(cents / 100); } catch (e) { return (cents / 100).toFixed(2) + ' ' + cur; } };
@@ -1632,7 +1655,11 @@
     if (!sh) { loadShop(); return '<p class="muted">Opening the shop…</p>'; }
     if (sh.error) return '<p class="bad">' + esc(sh.error) + '</p>';
     const now = Date.now() / 1000, sup = sh.supporterUntil > now;
-    const buy = (o) => o.owned ? '<span class="small good">Yours</span>' : sh.open ? '<button class="small primary" data-act="shopBuy" data-o="' + o.id + '">' + money(o.price, o.currency) + '</button>' : '<span class="small muted">' + money(o.price, o.currency) + '</span>';
+    // Each app buys through its own store; the website shows the offers and points to the apps.
+    const canBuy = NATIVE && (NATIVE.platform === 'steam' ? sh.stores.steam : sh.stores.revenuecat && !!NATIVE.buy);
+    sh.open = canBuy;
+    const price = (o) => (sh.prices && sh.prices[o.product]) || money(o.price, o.currency);
+    const buy = (o) => o.owned ? '<span class="small good">Yours</span>' : sh.open ? '<button class="small primary" data-act="shopBuy" data-o="' + o.id + '">' + price(o) + '</button>' : '<span class="small muted">' + price(o) + '</span>';
     const card = (o) => '<div class="panel tight shopcard"><div class="row" style="gap:10px;align-items:flex-start">' + (o.looks.length ? '<div class="row" style="gap:2px">' + o.looks.map((k) => spr(lookOn(k), 2, 'idle')).join('') + '</div>' : '') +
       '<div class="stack tight" style="flex:1;min-width:0"><b>' + esc(o.name) + '</b><span class="small muted">' + esc(o.text) + '</span><div class="row between">' + buy(o) + '</div></div></div></div>';
     const looks = sh.offers.filter((o) => o.kind === 'look'), other = sh.offers.filter((o) => o.kind !== 'look');
@@ -1647,16 +1674,19 @@
         '<span class="bar gbar"><i style="width:' + (100 * Math.min(1, s.points / (n * s.tierPoints))) + '%"></i></span><div class="track-grid">' + s.tiers.map(cell).join('') + '</div></div>';
     } else if (sh.next) season = '<div class="panel"><h3>Next season</h3><p class="small muted">' + esc(sh.next.name) + ' starts ' + new Date(sh.next.startsAt * 1000).toLocaleDateString() + '. Its track fills from your runs.</p></div>';
     const history = sh.purchases.length ? '<div class="panel"><h3>Your purchases</h3><ul class="plain small">' + sh.purchases.map((p) => '<li>' + new Date(p.at * 1000).toLocaleDateString() + ' · ' + esc(p.offer) + ' · ' + money(p.amount, p.currency) + (p.state === 'refunded' ? ' · refunded' : '') + '</li>').join('') + '</ul></div>' : '';
-    return '<div class="stack">' + (sh.open ? '' : '<p class="panel small muted">The shop is not open yet. Everything here is a look: nothing sold makes a hero stronger.</p>') +
+    const closed = !NATIVE && (sh.stores.revenuecat || sh.stores.steam) ? 'Buy these in the Idle Teams app for iPhone or Android, or on Steam: log in with this account there and everything you buy shows up here too. Everything here is a look: nothing sold makes a hero stronger.'
+      : 'The shop is not open yet. Everything here is a look: nothing sold makes a hero stronger.';
+    return '<div class="stack">' + (sh.open ? '' : '<p class="panel small muted">' + closed + '</p>') +
       (sup ? '<p class="small gold">★ Supporter until ' + new Date(sh.supporterUntil * 1000).toLocaleDateString() + '. Thank you.</p>' : '') + season +
       '<div class="panel"><h3>Supporter and season</h3><div class="shopgrid">' + other.map(card).join('') + '</div></div>' +
       '<div class="panel"><h3>Looks</h3><p class="small muted">A look goes into the wardrobe of every hero on your account. Show it over any item in that slot from the Gear page.</p><div class="shopgrid">' + looks.map(card).join('') + '</div></div>' + history +
-      '<p class="small muted">Prices include VAT. Paid through Stripe; we never see your card. <a href="/terms" target="_blank">Terms</a> · <a href="/privacy" target="_blank">Privacy</a></p></div>';
+      (sh.open && NATIVE.platform !== 'steam' ? '<div class="row"><button class="small ghost" data-act="shopRestore">Restore purchases</button></div>' : '') +
+      '<p class="small muted">Prices include VAT.' + (sh.open ? ' Paid through ' + STORE + '; we never see your card.' : '') + ' <a href="' + SITE + '/terms" target="_blank">Terms</a> · <a href="' + SITE + '/privacy" target="_blank">Privacy</a></p></div>';
   }
   function dataView() {
     if (window.IT_SERVER) return '';
-    return '<div class="panel"><h3>Your data</h3><p class="small muted">Download everything the game keeps about you, or delete your account and every hero on it for good. Read the <a href="/privacy" target="_blank">privacy policy</a> and the <a href="/terms" target="_blank">terms</a>.</p>' +
-      '<div class="row wrap"><a class="btn small" href="/api/account/export" download>Download my data</a></div>' +
+    return '<div class="panel"><h3>Your data</h3><p class="small muted">Download everything the game keeps about you, or delete your account and every hero on it for good. Read the <a href="' + SITE + '/privacy" target="_blank">privacy policy</a> and the <a href="' + SITE + '/terms" target="_blank">terms</a>.</p>' +
+      '<div class="row wrap">' + (NATIVE ? '<button class="small" data-act="exportData">Download my data</button>' : '<a class="btn small" href="/api/account/export" download>Download my data</a>') + '</div>' +
       '<form data-form="closeAccount" class="row wrap" style="margin-top:10px"><input name="password" type="password" required placeholder="Your password" autocomplete="current-password" style="flex:1;min-width:180px"><button type="submit" class="small danger">Delete my account</button></form></div>';
   }
   // Moderators: how far each day's new players got (GET /admin/funnel), as shares of that day's sign-ups.
@@ -1691,7 +1721,7 @@
     if (live.es) { live.es.close(); live.es = null; live.ok = false; }
     live.key = key;
     if (!cfg || !window.EventSource) return;
-    const es = (live.es = new EventSource(cfg.url, { withCredentials: true }));
+    const es = (live.es = new EventSource(cfg.url, { withCredentials: !NATIVE }));
     es.onopen = () => { live.ok = true; };
     es.onerror = () => { live.ok = false; };
     es.onmessage = (ev) => {
@@ -1712,9 +1742,19 @@
   // ------------------------------------------------------------------ notifications (Web Push)
 
   // S.push: null while unknown, else { ok: can this browser do it, on: subscribed here, busy }
-  function pushSupported() { return !window.IT_SERVER && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function pushSupported() { return NATIVE ? !!NATIVE.push : !window.IT_SERVER && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
   async function pushInit() {
     if (!pushSupported()) { S.push = { ok: false, on: false }; return; }
+    if (NATIVE) {
+      // the phone's own push service (APNs, FCM) through the app; the server keeps the device token (POST /push/device)
+      try {
+        const on = await NATIVE.push.enabled();
+        S.push = { ok: true, on };
+        if (on && S.st) { const t = await NATIVE.push.token(); if (t) post('/push/device', { token: t, platform: NATIVE.platform }).catch(() => null); }
+      } catch (e) { S.push = { ok: false, on: false }; }
+      if (S.view === 'settings') render();
+      return;
+    }
     try {
       const reg = await navigator.serviceWorker.register('/sw.js');
       const sub = await reg.pushManager.getSubscription();
@@ -1726,6 +1766,13 @@
   }
   function b64ToBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
   async function pushOn() {
+    if (NATIVE) {
+      const t = await NATIVE.push.on();
+      if (!t) { toast('Notifications are off for this app in the phone settings.'); return; }
+      await post('/push/device', { token: t, platform: NATIVE.platform });
+      S.push.on = true; toast('Notifications are on for this device.', true);
+      return;
+    }
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { toast(perm === 'denied' ? 'Notifications are blocked for this site in your browser settings.' : 'No notifications then.'); return; }
     const reg = await navigator.serviceWorker.ready;
@@ -1734,6 +1781,12 @@
     S.push.on = true; toast('Notifications are on for this device.', true);
   }
   async function pushOff() {
+    if (NATIVE) {
+      const t = await NATIVE.push.off();
+      if (t) await post('/push/device/remove', { token: t }).catch(() => null);
+      if (S.push) S.push.on = false;
+      return;
+    }
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
     if (sub) { await post('/push/unsubscribe', { endpoint: sub.endpoint }).catch(() => null); await sub.unsubscribe(); }
@@ -1744,8 +1797,10 @@
     let body;
     if (window.IT_SERVER) body = '<p class="small muted">Notifications need the real server; this playable build only runs while the page is open.</p>';
     else if (!p) body = '<p class="small muted">Checking this browser…</p>';
+    else if (NATIVE && !pushSupported()) body = '<p class="small muted">This build has no notifications. The phone apps do.</p>';
     else if (!pushSupported()) body = '<p class="small muted">This browser cannot show notifications. On iPhone, add Idle Teams to your home screen first.</p>';
     else if (!p.ok) body = '<p class="small muted">Notifications are not set up on this server yet.</p>';
+    else if (NATIVE && !S.cfg.nativePush) body = '<p class="small muted">Notifications are not set up on this server yet.</p>';
     else body = '<p class="small">' + (p.on ? '✓ On for this device. ' : '') + 'We tell you when your group falls, when there is loot to roll on, when you level up and when someone invites you. Only while you are away from the game.</p>' +
       '<div class="row"><button data-act="push" data-on="' + (p.on ? 0 : 1) + '"' + (p.busy ? ' disabled' : '') + '>' + (p.on ? 'Turn off' : 'Turn on notifications') + '</button></div>';
     return '<div class="panel"><h3>Notifications</h3>' + body + '</div>';
@@ -1889,8 +1944,29 @@
     worldLeave: async () => { try { S.world = await post('/world/leave'); render(); } catch (e) { toast(e.message); } },
     shopBuy: (d) => {
       const o = S.shop.offers.find((x) => x.id === d.o);
-      modal('<h3>' + esc(o.name) + ' · ' + money(o.price, o.currency) + '</h3><p class="small">' + esc(o.text) + '</p><form data-form="shopBuy" data-o="' + o.id + '" class="stack tight"><label class="row small" style="gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0"><input type="checkbox" name="waive" value="1" style="width:auto"> <span>Deliver it at once. I understand that I lose my 14-day right of withdrawal once it is delivered.</span></label>' +
-        '<div class="row"><button class="primary" type="submit">Pay with Stripe</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
+      modal('<h3>' + esc(o.name) + ' · ' + ((S.shop.prices && S.shop.prices[o.product]) || money(o.price, o.currency)) + '</h3><p class="small">' + esc(o.text) + '</p><form data-form="shopBuy" data-o="' + o.id + '" class="stack tight"><label class="row small" style="gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0"><input type="checkbox" name="waive" value="1" style="width:auto"> <span>Deliver it at once. I understand that I lose my 14-day right of withdrawal once it is delivered.</span></label>' +
+        (o.subscription && NATIVE.platform !== 'steam' ? '<p class="small muted">Renews every month until you cancel it in your ' + STORE + ' account.</p>' : '') +
+        '<div class="row"><button class="primary" type="submit">Buy with ' + STORE + '</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
+    },
+    steamLogin: async (d, quiet) => {
+      try {
+        const r = await post('/token/steam', { ticket: await NATIVE.steamTicket() });
+        await NATIVE.setToken(r.token); S.steamLink = false; await refresh(); loadView();
+      } catch (e) {
+        if (e.status === 404) { S.steamLink = true; render(); } else if (quiet !== true) toast(e.message);
+      }
+    },
+    steamLink: (d) => act(async () => { await post(d.off ? '/account/steam/unlink' : '/account/steam', d.off ? {} : { ticket: await NATIVE.steamTicket() }); }, d.off ? 'Steam is no longer linked.' : 'Linked. Steam logs you in from now on.'),
+    shopRestore: async () => {
+      try { await NATIVE.restore(); await post('/shop/sync'); S.shop = null; await refresh(); render(); toast('Purchases restored.', true); } catch (e) { toast(e.message); }
+    },
+    exportData: async () => {
+      // the apps cannot follow a plain link with their token, so fetch it and hand over the file
+      try {
+        const data = await get('/account/export'), a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+        a.download = 'idleteams-' + S.st.user.username + '.json'; document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) { toast(e.message); }
     },
     newHero: () => { S.newHero = true; S.creator = null; S.creatorStep = 'race'; render(); window.scrollTo(0, 0); },
     cancelNewHero: () => { S.newHero = false; S.creator = null; render(); },
@@ -1902,7 +1978,7 @@
       if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }
       S.sureNew = false;
       if (S.push && S.push.on) await pushOff().catch(() => null);
-      await post('/logout').catch(() => null);
+      if (NATIVE) { await post('/token/revoke').catch(() => null); await NATIVE.setToken(null); } else await post('/logout').catch(() => null);
       if (window.IT_SERVER) { location.hash = ''; location.reload(); return; }
       S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render();
     },
@@ -2068,7 +2144,15 @@
     }
     if (f.dataset.form === 'shopBuy') {
       if (!data.waive) { toast('Tick the box to have it delivered at once.'); return; }
-      try { const r = await post('/shop/checkout', { offer: f.dataset.o, waive: true }); location.href = r.url; } catch (err) { toast(err.message); }
+      // consent first (the server records it), then the store's own purchase sheet; the server pays only what the store confirms
+      try {
+        const c = await post('/shop/consent', { offer: f.dataset.o, waive: true });
+        const done = await NATIVE.buy(c, (m, p, b) => api(m, p, b));
+        closeModal();
+        if (!done) { toast('No purchase made.'); return; }
+        if (NATIVE.platform !== 'steam') await post('/shop/sync');
+        S.shop = null; await refresh(); render(); toast('Thank you! It is in your wardrobe.', true);
+      } catch (err) { toast(err.message); }
       return;
     }
     if (f.dataset.form === 'closeAccount') {
@@ -2079,6 +2163,16 @@
     }
     if (f.dataset.form === 'email') {
       try { await post('/account/email', data); await refresh(); render(); toast('Check your inbox for the confirmation link.', true); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (NATIVE && (f.dataset.form === 'login' || f.dataset.form === 'register')) {
+      try {
+        const r = await post(f.dataset.form === 'login' ? '/token' : '/register', { ...data, platform: NATIVE.platform });
+        await NATIVE.setToken(r.token);
+        // the Steam build links the Steam account the first time, so next time it logs in by itself
+        if (NATIVE.platform === 'steam' && S.steamLink) { await post('/account/steam', { ticket: await NATIVE.steamTicket() }).catch(() => null); S.steamLink = false; }
+        await refresh(); loadView(); nativeReady();
+      } catch (err) { toast(err.message); }
       return;
     }
     try { await post('/' + f.dataset.form, data); await refresh(); loadView(); } catch (err) { toast(err.message); }

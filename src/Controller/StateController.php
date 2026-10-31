@@ -59,7 +59,7 @@ class StateController extends ApiController
 
         return $this->json([
             'serverTime' => time(),
-            'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0],
+            'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0, 'steamLinked' => $user->steamId !== null],
             'hero' => $present->hero($hero),
             'heroes' => array_map(fn (Hero $x) => $present->heroCard($x) + ['active' => $x === $hero], $roster->heroes($user)), 'maxHeroes' => Roster::MAX, 'catchUp' => \App\Game\Rules::catchUp($hero->level, $roster->best($user)),
             'inventory' => $present->inventory($hero),

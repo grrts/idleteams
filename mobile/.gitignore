@@ -1,0 +1,8 @@
+/node_modules/
+/www/
+/ios/App/Pods/
+/android/.gradle/
+/android/app/build/
+# Firebase config files hold project ids; keep them out of the repository
+GoogleService-Info.plist
+google-services.json

@@ -99,7 +99,7 @@ class Live
     public function subscribeUrlWithToken(array $topics): ?string
     {
         $url = $this->subscribeUrl($topics);
-        $jwt = $url ? $this->hub->getFactory()?->create($topics) : null;
+        $jwt = $url ? $this->hub->getFactory()?->create([new \Symfony\Component\Mercure\Jwt\Grant([\Symfony\Component\Mercure\Jwt\Grant::ACTION_SUBSCRIBE], $topics)]) : null;
 
         return $jwt ? $url.'&authorization='.rawurlencode($jwt) : null;
     }
