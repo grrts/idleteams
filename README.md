@@ -64,7 +64,7 @@ Requirements: PHP 8.2+ (8.3 recommended) with `pdo_sqlite`, `intl` is optional, 
 
 ```bash
 composer install
-php bin/console doctrine:schema:create   # on an existing database: doctrine:schema:update --force
+php bin/console doctrine:migrations:migrate -n   # builds or updates the schema
 php bin/console app:demo:seed          # optional: demo heroes so you can fill a group alone
 php -S 127.0.0.1:8000 -t public        # or: symfony serve
 ```
@@ -78,6 +78,14 @@ on loot. Invite the ones on the tavern board to your own group and they accept a
 
 Run the tests with `vendor/bin/phpunit`, and the balance harness with `php bin/console app:balance`
 (full-clear rates for five group mixes at several levels).
+
+## Working rules
+
+- `main` is the source of truth. Every change lands through a pull request; CI (`.github/workflows/ci.yml`) runs the
+  tests on SQLite, MySQL and Postgres, checks that the migrations match the entities, runs the balance harness and
+  checks that `browser-build/data.js` is current.
+- The playable link is built from `main`: run `php bin/console app:browser-data`, then publish `browser-build/` together
+  with the files in `public/assets/`. Never edit the published copy by hand.
 
 ## Host it
 
@@ -96,9 +104,11 @@ a database and cron.
    GAME_OFFLINE_CAP_SECONDS=43200 # battles keep chaining 12 hours after the last member was seen; a wipe stops the chain until a member sends the group back in
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
-3. **Database**: `php bin/console doctrine:schema:create` the first time. After you change entities, use
-   `php bin/console doctrine:schema:update --dump-sql` to review and `--force` to apply, or switch to
-   migrations (`doctrine:migrations:diff` / `migrate`, already installed) once the schema settles.
+3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
+   time and applies new migrations after that. When you change an entity, run `php bin/console doctrine:migrations:diff`
+   against a copy of the production database, review the generated file and commit it.
+   A database made earlier with `doctrine:schema:create` already has the baseline tables: mark it as migrated once with
+   `php bin/console doctrine:migrations:version 'DoctrineMigrations\Version20261031000000' --add -n`.
 4. **Web server**: point the document root at `public/`. Nginx:
    ```nginx
    root /var/www/idleteams/public;
