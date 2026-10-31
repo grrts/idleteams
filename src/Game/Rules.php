@@ -457,12 +457,15 @@ final class Rules
         };
     }
 
+    /**
+     * XP to the next level. Each level costs more than the last on top of the dungeon XP growing, so the climb slows
+     * as it goes: a group that keeps up reaches 50 in about a month (see app:pacing), and past 50 every level costs 8%
+     * more than the one before.
+     */
     public static function xpForLevel(int $level): int
     {
-        $base = 160 * $level ** 1.5;
-        if ($level >= 50) {
-            $base = 160 * 50 ** 1.5 * 1.08 ** ($level - 50);
-        }
+        $curve = fn (int $l) => 160 * $l ** 1.5 * (1 + ($l - 1) / 5);
+        $base = $level >= 50 ? $curve(50) * 1.08 ** ($level - 50) : $curve($level);
 
         return (int) round($base);
     }
