@@ -62,7 +62,7 @@ class Present
         return [
             'id' => $d['id'], 'name' => $d['name'], 'summary' => $d['summary'], 'levels' => $d['levels'], 'plan' => Dungeons::plan($d),
             'wings' => $d['wings'], 'enemies' => array_column(array_values($d['enemies']), null, 'name'),
-            'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'art' => $b['art'], 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
+            'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'art' => $b['art'], 'tint' => $b['tint'] ?? null, 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
             'mechanics' => array_map(fn ($m) => $m['name'], $d['mechanics']),
         ];
     }

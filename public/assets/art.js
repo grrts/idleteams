@@ -428,11 +428,35 @@
     shard: (frame) => shard(frame),
   };
   A.SPRITES = SPRITES;
-  // name -> { art, scale } for the dungeon being shown; set by A.setDungeon from the server's config.
+  // Recolours a finished sprite: [hue shift in degrees, saturation factor, lightness factor]. Lets one sprite serve
+  // several dungeons until each has its own art.
+  function tint(src, [dh, ds = 1, dl = 1]) {
+    const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+    const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue;
+      const r = d[i] / 255, gg = d[i + 1] / 255, bb = d[i + 2] / 255, mx = Math.max(r, gg, bb), mn = Math.min(r, gg, bb);
+      let h = 0, sat = 0, l = (mx + mn) / 2;
+      if (mx !== mn) {
+        const k = mx - mn; sat = l > 0.5 ? k / (2 - mx - mn) : k / (mx + mn);
+        h = mx === r ? (gg - bb) / k + (gg < bb ? 6 : 0) : mx === gg ? (bb - r) / k + 2 : (r - gg) / k + 4; h /= 6;
+      }
+      h = (h + dh / 360 + 1) % 1; sat = Math.min(1, sat * ds); l = Math.min(1, l * dl);
+      const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat, p = 2 * l - q;
+      const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+      d[i] = Math.round(f(h + 1 / 3) * 255); d[i + 1] = Math.round(f(h) * 255); d[i + 2] = Math.round(f(h - 1 / 3) * 255);
+    }
+    g.putImageData(img, 0, 0);
+    return c;
+  }
+  A.tint = tint;
+  // name -> { art, tint, scale } for the dungeon being shown; set by A.setDungeon from the server's config.
   let cast = {};
   A.monster = (kind, name, frame) => memo(['m', kind, name, frame].join(':'), () => {
-    const key = (cast[name] && cast[name].art) || (kind === 'boss' ? 'golem' : kind === 'brute' || kind === 'shard' ? kind : 'imp');
-    return (SPRITES[key] || SPRITES.imp)(frame);
+    const who = cast[name] || {}, key = who.art || (kind === 'boss' ? 'golem' : kind === 'brute' || kind === 'shard' ? kind : 'imp');
+    const img = (SPRITES[key] || SPRITES.imp)(frame);
+    return who.tint ? tint(img, who.tint) : img;
   });
   // Scale each piece of art is drawn at in the arena.
   A.monsterScale = (kind, name) => (cast[name] && cast[name].scale) || (kind === 'boss' ? 3.4 : 2.6);
@@ -453,8 +477,8 @@
     A.dungeon = d.id;
     WINGS = A.WINGS = d.wings.map((w) => Object.assign({ name: w.name }, w.scene));
     cast = {};
-    for (const e of Object.values(d.enemies || {})) cast[e.name] = { art: e.art };
-    for (const b of Object.values(d.bosses || {})) cast[b.name] = { art: b.art, scale: b.scale };
+    for (const e of Object.values(d.enemies || {})) cast[e.name] = { art: e.art, tint: e.tint };
+    for (const b of Object.values(d.bosses || {})) cast[b.name] = { art: b.art, tint: b.tint, scale: b.scale };
     for (const k of [...cache.keys()]) if (/^(L:|m:|u:m:)/.test(k)) cache.delete(k);
   };
   const rnd = (seed) => { let s = seed >>> 0 || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };

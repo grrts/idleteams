@@ -46,6 +46,8 @@ final class TickCommand extends Command
             }
             $this->em->wrapInTransaction(fn () => $this->game->progress($party, $now));
             ++$done;
+            // Every flush compares every loaded entity (battle timelines are large), so start each group afresh.
+            $this->em->clear();
         }
         foreach ($this->bots->demoHeroes() as $h) {
             $this->bots->think($h);

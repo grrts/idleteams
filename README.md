@@ -178,7 +178,11 @@ a database and cron.
    prints how to go back. `RELOAD_CMD="sudo systemctl reload php8.3-fpm"` and `HEALTH_URL=https://your-domain/api/health`
    make it reload PHP and check health at the end. A step back to an older version does not undo migrations; restore
    the backup it took if a migration has to be undone.
-10. Skip `app:demo:seed` in production unless you want the demo heroes there.
+10. **Load test** (on a scratch database only; it refuses a database with real accounts):
+   `DATABASE_URL=sqlite:///%kernel.project_dir%/var/load.db php bin/console app:load-test --groups=200 --steps=6`
+   makes 200 groups of five and times the cron tick on a simulated clock. On SQLite in a small container 1,000 heroes
+   tick in about 3 seconds on average and 9 at worst (every group finishing and starting a battle at once).
+11. Skip `app:demo:seed` in production unless you want the demo heroes there.
 
 ## How the code is laid out
 
@@ -197,7 +201,7 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup`, `app:load-test` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes
