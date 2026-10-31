@@ -31,3 +31,41 @@ fails at load with the file name and what is wrong.
 
 Health and damage scale with the dungeon level and the reference group (`src/Game/Reference.php`), so a file never
 holds absolute numbers. Check a new dungeon with `php bin/console app:balance`.
+
+## Art
+
+Parts for the pixel renderer, in `<pack>/art/*.json`: `{ "parts": { kind: { id: part } }, "palettes": {...} }`. The
+renderer (`public/assets/pixel.js`) draws them, `art.js` makes their item icons, and worn kinds become item bases that
+drop like the built-in ones (`src/Game/Art.php`). The fastest way to make one is the **art workshop** in the game
+(Settings → Art workshop, or `#/workshop`): draw on a grid, see it on every race in three colour sets and as an icon
+in each rarity, and copy the JSON into a file here. `tests/Game/ArtTest.php` checks every part, and a broken part
+fails at load with its file and what is wrong. `php bin/console app:crowd` checks that random crowds still look varied.
+
+| Kind | Drawn in | Fields besides `name` |
+| --- | --- | --- |
+| `hat` | head space | `layers`, optional `back` (behind the head), `covers: true` hides the hair |
+| `hair` | head space | `front`, optional `back`, `shine` (the highlight arc on the crown) |
+| `feature` | head space | `races` (who may pick it), `layers` (on the face), `back`, `over` (after hats), `replaces: ["ears", "horns"]` |
+| `weapon` | hand space | `layers`, `grip`: how it is held and swung (`sword`, `axe`, `hammer`, `spear`, `staff`, `wand`, `bow`, `daggers`, `pan`, `fish`) |
+| `offhand` | hand space | `layers` |
+| `top` | torso space | `layers`, `base`: the garment it is drawn over (`tunic`, `plate`, `leather`, `robe`, `sweater`), optional `sleeve` colour |
+
+**Spaces.** Head space is centred on the head (radius about 12.5, the face toward −x, the crown near y −15). Hand
+space has the hand at 0,0 and the weapon pointing up (−y); a sword blade runs from −3 to −25. Torso space runs `u`
+from −1 to 1 across the chest and `v` from 0 at the shoulders to 1 at the hips (a robe hem goes past 1).
+
+**Layers**, drawn in order, each shaded and outlined by the renderer:
+`["path", "M… L… Q… C… Z", colour, opts?]` (SVG path subset), `["poly", [[u, v], …], colour, opts?]`,
+`["ellipse", x, y, rx, ry, colour, opts?]`, `["line", x1, y1, x2, y2, colour]`, `["dot", x, y, colour]` and
+`["glow", x, y, r, colour]`. `opts` may be `{ "on": "face" }` (only where the face is, for markings),
+`{ "on": "self" }` (only on the layer before) and `"flat": true` (no shading).
+
+**Colours** are `#rrggbb` or a name: the hero's or item's `dye1`, `dye2`, `metal`, and `skin`, `hair`, `eye`, `gem`, or
+the fixed `steel`, `iron`, `gold`, `wood`, `darkwood`, `leather`, `bone`, `paper`, `dark`, `white`. Add `:0.3` to darken
+or `+0.3` to lighten a name. Items with a rarity palette or a dye recolour `dye1`, `dye2` and `metal`.
+
+**Palettes** add creator choices: `hairs`, `eyes` (colour lists) and `skins` (`{ race: [colours] }`). Item dyes are
+`Rules::DYES`.
+
+An item icon is drawn from the part's own layers, fitted to the box; a part may instead give `icon` as
+`[[path, colour, material], …]` in a 32 px box centred on 0,0.

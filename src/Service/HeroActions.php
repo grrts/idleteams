@@ -26,7 +26,7 @@ class HeroActions
     public const MARKS = Marks::ALL;
 
     /** Look keys the creator may set, with the values the pixel renderer knows. */
-    private const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal'];
+    private const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal', 'feature'];
 
     public function __construct(private EntityManagerInterface $em, private Game $game, private Present $present)
     {

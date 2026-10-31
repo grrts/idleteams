@@ -173,6 +173,48 @@
   }
   B.path = function (d, tx, ty, s, c, o, rot) { this.poly(pathPolys(d, tx, ty, s, rot), c, o); };
 
+  // ---------- data parts (content/<pack>/art/*.json, see content/README.md) ----------
+  // Parts drawn from layers: hair, hats and race features in head space, weapons and off-hands in hand space, tops in
+  // torso space (u across the chest from -1 to 1, v from the shoulders at 0 to the hips at 1).
+  const PARTS = { hair: {}, feature: {}, hat: {}, top: {}, weapon: {}, offhand: {} };
+  const NAMED = { wood: "#8a5a34", darkwood: "#5e3b22", leather: "#6e4a31", steel: "#dfe6ec", iron: "#5b5f6b", bone: "#eadfc4", gold: "#f0c23a", paper: "#f2e8d0", dark: "#2a1e30", white: "#fbf6ee" };
+  // "dye1", "metal:0.3" (darker), "steel+0.4" (lighter) or "#rrggbb"
+  function colour(ref, c) {
+    if (!ref) return null;
+    if (ref[0] === "#") return ref;
+    const m = ref.match(/^([a-z0-9]+)(?:([:+])([\d.]+))?$/i);
+    if (!m) return "#ff00ff";
+    const base = { metal: c.metal, dye1: c.dye1, dye2: c.dye2, skin: c.skin, hair: c.hairColor, eye: c.eyeColor, gem: mix(c.dye1 || "#8fd0ff", "#ffffff", 0.45) }[m[1]] || NAMED[m[1]] || "#ff00ff";
+    return m[2] ? mix(base, m[2] === ":" ? "#2b2347" : "#ffffff", +m[3]) : base;
+  }
+  // tf maps part space to sprite pixels; sx and sy scale radii and line widths
+  function drawLayers(b, layers, c, tf, sx, sy, face) {
+    (layers || []).forEach((L) => {
+      const [t] = L, opt = (o) => { const x = { ...(o || {}) }; if (x.on === "face") { if (face == null) return null; x.on = face; x.part = face; } else if (x.on === "self") { x.on = b.part; x.part = b.part; } return x; };
+      if (t === "path") { const o = opt(L[3]); if (o === null) return; if (!o.on) b.next(); b.poly(pathPolys(L[1], 0, 0, 1, 0).map((P) => P.map(([x, y]) => tf(x, y))), colour(L[2], c), o); }
+      else if (t === "poly") { const o = opt(L[3]); if (o === null) return; if (!o.on) b.next(); b.poly(L[1].map(([x, y]) => tf(x, y)), colour(L[2], c), o); }
+      else if (t === "ellipse") { const o = opt(L[6]); if (o === null) return; if (!o.on) b.next(); const [x, y] = tf(L[1], L[2]); b.ellipse(x, y, Math.max(0.6, L[3] * sx), Math.max(0.6, L[4] * sy), colour(L[5], c), o); }
+      else if (t === "line") { const o = opt(L[6]) || {}; const [x1, y1] = tf(L[1], L[2]), [x2, y2] = tf(L[3], L[4]); b.line(x1, y1, x2, y2, colour(L[5], c), { flat: true, ...o }); }
+      else if (t === "dot") { const o = opt(L[4]) || {}; const [x, y] = tf(L[1], L[2]); b.set(x, y, colour(L[3], c), { flat: true, ...o }); }
+      else if (t === "glow") { const [x, y] = tf(L[1], L[2]); b.glow(x, y, L[3] * sx, colour(L[4], c)); }
+    });
+  }
+  const headTf = (hxC, hyC, k) => (x, y) => [hxC + x * k, hyC + y * k];
+  const handTf = (x0, y0, k, rot) => { const a = ((rot || 0) * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a); return (x, y) => [x0 + (x * ca - y * sa) * k, y0 + (x * sa + y * ca) * k]; };
+  // Add a catalogue ({parts, palettes}) to the renderer and the creator's option lists.
+  function addArt(art) {
+    if (!art) return;
+    const OPT = { hair: "hair", hat: "hat", top: "top", weapon: "weapon", offhand: "offhand", feature: "feature" };
+    for (const [kind, parts] of Object.entries(art.parts || {})) {
+      if (!PARTS[kind]) continue;
+      for (const [id, p] of Object.entries(parts || {})) { PARTS[kind][id] = p; (OPTIONS[OPT[kind]] = OPTIONS[OPT[kind]] || {})[id] = p.name; }
+    }
+    const pal = art.palettes || {};
+    [[DYES, pal.dyes], [HAIRS, pal.hairs], [EYES, pal.eyes], [METALS, pal.metals]].forEach(([to, from]) => (from || []).forEach((x) => { if (!to.includes(x)) to.push(x); }));
+    for (const r of Object.keys(RACES)) { const add = (pal.skins || {})[r] || []; add.forEach((x) => { if (!RACES[r].skins.includes(x)) RACES[r].skins.push(x); }); }
+  }
+  const featureOf = (c) => { const f = PARTS.feature[c.feature]; return f && (f.races || []).includes(c.race) ? f : null; };
+
   // finishing pass: shade each part, line the edges where a part sits behind another, outline the silhouette
   B.toCanvas = function () {
     const { w, h, m, p, f, s } = this, out = new Uint8ClampedArray(w * h * 4);
@@ -236,13 +278,17 @@
   };
   const MOUTH = { smile: ["K.K", ".K."], grin: ["KKK", "KMK", ".K."], flat: ["KK"], cat: ["K.K.K", ".K.K."], tongue: ["KKK", ".T."] };
 
-  function hatCoversHair(h) { return ["helm", "viking", "pot", "frog", "hood"].includes(h); }
+  function hatCoversHair(h) { return ["helm", "viking", "pot", "frog", "hood"].includes(h) || !!(PARTS.hat[h] && PARTS.hat[h].covers); }
 
   // the vector head art lives in a 12.5 radius space; reuse those shapes at pixel scale
   function head(b, c, R, hxC, hyC, layer) {
     const r = R.head, k = r / 12.5, P = (d, col, o, rot) => b.path(d, hxC, hyC, k, col, o, rot);
     const skin = c.skin, hcol = c.hairColor, metal = c.metal, d1 = c.dye1, d2 = c.dye2;
+    const T = headTf(hxC, hyC, k), F = featureOf(c), HP = PARTS.hair[c.hair], HT = PARTS.hat[c.hat];
     if (layer === "back") {
+      if (F && F.back) drawLayers(b, F.back, c, T, k, k);
+      if (HT && HT.back) drawLayers(b, HT.back, c, T, k, k);
+      if (HP && HP.back && !hatCoversHair(c.hat)) drawLayers(b, HP.back, c, T, k, k);
       if (c.hat === "hood") P("M-15 -1 Q-16 -17 0 -17 Q16 -17 15 0 Q16 12 10 16 L2 15 Q8 6 6 -2 Z", mix(d2, "#2b2347", 0.15));
       if (!hatCoversHair(c.hat)) {
         if (c.hair === "long") P("M-11 -7 Q-16 12 -10 22 L9 22 Q15 9 12 -7 Z", hcol);
@@ -252,8 +298,10 @@
       }
       return;
     }
-    // ears behind the face
-    if (R.ear === "elf") P("M3 -1 L18 -10 L10 6 Z", skin);
+    // ears behind the face (a race feature may draw its own instead)
+    const repl = (F && F.replaces) || [];
+    if (repl.includes("ears")) {}
+    else if (R.ear === "elf") P("M3 -1 L18 -10 L10 6 Z", skin);
     else if (R.ear === "orc") P("M3 -1 L14 -4 L10 6 Z", skin);
     else if (R.ear === "fin") P("M3 -2 L15 -7 L12 -1 L16 2 L9 6 Z", mix(skin, "#2b2347", 0.12));
     b.next();
@@ -304,11 +352,20 @@
     b.stamp(MOUTH[c.mouth] || MOUTH.smile, mx, my, L, { part: face });
     if (R.tusks) { b.set(mx - 1, my - 1, "#f4ecd8", { flat: true, part: face }); b.set(mx + 3, my - 1, "#f4ecd8", { flat: true, part: face }); }
     if (c.race === "felkin") { b.set(fx - 1, ey + 5, "#e88aa0", { flat: true, part: face }); }
+    if (F && F.layers) drawLayers(b, F.layers, c, T, k, k, face);
     // hair front: cap with pointed fringe locks and a ring of shine
     if (!hatCoversHair(c.hat) && c.hair !== "bald") {
       b.next();
       const hp = b.part;
-      if (c.hair === "mohawk") {
+      if (HP) {
+        drawLayers(b, HP.front || HP.layers, c, T, k, k, face);
+        const hp2 = b.part;
+        if (HP.shine) for (let a = 200; a <= 300; a += 7) {
+          if (Math.floor(a / 7) % 3 === 2) continue;
+          const t = (a * Math.PI) / 180, x = Math.round(hxC + Math.cos(t) * r * 0.72), y = Math.round(hyC - 2 * k + Math.sin(t) * r * 0.7);
+          b.set(x, y, hcol, { on: hp2, step: 0, part: hp2 });
+        }
+      } else if (c.hair === "mohawk") {
         P("M-7 -10 L-9.5 -19 L-4 -16 L-1.5 -23 L2.5 -16.5 L7 -21.5 L9.5 -14 L12 -9 Q2 -14 -7 -10 Z", hcol);
       } else {
         const fringe = "M-14.2 3 L-14.2 -6.8 Q-14.2 -15 -6 -15 L6 -15 Q14.2 -15 14.2 -6.8 L14.2 -1 Q14 5 10.6 8.6 L9.2 -3.4 L6.6 -1.4 L5.4 -6 L2 -2.6 L-0.6 -7.4 L-3.8 -2 L-6.4 -6.6 L-9.2 -1.6 L-10.8 -5.4 L-13.6 -1 Z";
@@ -328,7 +385,7 @@
       if (heavy) { b.rect(ex, ey - 2, 4, 1, bc, { flat: true }); b.rect(fx, ey - 2, 3, 1, bc, { flat: true }); }
     }
     // cat ears and accessories
-    if (R.ear === "cat" && !hatCoversHair(c.hat)) {
+    if (R.ear === "cat" && !hatCoversHair(c.hat) && !repl.includes("ears")) {
       b.next(); P("M-9 -8 L-7 -21 L0 -12 Z", skin); b.next(); P("M2 -12 L8 -22 L11 -8 Z", skin);
       b.set(hxC - 6 * k, hyC - 15 * k, "#f2a6b4", { flat: true, part: b.part - 1 }); b.set(hxC + 7 * k, hyC - 15 * k, "#f2a6b4", { flat: true });
     }
@@ -349,10 +406,13 @@
       case "crown": P("M-7.4 -11 L-8.4 -20 L-4 -15.4 L-1 -22 L2 -15.4 L6.4 -20 L5.4 -11 Q-1 -12.8 -7.4 -11 Z", "#f0c23a"); b.set(hxC - 1 * k, hyC - 14.4 * k, "#e04a6a", { flat: true }); break;
       case "bandana": P("M-14 -3.6 Q0 -10.6 14 -5 L14.2 -0.4 Q0 -6 -14 0.6 Z", d1); b.next(); P("M13 -4 L20 -7 L19 -1 L22 1.4 L14 1.4 Z", d1); break;
       case "hood": P("M-15.6 2 Q-16.6 -17.6 0 -17.6 Q16.6 -17.6 15.6 0 L9.4 4 Q9.4 -8.4 -2 -9.4 Q-11.4 -9.4 -12.4 2 Z", d2); break;
+      default: if (HT) drawLayers(b, HT.layers || HT.front, c, T, k, k);
     }
-    if (R.horns) { b.next(); P("M2 -9 Q8 -21 19 -21 Q11 -17.6 7 -8 Z", "#eadfc4"); b.next(); P("M-5 -10 Q-4 -20 4 -23 Q0 -16.4 0 -10 Z", "#eadfc4"); }
+    if (F && F.over) drawLayers(b, F.over, c, T, k, k);
+    if (R.horns && !repl.includes("horns")) { b.next(); P("M2 -9 Q8 -21 19 -21 Q11 -17.6 7 -8 Z", "#eadfc4"); b.next(); P("M-5 -10 Q-4 -20 4 -23 Q0 -16.4 0 -10 Z", "#eadfc4"); }
   }
 
+  const gripOf = (w) => (PARTS.weapon[w] && PARTS.weapon[w].grip) || w;
   // ---------- weapons (vector shapes from the side-view prototype, in hand space) ----------
   function weapon(b, c, x, y, k, rot) {
     const m = c.metal, d1 = c.dye1, wood = "#8a5a34", steel = "#dfe6ec";
@@ -369,6 +429,7 @@
       case "daggers": W("M-1.6 -2 L-1.6 -12 L0 -16 L1.6 -12 L1.6 -2 Z", steel); W("M-3.6 -3 L3.6 -3 L3.6 -0.8 L-3.6 -0.8 Z", m); break;
       case "pan": W("M-1.1 6 L-1.1 -8 L1.1 -8 L1.1 6 Z", "#3d2a1e"); b.next(); { const [px, py] = at(0, -15); b.ellipse(px, py, 7.4 * k, 7.4 * k, "#4a4a54"); } break;
       case "fish": W("M0 -23 Q6 -15 3.6 -6 Q2.4 -2 0 0 Q-2.4 -2 -3.6 -6 Q-6 -15 0 -23 Z", "#7fb6d8"); W("M0 0 L4 5 L-4 5 Z", "#5a96bc"); { const [ex, ey] = at(-1.4, -18); b.set(ex, ey, "#1a1020", { flat: true }); } break;
+      default: if (PARTS.weapon[c.weapon]) drawLayers(b, PARTS.weapon[c.weapon].layers, c, handTf(x, y, k, rot), k, k);
     }
   }
   function offhand(b, c, x, y, k) {
@@ -378,13 +439,14 @@
       case "shield": O("M-7 -10 L7 -10 L7 0 Q7 8 0 12.4 Q-7 8 -7 0 Z", m); O("M-4.6 -7.6 L4.6 -7.6 L4.6 0 Q4.6 5.6 0 8.8 Q-4.6 5.6 -4.6 0 Z", d1); O("M0 -5 L2.4 -1 L0 3.4 L-2.4 -1 Z", d2); break;
       case "buckler": b.next(); b.ellipse(x, y, 7 * k, 7 * k, m); b.next(); b.ellipse(x, y, 4.6 * k, 4.6 * k, d1); b.next(); b.ellipse(x, y, 1.6 * k, 1.6 * k, m); break;
       case "book": O("M-5 -6.4 L5 -6.4 L5 6.4 L-5 6.4 Z", mix(d1, "#2b2347", 0.2)); O("M-4.4 4 L5 4 L5 6 L-4.4 6 Z", "#f2ead8"); b.set(x, y - 1, "#f0c23a", { flat: true }); break;
+      default: if (PARTS.offhand[c.offhand]) drawLayers(b, PARTS.offhand[c.offhand].layers, c, handTf(x, y, k, 0), k, k);
     }
   }
 
   // ---------- full character ----------
   const SW = 48, SH = 76, FY = 73, CX = 25;
   function sprite(c, poseName) {
-    const R = RACES[c.race], p = pose(poseName, c.weapon), cc = { ...c, _blink: p.blink };
+    const R = RACES[c.race], p = pose(poseName, gripOf(c.weapon)), cc = { ...c, _blink: p.blink };
     const bw = c.build || 1, hf = c.height || 1;
     const L = Math.round(R.leg * hf), T = Math.round(R.torso * hf), tw = R.tw * bw, lw = Math.max(2, R.limb * bw), A = R.arm * hf;
     const hip = FY - 2 - L, tt = hip - T + p.dy;
@@ -394,9 +456,9 @@
     const skin = c.skin, d1 = TOP.dye1, d2 = TOP.dye2, metal = TOP.metal;
     const hxC = CX - 1, hyC = tt - R.head * 0.84, k = R.head / 12.5;
     const gk = 0.6 * Math.sqrt(A / 8); // gear scale follows arm length
-    const top = c.top, robe = top === "robe";
+    const TD = PARTS.top[c.top], top = TD ? TD.base : c.top, robe = top === "robe";
     const leather = mix(d1, "#6e4a31", 0.55);
-    const sleeve = top === "plate" ? metal : top === "leather" ? skin : d1;
+    const sleeve = TD && TD.sleeve ? colour(TD.sleeve, { ...c, ...TOP }) : top === "plate" ? metal : top === "leather" ? skin : d1;
     const handC = c.gloves === "gauntlets" ? GLO.metal : c.gloves === "leather" ? "#6e4a31" : skin;
     const SF = [CX - tw * 0.4, tt + 2], SB = [CX + tw * 0.5, tt + 2];
     const hand = (s0, a) => [s0[0] - A * Math.sin((a * Math.PI) / 180), s0[1] + A * Math.cos((a * Math.PI) / 180)];
@@ -458,6 +520,7 @@
       b.next().rect(CX - tw, hip - 2, tw * 2, 2, d2);
       b.next().poly([[CX - 2, tt], [CX, tt + 3], [CX + 2, tt]], d2);
     }
+    if (TD && TD.layers) drawLayers(b, TD.layers, { ...c, ...TOP }, (u, v) => [CX + u * tw, tt + v * (hip - tt)], tw, hip - tt);
     // offhand, head, weapon, then the front arm over the grip
     offhand(b, { ...c, ...tc("offhand") }, HB[0] - 1, HB[1] - 1, gk * 1.05);
     b.next(); head(b, hc, R, hxC, hyC, "front");
@@ -503,22 +566,28 @@
     const pick = (a) => a[Math.floor(rand() * a.length)], keys = (o) => Object.keys(o);
     const race = pick(keys(RACES)), R = RACES[race];
     const role = pick(["tank", "healer", "dps", "dps"]);
+    // data parts join the built-in ones: weapons by how they are held, tops by the garment they are drawn over
+    const byGrip = (grips) => [...grips, ...keys(PARTS.weapon).filter((id) => grips.includes(PARTS.weapon[id].grip))];
+    const byBase = (bases) => [...bases, ...keys(PARTS.top).filter((id) => bases.includes(PARTS.top[id].base))];
+    const shields = ["shield", "buckler", ...keys(PARTS.offhand)];
     const kit = {
-      tank: { top: "plate", bottom: "greaves", shoes: "sabatons", gloves: "gauntlets", weapon: pick(["sword", "axe", "hammer", "pan"]), offhand: pick(["shield", "buckler"]) },
-      healer: { top: "robe", bottom: "pants", shoes: pick(["sandals", "curly", "boots"]), gloves: "none", weapon: pick(["staff", "wand"]), offhand: pick(["book", "none"]) },
-      dps: { top: pick(["leather", "tunic", "sweater"]), bottom: pick(["pants", "shorts", "kilt"]), shoes: pick(["boots", "curly"]), gloves: pick(["leather", "none"]), weapon: pick(["bow", "daggers", "spear", "fish", "sword"]), offhand: "none" },
+      tank: { top: pick(byBase(["plate"])), bottom: "greaves", shoes: "sabatons", gloves: "gauntlets", weapon: pick(byGrip(["sword", "axe", "hammer", "pan"])), offhand: pick(shields) },
+      healer: { top: pick(byBase(["robe"])), bottom: "pants", shoes: pick(["sandals", "curly", "boots"]), gloves: "none", weapon: pick(byGrip(["staff", "wand"])), offhand: pick(["book", "none", ...keys(PARTS.offhand)]) },
+      dps: { top: pick(byBase(["leather", "tunic", "sweater"])), bottom: pick(["pants", "shorts", "kilt"]), shoes: pick(["boots", "curly"]), gloves: pick(["leather", "none"]), weapon: pick(byGrip(["bow", "daggers", "spear", "fish", "sword"])), offhand: "none" },
     }[role];
+    const feats = keys(PARTS.feature).filter((id) => PARTS.feature[id].races.includes(race));
     return {
       race, role, build: pick([0.92, 1, 1.1]), height: pick([0.95, 1, 1.05]), skin: pick(R.skins),
       hair: pick(keys(OPTIONS.hair)), hairColor: pick(HAIRS), eyes: pick(keys(OPTIONS.eyes)), eyeColor: pick(EYES), mouth: pick(keys(OPTIONS.mouth)),
       beard: race === "dwarf" ? pick(["full", "braided"]) : rand() < 0.15 ? pick(["moustache", "stubble"]) : "none",
       acc: rand() < 0.25 ? pick(["glasses", "eyepatch", "bandage", "monocle"]) : "none",
       hat: rand() < 0.6 ? pick(keys(OPTIONS.hat)) : "none", cape: pick(["none", "none", "cape", "scarf"]),
+      feature: feats.length && rand() < 0.6 ? pick(feats) : "none",
       dye1: pick(DYES), dye2: pick(DYES), metal: pick(METALS), ...kit,
     };
   }
 
   Object.assign(S, { RACES, OPTIONS, DYES, HAIRS, EYES, METALS, POSES, sprite, golem, icon, toImage, frames, randomHero, mix, SIZE: [SW, SH], FEET: FY });
   // Drawing helpers shared with art.js (item icons, monsters, scenery), so everything gets the same outline and shading.
-  Object.assign(S, { Buf, ramp, weapon, offhand });
+  Object.assign(S, { Buf, ramp, weapon, offhand, PARTS, addArt, colour, drawLayers, pathPolys });
 })();

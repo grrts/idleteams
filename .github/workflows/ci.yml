@@ -62,6 +62,9 @@ jobs:
       - name: Pacing (level 50 in 6 to 8 days for an engaged group)
         if: matrix.db == 'sqlite'
         run: php bin/console app:pacing --env=test
+      - name: Crowd check (under 1% exact look duplicates in 250 random heroes)
+        if: matrix.db == 'sqlite'
+        run: php bin/console app:crowd --env=test
 
   browser-build:
     name: Playable build is current

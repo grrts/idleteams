@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Hero;
 use App\Entity\Item;
+use App\Game\Art;
 use App\Game\Items;
 use App\Game\Rules;
 use Doctrine\ORM\EntityManagerInterface;
@@ -219,10 +220,10 @@ class GearActions
     /** Crafting: a fresh item at your level for materials and gold. Mostly commons, sometimes better. */
     public function craft(Hero $h, string $slot, ?string $base): Item
     {
-        if (!isset(Rules::BASES[$slot]) || $slot === 'ring2') {
+        if (!isset(Art::bases()[$slot]) || $slot === 'ring2') {
             throw new GameError('Pick a slot.');
         }
-        if ($base !== null && !isset(Rules::BASES[$slot][$base])) {
+        if ($base !== null && !isset(Art::bases()[$slot][$base])) {
             throw new GameError('Pick a style for that slot.');
         }
         $cost = self::craftCost($h->level);

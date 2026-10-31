@@ -349,7 +349,10 @@ final class Rules
         'epic' => [['#6b3fa8', '#f0c23a', '#b9a6d6'], ['#8a2f6a', '#f2d7a0', '#c9a6c0'], ['#2f3f8a', '#c084ff', '#a6b0d6'], ['#1f5e5a', '#e05aff', '#9fc4c0'], ['#5a1f2f', '#ffb0c8', '#d6a6b0'], ['#3a2a5a', '#7af0d0', '#b0a6d6']],
         'legendary' => [['#b8401a', '#fff0b0', '#e8b84a'], ['#7a1a1a', '#ffd25a', '#f0c060'], ['#1a3a6a', '#ffe9a0', '#e0c070'], ['#2a2a2a', '#ff8a2a', '#d8a040']],
     ];
-    public const DYES = ['#c0392b', '#e67e22', '#f1c40f', '#3aa655', '#2e8a7a', '#2f6fd0', '#4a5a9c', '#5b3fa8', '#8a2f6a', '#e98ab0', '#ece4d4', '#8c6a4c', '#5a3a24', '#3d3a44', '#1e1c22', '#9aa4ae'];
+    public const DYES = [
+        '#c0392b', '#e67e22', '#f1c40f', '#3aa655', '#2e8a7a', '#2f6fd0', '#4a5a9c', '#5b3fa8', '#8a2f6a', '#e98ab0', '#ece4d4', '#8c6a4c', '#5a3a24', '#3d3a44', '#1e1c22', '#9aa4ae',
+        '#7a1f1f', '#ff7a5a', '#b8860b', '#9acd32', '#1f5e3a', '#5fd0c0', '#87ceeb', '#1a2f6a', '#9a7ad8', '#d8a0e8', '#c71585', '#f5deb3', '#d2691e', '#708090', '#556b2f', '#ffd8a8',
+    ];
     public const METALS = ['#b8c2cc', '#e0b04a', '#c58a5a', '#8a939e', '#d8dee4', '#3d3a44'];
     public const DYE_COST = 25;
 

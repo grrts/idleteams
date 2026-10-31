@@ -12,6 +12,7 @@ use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
 use App\Entity\User;
+use App\Game\Art;
 use App\Game\Combatants;
 use App\Game\Heritage;
 use App\Game\LifeStory;
@@ -41,7 +42,7 @@ class Present
 
         return [
             'attributes' => Rules::ATTRIBUTES, 'races' => Rules::RACES, 'origins' => Rules::ORIGINS, 'originPoints' => Rules::ORIGIN_POINTS,
-            'classes' => $classes, 'keystones' => Rules::KEYSTONES, 'slots' => Rules::SLOTS, 'bases' => Rules::BASES,
+            'classes' => $classes, 'keystones' => Rules::KEYSTONES, 'slots' => Rules::SLOTS, 'bases' => Art::bases(), 'art' => Art::all(),
             'rarities' => Rules::RARITIES, 'glyphs' => Rules::GLYPHS, 'powers' => Rules::LEGENDARY_POWERS, 'caps' => Stats::CAPS,
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
@@ -92,7 +93,7 @@ class Present
         $out = [];
         foreach ($h->wardrobe ?? [] as $key) {
             [$slot, $base, $d1, $d2, $m] = explode('|', $key) + ['', '', '', '', ''];
-            $out[$slot][] = ['key' => $key, 'base' => $base, 'name' => Rules::BASES[$slot][$base] ?? $base, 'tint' => $d1 !== '' ? [$d1, $d2, $m] : null];
+            $out[$slot][] = ['key' => $key, 'base' => $base, 'name' => Art::bases()[$slot][$base] ?? $base, 'tint' => $d1 !== '' ? [$d1, $d2, $m] : null];
         }
 
         return $out;

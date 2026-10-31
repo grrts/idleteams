@@ -23,7 +23,7 @@ final class Items
                 $suf = $word;
             }
         }
-        $base = Rules::BASES[$item['slot']][$item['base']] ?? ucfirst($item['base']);
+        $base = Art::bases()[$item['slot']][$item['base']] ?? ucfirst($item['base']);
         $name = trim(implode(' ', $pre).' '.$base.($suf ? ' '.$suf : ''));
         if (($item['temper'] ?? 0) > 0) {
             $name .= ' +'.$item['temper'];
@@ -56,7 +56,7 @@ final class Items
     {
         $slots = array_keys(Rules::SLOTS);
         $slot ??= $slots[$r->getInt(0, count($slots) - 1)];
-        $bases = array_keys(Rules::BASES[$slot]);
+        $bases = array_keys(Art::bases()[$slot]);
         $base ??= $bases[$r->getInt(0, count($bases) - 1)];
         [, $nAffix, $sockets] = Rules::RARITIES[$rarity];
         if (in_array($slot, ['ring1', 'ring2', 'amulet', 'trinket'], true)) {

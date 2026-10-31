@@ -179,6 +179,8 @@
     [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
     ITA.setDungeon(S.cfg.dungeon);
+    ITP.addArt(S.cfg.art);
+    (S.cfg.dyes || []).forEach((d) => { if (!ITP.DYES.includes(d)) ITP.DYES.push(d); });
     // Links from mails: #/verify?t=… and #/reset?u=…&t=…
     const link = location.hash.match(/^#\/(verify|reset)\?(.*)$/), q = link ? new URLSearchParams(link[2]) : null;
     if (link) history.replaceState(null, '', location.pathname + '#/battle');
@@ -303,7 +305,7 @@
 
   function render() {
     // Mid-drag on a map: wait, so the page does not move under the finger.
-    if (S.mapDrag) { S.renderPending = true; return; }
+    if (S.mapDrag || (window.ITW && ITW.busy)) { S.renderPending = true; return; }
     S.renderPending = false;
     const app = $('#app');
     const keepScroll = $('.msgs') ? $('.msgs').scrollTop : null;
@@ -316,6 +318,7 @@
     });
     hydrate(app);
     mountMaps();
+    if (window.ITW) ITW.mount();
     const msgs = $('.msgs');
     if (msgs) msgs.scrollTop = keepScroll != null && !S.chatJump ? keepScroll : msgs.scrollHeight;
     if (keepWin && $('.win-body')) $('.win-body').scrollTop = keepWin;
@@ -585,6 +588,8 @@
   // The whole tale as the name page tells it: the opening, then the life story with the name in it.
   const wholeTale = (c) => bioHtml(taleOpening(c, STEPS.length).map(([, l]) => ['', l])) + bioHtml(namedBio(c.race, c.name, c.story));
 
+  // race features from the art catalogue (markings, horns, ears…) that this race can wear
+  const raceFeatures = (race, seg) => { const f = Object.entries(ITP.PARTS.feature).filter(([, p]) => (p.races || []).includes(race)); return f.length ? seg('feature', { none: 'None', ...Object.fromEntries(f.map(([id, p]) => [id, p.name])) }, 'Features') : ''; };
   function creatorView() {
     const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep, idx = STEPS.findIndex(([s]) => s === step);
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
@@ -603,7 +608,7 @@
     else if (step === 'look') {
       const tab = S.lookTab || 'face', TABS = { face: 'Face', hair: 'Hair', body: 'Body', clothes: 'Clothes' };
       const opts = {
-        face: () => sw('skin', R.skins, 'Skin') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') + seg('acc', ITP.OPTIONS.acc, 'Accessory'),
+        face: () => sw('skin', R.skins, 'Skin') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + raceFeatures(c.race, seg),
         hair: () => sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + seg('beard', ITP.OPTIONS.beard, 'Facial hair'),
         body: () => seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height'),
         clothes: () => sw('dye1', ITP.DYES, 'Clothes') + sw('dye2', ITP.DYES, 'Trim') + sw('metal', ITP.METALS, 'Buckles'),
@@ -633,12 +638,12 @@
 
   // [view, title, icon, hotkey]. The battle view is the open scene; every other view opens as a window over it.
   const VIEWS = [['battle', 'Dungeon', 'battle', '1'], ['hero', 'Hero', 'hero', '2'], ['skills', 'Skills', 'skills', '3'], ['talents', 'Talents', 'talents', '4'], ['heritage', 'Heritage', 'heritage', '5'], ['gear', 'Gear', 'gear', '6'], ['group', 'Group', 'group', '7'], ['guild', 'Guild', 'guild', '8'], ['market', 'Market', 'market', '9'], ['runs', 'Runs', 'chest', '0'], ['lore', 'Lore', 'lore', 'l']];
-  const WIN_TITLE = { story: ['Life story', 'heritage'], settings: ['Settings', 'hero'] };
+  const WIN_TITLE = { story: ['Life story', 'heritage'], settings: ['Settings', 'hero'], workshop: ['Art workshop', 'gear'] };
   function shell() {
     const h = S.st.hero, p = S.st.party, cur = S.battle && S.battle.current, cfg = S.cfg;
     if (S.chatInit == null) { S.chatInit = 1; S.chatOpen = window.innerWidth > 1100; }
     const dots = { battle: 0, runs: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (p ? p.requests.filter((r) => r.kind === 'application').length : 0) };
-    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView, settings: settingsView, workshop: () => (window.ITW ? ITW.view() : '') };
     const isWin = S.view !== 'battle' && views[S.view];
     // top: who you are, where the run is, what you carry
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(h.title || className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
@@ -1479,7 +1484,8 @@
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
     return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + pushView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
-      mod + '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+      mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
+      '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
   }
   function modView() {
     if (!S.reports) { loadReports(); return '<p class="small muted">Loading reports…</p>'; }
@@ -1690,7 +1696,7 @@
     lookTab: (d) => { keepName(); S.lookTab = d.t; render(); },
     faceTurn: () => { S.faceLeft = !S.faceLeft; render(); },
     look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; keepName(); render(); },
-    randomLook: () => { const c = creatorState(), r = ITP.randomHero(); keepName(); Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
+    randomLook: () => { const c = creatorState(), r = ITP.randomHero(); keepName(); Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal, feature: (ITP.PARTS.feature[r.feature] || { races: [] }).races.includes(c.race) ? r.feature : 'none' }); render(); },
     create: async () => {
       const c = creatorState(); keepName(); c.name = c.name.trim();
       if (!storyDone(c.race, c.story)) { toast('Finish their life story first.'); S.creatorStep = 'story'; render(); return; }

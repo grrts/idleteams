@@ -1,0 +1,14 @@
+{
+ "palettes": {
+  "hairs": ["#1a1418", "#6a3a1a", "#b0702a", "#f2c46a", "#a03020", "#ff8a5a", "#c0c4cc", "#2a3a6a", "#3a8a8a", "#7a4ab0", "#ff6ab0", "#9ad0ff"],
+  "eyes": ["#2a1a10", "#5fb0a0", "#c08a2a", "#a0a0ff", "#ff6a8a", "#f0f0f0"],
+  "skins": {
+   "human": ["#ffe4d0", "#5a3624"],
+   "elf": ["#e0d8f0", "#8fa8b8"],
+   "dwarf": ["#ffd8c0", "#6e4632"],
+   "orc": ["#b8c08a", "#4e6a3a", "#9a7a9a"],
+   "felkin": ["#f0e6da", "#3a302a", "#c08a5a"],
+   "draka": ["#c0a040", "#4a6a8a", "#8a3a3a"]
+  }
+ }
+}

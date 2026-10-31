@@ -161,6 +161,45 @@
   };
   const ROLE = (T, c) => (T[c] !== undefined ? T[c] || T.metal : c);
 
+  // Icons for data parts (content/<pack>/art): the part's own icon layers if it has them, otherwise its sprite
+  // layers fitted into the box. Colour names map to the item's cloth, trim and metal.
+  const KIND = { head: 'hat', top: 'top', weapon: 'weapon', offhand: 'offhand' };
+  const MATOF = (ref) => { const n = String(ref).replace(/[:+].*$/, ''); return ['metal', 'steel', 'iron', 'gold'].includes(n) ? 'metal' : ['wood', 'darkwood'].includes(n) ? 'wood' : n === 'leather' ? 'leather' : n === 'bone' ? 'bone' : n === 'gem' ? 'gem' : 'cloth'; };
+  function partIcon(b, slot, base, T, turn) {
+    const P = KIND[slot] && (window.ITP.PARTS[KIND[slot]] || {})[base];
+    if (!P) return;
+    const cc = { dye1: T.cloth, dye2: T.trim, metal: T.metal, skin: '#e2b394', hairColor: '#5a3a22', eyeColor: '#3a6ea5' };
+    if (P.icon) { P.icon.forEach(([d, c, mat]) => { b.next(); b.mats[b.part] = mat || MATOF(c); b.path(d, 16, 16, 1, T[c] !== undefined ? T[c] || T.metal : ITP.colour(c, cc), null, turn); }); return; }
+    const layers = slot === 'head' ? [...(P.back || []), ...(P.layers || P.front || [])] : P.layers || [];
+    if (slot === 'top') {
+      // the base garment's own icon, then the part's details mapped onto its chest (u -1..1, v 0..1)
+      (SHAPES.top[P.base] || SHAPES.top.tunic).forEach(([d, c, mat]) => { b.next(); b.mats[b.part] = mat; b.path(d, 16, 16, 1, T[c] !== undefined ? T[c] || T.metal : c); });
+      const before = b.part;
+      ITP.drawLayers(b, layers, cc, (u, v) => [16 + u * 10.5, 4 + v * 22], 10.5, 22);
+      let n = 0;
+      layers.forEach((L) => { if (L[0] === 'path' || L[0] === 'poly' || L[0] === 'ellipse') b.mats[before + ++n] = MATOF(L[0] === 'ellipse' ? L[5] : L[2]); });
+      return;
+    }
+    // fit: tops come in torso space (-1..1 across, 0..1 down), the rest in head or hand space
+    const top = slot === 'top', pts = [];
+    layers.forEach((L) => {
+      if (L[0] === 'path') ITP.pathPolys(L[1], 0, 0, 1, 0).forEach((P2) => pts.push(...P2));
+      else if (L[0] === 'poly') pts.push(...L[1]);
+      else if (L[0] === 'ellipse') pts.push([L[1] - L[3], L[2] - L[4]], [L[1] + L[3], L[2] + L[4]]);
+    });
+    if (top) pts.push([-1, 0], [1, 1]);
+    if (!pts.length) return;
+    const a = (turn * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a), ro = ([x, y]) => [x * ca - y * sa, x * sa + y * ca];
+    const sx = top ? 11 : 1, sy = top ? 26 : 1, R = pts.map(([x, y]) => ro([x * sx, y * sy]));
+    const x0 = Math.min(...R.map((q) => q[0])), x1 = Math.max(...R.map((q) => q[0])), y0 = Math.min(...R.map((q) => q[1])), y1 = Math.max(...R.map((q) => q[1]));
+    const k = Math.min(27 / Math.max(1, x1 - x0), 27 / Math.max(1, y1 - y0)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const tf = (x, y) => { const [X, Y] = ro([x * sx, y * sy]); return [16 + (X - cx) * k, 16 + (Y - cy) * k]; };
+    const before = b.part;
+    ITP.drawLayers(b, layers, cc, tf, k * sx, k * sy);
+    for (let pt = before + 1; pt <= b.part; pt++) b.mats[pt] = b.mats[pt] || 'cloth';
+    let n = 0;
+    layers.forEach((L) => { if (L[0] === 'path' || L[0] === 'poly' || L[0] === 'ellipse') { const o = L[0] === 'ellipse' ? L[6] : L[3]; if (!(o && o.on)) b.mats[before + ++n] = MATOF(L[0] === 'ellipse' ? L[5] : L[2]); } });
+  }
   function drawIcon(slot, base, rarity, seed, tint) {
     // An item's own colours (its dye, or its rarity palette picked by seed) replace the rarity's cloth, trim and metal.
     const T0 = TIER[rarity] || TIER.common, T = tint ? { ...T0, cloth: tint[0], trim: tint[1], metal: tint[2] } : T0, b = new Buf(32, 32);
@@ -176,10 +215,11 @@
     // dashed stitching along a line, on whatever shape is under it
     const stitch = (x1, y1, x2, y2, c) => { const n = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)); for (let k = 0; k <= n; k += 2) dot(Math.round(x1 + ((x2 - x1) * k) / n), Math.round(y1 + ((y2 - y1) * k) / n), c); };
     const S = (SHAPES[slot] || {})[base];
-    const turn = slot === 'weapon' ? (base === 'bow' ? 30 : 45) : 0;
+    const turn = slot === 'weapon' ? (((window.ITP.PARTS.weapon[base] || {}).grip || base) === 'bow' ? 30 : 45) : 0;
     // rotate a local weapon point into icon space
     const at = (x, y) => { const a = (turn * Math.PI) / 180; return [16 + x * Math.cos(a) - y * Math.sin(a), 16 + x * Math.sin(a) + y * Math.cos(a)]; };
     if (S) S.forEach(([d, c, mat]) => shape(d, c, mat, 16, 16, 1, turn));
+    else partIcon(b, slot, base, T, turn);
     const trimLight = mix(col('trim'), '#ffffff', 0.35), clothDark = mix(col('cloth'), '#140a22', 0.4), clothLight = mix(col('cloth'), '#fff1d0', 0.4);
     switch (slot) {
       case 'weapon': {
@@ -198,7 +238,7 @@
       case 'offhand':
         if (base === 'shield') { [[-9, -11], [9, -11], [-8, 2], [8, 2]].forEach(([x, y]) => rivet(16 + x, 16 + y, 'metal')); gem(16, 19.5, 2.2, T.gem || col('metal')); stitch(9, 5, 23, 5, clothLight); }
         else if (base === 'buckler') { for (let a = 0; a < 360; a += 45) { const t = (a * Math.PI) / 180; rivet(Math.round(16 + Math.cos(t) * 12.2), Math.round(16 + Math.sin(t) * 12.2), 'metal'); } gem(16, 16, 2.2); }
-        else { for (let y = 5; y <= 27; y += 2) dot(25, y, '#c9bea6'); [[5, 2], [5, 29]].forEach(([x, y]) => { b.next(); b.mats[b.part] = 'metal'; b.rect(x - 1, y - 1, 3, 3, col('trim')); }); stitch(6, 3, 6, 29, mix(col('cloth'), '#fff1d0', 0.5)); gem(16.5, 16, 2, T.gem || col('trim')); }
+        else if (base === 'book') { for (let y = 5; y <= 27; y += 2) dot(25, y, '#c9bea6'); [[5, 2], [5, 29]].forEach(([x, y]) => { b.next(); b.mats[b.part] = 'metal'; b.rect(x - 1, y - 1, 3, 3, col('trim')); }); stitch(6, 3, 6, 29, mix(col('cloth'), '#fff1d0', 0.5)); gem(16.5, 16, 2, T.gem || col('trim')); }
         break;
       case 'head':
         if (base === 'helm') { for (let x = -10; x <= 10; x += 5) rivet(16 + x, 18, 'trim'); for (let y = 6; y <= 14; y++) dot(16, y, mix(col('metal'), '#ffffff', 0.4)); gem(16, 18.5, 1.6); }
@@ -215,7 +255,7 @@
         else if (base === 'leather') { for (let y = 13; y <= 21; y += 2) { dot(15, y, '#e6d2a8'); dot(17, y + 1, '#e6d2a8'); } stitch(5, 6, 4, 22, '#c99a6a'); stitch(27, 6, 28, 22, '#c99a6a'); { b.next(); b.mats[b.part] = 'leather'; b.rect(6, 15, 5, 4, mix(LEATHER, '#140a22', 0.2)); } dot(8, 15, '#e6d2a8'); gem(16, 24, 1.4, T.gem || '#c0c6d0'); }
         else if (base === 'robe') { for (const [x1, x2] of [[13, 9], [19, 23], [16, 16]]) for (let y = 19; y <= 26; y++) dot(Math.round(x1 + ((x2 - x1) * (y - 19)) / 7), y, clothDark); for (const [x1, x2] of [[5, 3], [27, 29]]) for (let y = 9; y <= 14; y++) dot(Math.round(x1 + ((x2 - x1) * (y - 9)) / 5), y, clothDark); gem(16, 8, 1.4); gem(16, 16.5, 1.6); }
         else if (base === 'tunic') { gem(16, 4, 1.3); }
-        else { [12, 13, 19, 20].forEach((y) => { for (let x = 6; x <= 26; x++) if (b.m[y * 32 + x] !== null) dot(x, y, y % 7 === 5 || y % 7 === 6 ? col('trim') : col('trim')); }); for (let x = 7; x <= 25; x += 2) dot(x, 25, clothDark); [1, 2].forEach((k) => { dot(2 + k, 15, col('trim')); dot(29 - k, 15, col('trim')); }); }
+        else if (base === 'sweater') { [12, 13, 19, 20].forEach((y) => { for (let x = 6; x <= 26; x++) if (b.m[y * 32 + x] !== null) dot(x, y, y % 7 === 5 || y % 7 === 6 ? col('trim') : col('trim')); }); for (let x = 7; x <= 25; x += 2) dot(x, 25, clothDark); [1, 2].forEach((k) => { dot(2 + k, 15, col('trim')); dot(29 - k, 15, col('trim')); }); }
         break;
       case 'bottom':
         if (base === 'pants') { for (let y = 6; y <= 14; y++) dot(16, y, clothDark); { b.next(); b.mats[b.part] = 'cloth'; b.rect(7, 19, 5, 4, mix(col('cloth'), '#8a5a34', 0.35)); } }
@@ -277,6 +317,7 @@
     return softCanvas(b);
   }
   const iconKey = (it) => ['i', it.slot, it.base, it.rarity, (it.seed || 0) % 3, (it.tint || []).join('')].join(':');
+  A.drawIconFresh = (slot, base, rarity, seed) => drawIcon(slot, base, rarity, seed, null);
   A.iconCanvas = (it) => memo(iconKey(it), () => drawIcon(it.slot === 'ring2' ? 'ring1' : it.slot, it.base, it.rarity, it.seed, it.tint || null));
   A.icon = (it) => url(iconKey(it), () => A.iconCanvas(it));
 

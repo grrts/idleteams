@@ -322,7 +322,7 @@
     const classes = {};
     for (const [id, c] of Object.entries(D.CLASSES)) classes[id] = Object.assign({}, c, { allSkills: R.classSkills(id) });
     return {
-      attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
+      attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES, art: D.ART,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, dyes: D.DYES, metals: D.METALS, dyeCost: D.DYE_COST, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
@@ -439,7 +439,7 @@
 
   // ------------------------------------------------------------------ HeroActions
 
-  const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal'];
+  const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal', 'feature'];
   function createHero(u, input) {
     if (db.heroes.some((h) => h.user === u.id)) fail('You already have a hero.');
     const name = String(input.name || '').trim();

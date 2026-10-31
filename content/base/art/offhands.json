@@ -1,0 +1,18 @@
+{
+ "parts": {
+  "offhand": {
+   "lantern": {"name": "Lantern", "layers": [["path", "M-3 -6 L3 -6 L4 4 L-4 4 Z", "iron"], ["ellipse", 0, -1, 2.4, 3, "#ffe27a"], ["glow", 0, -1, 7, "#fff6c0"]]},
+   "towerShield": {"name": "Tower Shield", "layers": [["path", "M-7 -14 L7 -14 L7 12 L-7 12 Z", "metal"], ["path", "M-5 -12 L5 -12 L5 10 L-5 10 Z", "dye1"], ["path", "M-1 -12 L1 -12 L1 10 L-1 10 Z", "dye2"]]},
+   "roundShield": {"name": "Round Shield", "layers": [["ellipse", 0, 0, 8, 8, "wood"], ["ellipse", 0, 0, 8, 8, "metal", {"on": "self"}], ["ellipse", 0, 0, 6.6, 6.6, "wood", {"on": "self"}], ["ellipse", 0, 0, 2, 2, "metal"], ["line", -6, 0, 6, 0, "darkwood"]]},
+   "heater": {"name": "Heater Shield", "layers": [["path", "M-7 -9 L7 -9 Q7 4 0 11 Q-7 4 -7 -9 Z", "metal"], ["path", "M-5.6 -7.6 L5.6 -7.6 Q5.6 3 0 8.6 Q-5.6 3 -5.6 -7.6 Z", "dye1"], ["path", "M-1 -7.6 L1 -7.6 L1 8 L-1 8 Z", "dye2"], ["path", "M-5.6 -2 L5.6 -2 L5.6 0 L-5.6 0 Z", "dye2"]]},
+   "spikedBuckler": {"name": "Spiked Buckler", "layers": [["ellipse", 0, 0, 6, 6, "iron"], ["path", "M-1.4 -1.4 L0 -9 L1.4 -1.4 Z", "steel"], ["ellipse", 0, 0, 2, 2, "steel"]]},
+   "orb": {"name": "Orb", "layers": [["ellipse", 0, 0, 4, 4, "gem"], ["dot", -1.4, -1.6, "white"], ["glow", 0, 0, 8, "gem"]]},
+   "openTome": {"name": "Open Tome", "layers": [["path", "M-7 -4 Q-3.5 -6 0 -4 L0 5 Q-3.5 3 -7 5 Z", "paper"], ["path", "M0 -4 Q3.5 -6 7 -4 L7 5 Q3.5 3 0 5 Z", "paper:0.1"], ["line", -5, -2, -2, -2, "dark"], ["line", -5, 0, -2, 0, "dark"], ["glow", 0, -2, 6, "#fff6c0"]]},
+   "skull": {"name": "Skull", "layers": [["ellipse", 0, -1, 4, 3.8, "bone"], ["path", "M-2.4 2 L2.4 2 L2 4.6 L-2 4.6 Z", "bone"], ["dot", -1.4, -1, "dark"], ["dot", 1.4, -1, "dark"], ["glow", 0, -1, 5, "#9aff8a"]]},
+   "crystal": {"name": "Floating Crystal", "layers": [["path", "M0 -8 L3 -2 L0 6 L-3 -2 Z", "gem"], ["line", 0, -8, 0, 6, "white"], ["glow", 0, -1, 8, "gem"]]},
+   "holySymbol": {"name": "Holy Symbol", "layers": [["path", "M-1 -7 L1 -7 L1 -3 L4 -3 L4 -1 L1 -1 L1 6 L-1 6 L-1 -1 L-4 -1 L-4 -3 L-1 -3 Z", "gold"], ["glow", 0, -2, 6, "#fff6c0"]]},
+   "potion": {"name": "Potion", "layers": [["path", "M-1.4 -7 L1.4 -7 L1.4 -4 Q5 -2 4 2 Q3 6 0 6 Q-3 6 -4 2 Q-5 -2 -1.4 -4 Z", "#9ad0ff"], ["path", "M-4 0 Q0 1 4 0 Q3.4 6 0 6 Q-3.4 6 -4 0 Z", "#e04a6a", {"on": "self"}], ["path", "M-1.6 -9 L1.6 -9 L1.6 -7 L-1.6 -7 Z", "wood"]]},
+   "mirrorShield": {"name": "Mirror Shield", "layers": [["ellipse", 0, 0, 7, 8, "gold"], ["ellipse", 0, 0, 5.6, 6.6, "#cfe6f2"], ["line", -3, -4, 2, 3, "white"]]}
+  }
+ }
+}
