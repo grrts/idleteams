@@ -52,11 +52,12 @@ final class Items
         return 'common';
     }
 
-    public static function generate(Randomizer $r, int $ilvl, string $rarity, ?string $slot = null, ?string $base = null, array $preferAttrs = []): array
+    /** A new item. Boss drops pass the running season's id, so that season's own bases can drop too. */
+    public static function generate(Randomizer $r, int $ilvl, string $rarity, ?string $slot = null, ?string $base = null, array $preferAttrs = [], ?string $season = null): array
     {
         $slots = array_keys(Rules::SLOTS);
         $slot ??= $slots[$r->getInt(0, count($slots) - 1)];
-        $bases = array_keys(Art::dropBases()[$slot]);
+        $bases = array_keys(Art::dropBases($season)[$slot]);
         $base ??= $bases[$r->getInt(0, count($bases) - 1)];
         [, $nAffix, $sockets] = Rules::RARITIES[$rarity];
         if (in_array($slot, ['ring1', 'ring2', 'amulet', 'trinket'], true)) {

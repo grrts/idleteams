@@ -25,7 +25,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand('app:tick', 'Advance every group: settle battles and chests, start the next battle')]
 final class TickCommand extends Command
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots, private Notifier $notifier, #[Autowire(service: 'cache.app')] private CacheItemPoolInterface $cache)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots, private Notifier $notifier, private \App\Service\WorldRaids $world, #[Autowire(service: 'cache.app')] private CacheItemPoolInterface $cache)
     {
         parent::__construct();
     }
@@ -54,6 +54,12 @@ final class TickCommand extends Command
         }
         $this->bots->chatter();
         $this->em->flush();
+        $this->world->current($now);
+        $fought = $this->world->due($now);
+        $this->em->flush();
+        if ($fought) {
+            $output->writeln(sprintf('Fought %d world raid(s).', $fought));
+        }
         $pushed = $this->notifier->deliver($now);
         $this->notifier->prune($now);
         $this->cache->save($this->cache->getItem(HealthController::TICK_KEY)->set($now));

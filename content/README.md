@@ -85,3 +85,27 @@ or `+0.3` to lighten a name. Items with a rarity palette or a dye recolour `dye1
 
 An item icon is drawn from the part's own layers, fitted to the box; a part may instead give `icon` as
 `[[path, colour, material], …]` in a 32 px box centred on 0,0.
+
+### Shop and season art
+
+A worn part (hat, top, weapon, off-hand) with `"shop": true` never drops and cannot be crafted: only the shop or the
+season track gives it. A part with `"season": "s1"` drops from bosses (and the world raid) only while season `s1`
+runs, and not at all outside it. Both engines read these flags (`Art::dropBases`, `Items.dropBases`).
+
+## Shop
+
+`shop/*.json` holds offers: `{"offers": {"id": {"name", "kind", "price", "looks", "text", "days"}}}`. `kind` is `look`
+(gives the looks), `supporter` (a pass of `days` days, plus its looks) or `track` (the running season's premium track).
+`price` is in cents, VAT included. A look is a wardrobe key, `slot|base|cloth|trim|metal`.
+
+## Seasons
+
+`seasons/<id>.json` is one season: `starts` (a Monday, UTC), `weeks`, `name`, `summary`, and optionally:
+
+- `affix`: one of the season affixes in `src/Game/Modes.php` (`sundering`), added on Mythic from tier 7.
+- `raid`: the guild raid of the season (a file in `raids/`).
+- `items`: a line for players about the season's own drops (art with `"season"`).
+- `worldRaid`: `name`, `summary`, `day` (1 Monday to 7 Sunday) and `hour` (UTC), `level`, `squads` (groups, at most),
+  `health` and `damage` on the boss, `needed` (the share of a boss each squad must take off on average), `reward` (a
+  look for everyone on a win) and `fight`, written like a dungeon with one boss.
+- `track`: `tierPoints` and `tiers`, each `{"free": look or null, "premium": look}`.

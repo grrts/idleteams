@@ -157,23 +157,26 @@ final class Art
         return $bases;
     }
 
-    /** Bases that drop and can be crafted: every base but the shop's ("shop": true), which only the shop gives. */
-    public static function dropBases(): array
+    /**
+     * Bases that drop and can be crafted: every base but the shop's ("shop": true), which only the shop gives, and a
+     * season's ("season": "s1"), which drop only while that season runs (pass its id).
+     */
+    public static function dropBases(?string $season = null): array
     {
-        static $drop = null;
-        if ($drop !== null) {
-            return $drop;
+        static $drop = [];
+        if (isset($drop[$season ?? ''])) {
+            return $drop[$season ?? ''];
         }
-        $drop = self::bases();
+        $out = self::bases();
         foreach (self::KINDS as $kind => $slot) {
             foreach ($slot === null ? [] : self::parts($kind) as $id => $p) {
-                if (!empty($p['shop'])) {
-                    unset($drop[$slot][$id]);
+                if (!empty($p['shop']) || (isset($p['season']) && $p['season'] !== $season)) {
+                    unset($out[$slot][$id]);
                 }
             }
         }
 
-        return $drop;
+        return $drop[$season ?? ''] = $out;
     }
 
     /** What is wrong with a part, or null. */

@@ -24,8 +24,13 @@ final class Seasons
             $id = $s['id'] ?? basename($file, '.json');
             $start = strtotime(($s['starts'] ?? '').' 00:00:00 UTC') ?: throw new \RuntimeException(basename($file).': starts must be a date');
             gmdate('N', $start) === '1' || throw new \RuntimeException(basename($file).': a season starts on a Monday');
-            $s += ['name' => $id, 'weeks' => 8, 'summary' => '', 'track' => ['tierPoints' => 300, 'tiers' => []]];
+            $s += ['name' => $id, 'weeks' => 8, 'summary' => '', 'affix' => null, 'raid' => null, 'worldRaid' => null, 'track' => ['tierPoints' => 300, 'tiers' => []]];
+            $s['affix'] === null || isset(Modes::AFFIXES[$s['affix']]) || throw new \RuntimeException(basename($file).': unknown affix '.$s['affix']);
             $s['id'] = $id;
+            if ($s['worldRaid'] !== null) {
+                $s['worldRaid'] += ['day' => 6, 'hour' => 18, 'level' => 50, 'squads' => 50, 'health' => 2.5, 'damage' => 1.4, 'needed' => 0.5, 'reward' => null, 'summary' => ''];
+                $s['worldRaid']['fight'] = Dungeons::normalise($s['worldRaid']['fight'] + ['id' => "$id:world", 'levels' => [$s['worldRaid']['level'], 0]], $file);
+            }
             $s['startsAt'] = $start;
             $s['endsAt'] = $start + 604800 * (int) $s['weeks'];
             foreach ($s['track']['tiers'] as $n => $t) {

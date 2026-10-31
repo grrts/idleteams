@@ -90,6 +90,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   reached levels 10 and 20, and came back the next day and after a week. Moderators see cohort totals by sign-up day
   in Settings (First days) or with `php bin/console app:funnel --days=14`.
 - Front page: a logged-out visitor sees a group of random heroes, what the game is, and the login form.
+- Season content: each season can name a guild raid, an affix that joins Mythic from tier 7 (season 1: Sundering,
+  the ground splits under the healer and one other hero), season-only boss drops (Keepbreaker, Kingsbane, Warden's
+  Spire, Breach Helm) and a world raid. The world raid runs every week at the season's hour: up to 50 whole groups
+  (250 heroes) fight one boss at once, each as a squad; it falls if the squads together take off half a boss each on
+  average. Everyone who came gets gold, materials and track points; a win adds a look and better odds of an item. The
+  cron tick fights it; 50 squads take about a second.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

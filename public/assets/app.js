@@ -224,7 +224,7 @@
   async function loadView() {
     if (!S.st || !S.st.hero) return;
     if (S.st.party) loadBattle();
-    if (S.view === 'group') { S.tavern = await get('/tavern').catch(() => null); render(); }
+    if (S.view === 'group') { S.tavern = await get('/tavern').catch(() => null); if (!window.IT_SERVER) S.world = await get('/world').catch(() => null); render(); }
     if (S.view === 'guild') { S.guilds = await get('/guilds').catch(() => null); render(); }
     if (S.view === 'market') loadMarket();
     if (S.view === 'shop') loadShop();
@@ -708,6 +708,18 @@
       '<p class="small muted" style="margin:0">' + esc(cur.summary) + (next ? ' Next: ' + esc(next.name) + ' at level ' + next.levels[0] + '.' : '') + '</p>' + modeRow(p, lead) + '</div>';
   }
   // Heroic once the group outgrows a dungeon; Mythic tiers at level 50, with the week's affixes.
+  // The season's world raid: whole groups sign up for the weekly fight against one boss (GET /world).
+  function worldPanel() {
+    const w = S.world && S.world.raid;
+    if (!w) return '';
+    const when = new Date(w.startsAt * 1000), p = S.st.party, last = w.last;
+    const sign = w.state !== 'open' ? '' : w.mine ? '<span class="chip good">Your group is in</span>' + (w.leader ? ' <button class="small ghost" data-act="worldLeave">Take the group out</button>' : '')
+      : w.leader ? '<button class="small primary" data-act="worldSignup">Sign the group up</button>' : '<span class="small muted">' + (p ? 'Your group leader signs the group up.' : 'Join a group to take part.') + '</span>';
+    const result = last ? '<details><summary class="small">' + (last.won ? 'Last time it fell: ' : 'Last time it walked away: ') + last.heroes + ' heroes, ' + Math.round((100 * last.total) / Math.max(0.01, last.needed)) + '% of what it took</summary><ol class="small">' +
+      last.squads.slice(0, 10).map((q) => '<li>' + esc(q.party) + ': ' + Math.round(q.share * 100) + '% of a Colossus' + (q.top ? ', led by ' + esc(q.top) : '') + '</li>').join('') + '</ol></details>' : '';
+    return '<div class="panel stack tight"><div class="head"><h3>World raid: ' + esc(w.name) + '</h3><span class="small muted">' + when.toLocaleString(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit' }) + '</span></div>' +
+      '<p class="small muted" style="margin:0">' + esc(w.summary) + ' Level ' + w.level + ' and up. ' + w.squads + ' of ' + w.max + ' groups (' + w.heroes + ' heroes) signed up.</p><div class="row">' + sign + '</div>' + result + '</div>';
+  }
   function modeRow(p, lead) {
     const M = S.cfg.modes; if (!M) return '';
     const [mode, tier] = p.mode || ['normal', 0], top = dun(p.dungeon).levels[1] || M.mythicLevel;
@@ -717,7 +729,7 @@
       : '<b>' + (modeLabel(mode, tier) || 'Normal') + '</b>';
     const tiers = lead && mode === 'mythic' ? '<select id="tierPick" data-act-change="mythicTier" aria-label="Mythic tier">' + Array.from({ length: p.mythicBest + 1 }, (_, k) => k + 1).map((t) => '<option value="' + t + '"' + (t === tier ? ' selected' : '') + '>Tier ' + t + '</option>').join('') + '</select>' : '';
     const affix = (id) => '<span class="chip" title="' + esc(M.affixes[id][1]) + '">' + esc(M.affixes[id][0]) + '</span>';
-    const week = mode === 'mythic' ? '<div class="row small muted" style="margin:0">This week: ' + affix(M.weekly[0]) + ' from tier 1, ' + affix(M.weekly[1]) + ' from tier ' + M.secondAt + '. Best cleared: ' + (p.mythicBest ? 'tier ' + p.mythicBest : 'none yet') + '.</div>' : '';
+    const week = mode === 'mythic' ? '<div class="row small muted" style="margin:0">This week: ' + affix(M.weekly[0]) + ' from tier 1, ' + affix(M.weekly[1]) + ' from tier ' + M.secondAt + (M.seasonal ? ', and the season\'s ' + affix(M.seasonal) + ' from tier ' + M.seasonAt : '') + '. Best cleared: ' + (p.mythicBest ? 'tier ' + p.mythicBest : 'none yet') + '.</div>' : '';
     const why = mode === 'heroic' ? 'Tougher enemies at your own level, better loot and 25% more rewards.' : mode === 'mythic' ? 'Each tier is tougher; a clear moves the group up one. Item levels and rewards grow with the tier.' : '';
     return '<div class="row"><label style="margin:0" for="modePick">Difficulty</label>' + pick + tiers + '<span class="small muted">' + why + '</span></div>' + week;
   }
@@ -1412,7 +1424,7 @@
         '<h4>Heroes looking for a group</h4><div class="cards">' + (lfg.map((x) => memberCard(x.author, '<q class="small">' + esc(x.text) + '</q>' + (lead ? '<div style="margin-top:6px"><button class="small primary" data-act="inviteId" data-id="' + x.author.id + '">Invite</button></div>' : '') + (x.author.id === h.id ? '<div style="margin-top:6px"><button class="small" data-act="unpost" data-id="' + x.id + '">Remove</button></div>' : ''))).join('') || '<p class="small muted">Nobody posted.</p>') + '</div>' +
         (lead && tv.freeHeroes.length ? '<h4>Other heroes without a group</h4><div class="cards">' + tv.freeHeroes.map((x) => memberCard(x, '<div style="margin-top:6px"><button class="small" data-act="inviteId" data-id="' + x.id + '">Invite</button></div>')).join('') + '</div>' : '') + '</div>';
     }
-    return '<div class="stack">' + mine + board + '</div>';
+    return '<div class="stack">' + mine + worldPanel() + board + '</div>';
   }
 
   // ------------------------------------------------------------------ guild
@@ -1627,9 +1639,10 @@
     let season = '';
     if (sh.season) {
       const s = sh.season, n = s.tiers.length, into = s.points - s.tier * s.tierPoints;
-      const cell = (t, i) => { const got = i < s.tier, mk = (k, prem) => k ? '<div class="tcell' + (got && (!prem || s.premium) ? ' got' : '') + (prem ? ' prem' : '') + '" title="' + esc(S.cfg.bases[k.split('|')[0]][k.split('|')[1]] || '') + '">' + spr(lookOn(k), 1) + '</div>' : '<div class="tcell empty"></div>';
+      const cell = (t, i) => { const got = i < s.tier, mk = (k, prem) => k ? '<div class="tcell' + (got && (!prem || s.premium) ? ' got' : '') + (prem ? ' prem' : '') + '" title="' + esc(S.cfg.bases[k.split('|')[0]][k.split('|')[1]] || '') + '">' + spr(lookOn(k), 1.5) + '</div>' : '<div class="tcell empty"></div>';
         return '<div class="tcol"><span class="small' + (got ? ' gold' : ' muted') + '">' + (i + 1) + '</span>' + mk(t.free, false) + mk(t.premium, true) + '</div>'; };
-      season = '<div class="panel"><div class="head"><h3>' + esc(s.name) + '</h3><span class="small muted">Ends ' + new Date(s.endsAt * 1000).toLocaleDateString() + '</span></div><p class="small muted">' + esc(s.summary) + '</p>' +
+      const news = [s.raid && 'the guild raid ' + esc(s.raid), s.world && 'the world raid ' + esc(s.world) + ' every week (Group page)', s.affix && esc(s.affix[0]) + ' on Mythic ' + s.affix[1] + ' and up'].filter(Boolean);
+      season = '<div class="panel"><div class="head"><h3>' + esc(s.name) + '</h3><span class="small muted">Ends ' + new Date(s.endsAt * 1000).toLocaleDateString() + '</span></div><p class="small muted">' + esc(s.summary) + (news.length ? ' This season: ' + news.join(', ') + '.' : '') + (s.items ? ' ' + esc(s.items) : '') + '</p>' +
         '<p class="small">Tier <b>' + s.tier + '</b> of ' + n + (s.tier < n ? ' · ' + into + ' / ' + s.tierPoints + ' points to the next' : ' · the whole track') + '. Runs earn points: a clear, every boss, more on Heroic and Mythic. Every second tier has a free look' + (s.premium ? '; you have the premium track.' : '; the premium track has one on every tier.') + '</p>' +
         '<span class="bar gbar"><i style="width:' + (100 * Math.min(1, s.points / (n * s.tierPoints))) + '%"></i></span><div class="track-grid">' + s.tiers.map(cell).join('') + '</div></div>';
     } else if (sh.next) season = '<div class="panel"><h3>Next season</h3><p class="small muted">' + esc(sh.next.name) + ' starts ' + new Date(sh.next.startsAt * 1000).toLocaleDateString() + '. Its track fills from your runs.</p></div>';
@@ -1872,6 +1885,8 @@
       if (c.name.length < 3) { toast('Give your hero a name of 3 to 20 letters.'); S.creatorStep = 'name'; render(); const n = $('#cname'); if (n) n.focus(); return; }
       try { await post('/hero', c); if (S.newHero) { location.hash = '#/hero'; location.reload(); return; } S.creator = null; S.storyAt = {}; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); }
     },
+    worldSignup: async () => { try { S.world = await post('/world/signup'); render(); toast('Signed up. The fight runs by itself at the hour.', true); } catch (e) { toast(e.message); } },
+    worldLeave: async () => { try { S.world = await post('/world/leave'); render(); } catch (e) { toast(e.message); } },
     shopBuy: (d) => {
       const o = S.shop.offers.find((x) => x.id === d.o);
       modal('<h3>' + esc(o.name) + ' · ' + money(o.price, o.currency) + '</h3><p class="small">' + esc(o.text) + '</p><form data-form="shopBuy" data-o="' + o.id + '" class="stack tight"><label class="row small" style="gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0"><input type="checkbox" name="waive" value="1" style="width:auto"> <span>Deliver it at once. I understand that I lose my 14-day right of withdrawal once it is delivered.</span></label>' +

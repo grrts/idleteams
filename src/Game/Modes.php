@@ -25,6 +25,9 @@ final class Modes
     /** Tier at which the second affix joins. */
     public const SECOND_AT = 4;
 
+    /** Tier at which the season's own affix joins (content/<pack>/seasons/*.json, "affix"). */
+    public const SEASON_AT = 7;
+
     public const AFFIXES = [
         'fortified' => ['Fortified', 'Trash packs have 25% more health and hit 15% harder.'],
         'tyrannical' => ['Tyrannical', 'Bosses have 25% more health and hit 15% harder.'],
@@ -32,6 +35,8 @@ final class Modes
         'raging' => ['Raging', 'Enemies below 30% health hit 50% harder.'],
         'bolstering' => ['Bolstering', 'When a pack enemy dies, the rest of its pack heals 10% and hits 15% harder.'],
         'quaking' => ['Quaking', 'Every 15 seconds the ground shakes and hurts every hero.'],
+        // season affixes: a season names one of these
+        'sundering' => ['Sundering', 'Season affix. Every 12 seconds the ground splits under the healer and one other hero.'],
     ];
 
     /** Weeks since the first Monday of 1970 (Thursday 1 January + 4 days); weeks start Monday 00:00 UTC. */
@@ -53,8 +58,18 @@ final class Modes
             return [];
         }
         $w = self::weekly($week);
+        $out = $tier >= self::SECOND_AT ? $w : [$w[0]];
+        if ($tier >= self::SEASON_AT && ($s = self::seasonal($week))) {
+            $out[] = $s;
+        }
 
-        return $tier >= self::SECOND_AT ? $w : [$w[0]];
+        return $out;
+    }
+
+    /** The affix of the season running in this week, if any. */
+    public static function seasonal(int $week): ?string
+    {
+        return Seasons::current(345600 + 604800 * $week)['affix'] ?? null;
     }
 
     public static function heroicOpen(array $d, int $median): bool

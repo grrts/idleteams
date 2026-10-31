@@ -241,7 +241,7 @@
     const chest = [];
     plan.filter((x) => x[0] === 'boss').slice(0, rep.bossesKilled).forEach(([, bossId], n) => {
       const boss = dungeon.bosses[bossId].name;
-      if (r.getFloat(0, 1) < BOSS_DROP[n === bossCount - 1 ? 2 : Math.min(n, 1)] + reward.drop) chest.push({ spec: I.generate(r, 2 * dl + reward.ilvl, I.rollRarity(r, (keenEye ? 0.08 : 0) + reward.luck)), rolls: {}, winner: null, from: boss });
+      if (r.getFloat(0, 1) < BOSS_DROP[n === bossCount - 1 ? 2 : Math.min(n, 1)] + reward.drop) chest.push({ spec: I.generate(r, 2 * dl + reward.ilvl, I.rollRarity(r, (keenEye ? 0.08 : 0) + reward.luck), null, null, [], (E.Seasons.current(b.endsAt) || {}).id || null), rolls: {}, winner: null, from: boss });
       if (dl >= 15 && r.getFloat(0, 1) < 0.2) chest.push({ spec: I.glyph(r, 2 * dl + reward.ilvl), rolls: {}, winner: null, from: boss });
     });
     b.chest = chest; b.report = rep; b.state = 'chest'; b.chestClosesAt = b.endsAt + CHEST_SECONDS; b.timeline = null;
@@ -437,7 +437,7 @@
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, dyes: D.DYES, metals: D.METALS, dyeCost: D.DYE_COST, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       guildHall: { rooms: GH.ROOMS, memberWithdrawals: GH.MEMBER_WITHDRAWALS },
-      modes: { affixes: D.MODE_AFFIXES, mythicLevel: Md.MYTHIC_LEVEL, secondAt: Md.SECOND_AT, weekly: Md.weekly(Md.week(time())) },
+      modes: { affixes: D.MODE_AFFIXES, mythicLevel: Md.MYTHIC_LEVEL, secondAt: Md.SECOND_AT, weekly: Md.weekly(Md.week(time())), seasonAt: Md.SEASON_AT, seasonal: Md.seasonal(Md.week(time())) },
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
       cultureInfo: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, [x[0], x[1]]]))])),

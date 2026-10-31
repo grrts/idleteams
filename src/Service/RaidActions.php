@@ -211,7 +211,7 @@ class RaidActions
             $h->materials += $mats;
             $row = ['hero' => $h->name, 'gold' => $gold, 'materials' => $mats, 'item' => null];
             if ($rand->getFloat(0, 1) < ($won ? 0.8 : 0.25 + 0.1 * $taken)) {
-                $item = Items::fromSpec(Items::generate($rand, 2 * $level + ($won ? 16 : 8), Items::rollRarity($rand, $won ? 0.25 : 0.1)));
+                $item = Items::fromSpec(Items::generate($rand, 2 * $level + ($won ? 16 : 8), Items::rollRarity($rand, $won ? 0.25 : 0.1), null, null, [], \App\Game\Seasons::current()['id'] ?? null));
                 $item->owner = $h;
                 $item->createdAt = time();
                 $this->em->persist($item);

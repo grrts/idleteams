@@ -130,6 +130,7 @@ final class Simulator
             'length' => round($this->t, 1),
             'dungeonLevel' => $dungeonLevel,
             'affixes' => $this->mods['affixes'],
+            'bossShare' => $this->bossShare($bosses),
             'heroes' => [],
         ];
         foreach ($this->h as $i => $hero) {
@@ -244,7 +245,7 @@ final class Simulator
         $this->shardsSpawned = false;
         $this->enraged = false;
         [$this->hpMod, $this->dmgMod] = $this->mods[$phase];
-        $this->affixAt = ['volcanic' => 9.0, 'quaking' => 15.0];
+        $this->affixAt = ['volcanic' => 9.0, 'quaking' => 15.0, 'sundering' => 12.0];
         $hitDmg = $ref['hps'] * 0.14 * 2 * $f / (1 - $ref['tankDr']);
         if ($phase === 'pack') {
             // A pack shares one health budget among its enemies; a brute hits harder and slower than an imp.
@@ -455,6 +456,16 @@ final class Simulator
                 $this->damageHero($i, $ref['avgHp'] * 0.16 * $f, ['fire' => true, 'magic' => true, 'src' => -1, 'what' => 'Volcanic']);
             }
         }
+        if ($this->affix('sundering') && $t >= $this->affixAt['sundering']) {
+            $this->affixAt['sundering'] += 12;
+            $healers = array_keys(array_filter($this->h, fn ($h) => !$h['dead'] && $h['role'] === 'healer'));
+            $others = array_keys(array_filter($this->h, fn ($h) => !$h['dead'] && $h['role'] !== 'healer'));
+            $hit = [...($healers ? [$healers[0]] : []), ...($others ? [$others[$this->r->getInt(0, count($others) - 1)]] : [])];
+            $this->emit('mech', -1, -1, 0, 0, ['name' => 'Sundering']);
+            foreach ($hit as $i) {
+                $this->damageHero($i, $ref['avgHp'] * 0.12 * $f, ['magic' => true, 'src' => -1, 'what' => 'Sundering']);
+            }
+        }
         if ($this->affix('quaking') && $t >= $this->affixAt['quaking']) {
             $this->affixAt['quaking'] += 15;
             $this->emit('mech', -1, -1, 0, 0, ['name' => 'Quaking']);
@@ -464,6 +475,19 @@ final class Simulator
                 }
             }
         }
+    }
+
+    /** How much of the last boss fought came off: 1 if it fell (the world raid adds these up across squads). */
+    private function bossShare(int $killed): float
+    {
+        $last = null;
+        foreach ($this->e as $e) {
+            if ($e['kind'] === 'boss') {
+                $last = $e;
+            }
+        }
+
+        return $last ? round(min(1.0, 1 - max(0.0, $last['hp']) / $last['max']), 4) : ($killed > 0 ? 1.0 : 0.0);
     }
 
     /** Bolstering: a pack enemy's death heals the rest of the pack and makes it hit harder. */

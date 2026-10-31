@@ -56,7 +56,7 @@ class Present
             'marks' => HeroActions::MARKS,
             'guildHall' => ['rooms' => GuildHall::ROOMS, 'memberWithdrawals' => GuildHall::MEMBER_WITHDRAWALS],
             'raids' => array_map(fn ($r) => ['id' => $r['id'], 'name' => $r['name'], 'summary' => $r['summary'], 'level' => $r['level'], 'fronts' => array_map(fn ($f) => ['name' => $f['name'], 'summary' => $f['summary'], 'boss' => array_values($f['bosses'])[0]['name']], $r['fronts']), 'final' => ['name' => $r['final']['name'], 'boss' => array_values($r['final']['bosses'])[0]['name']], 'squads' => Raids::SQUADS, 'squadSize' => Raids::SQUAD_SIZE, 'frontsNeeded' => Raids::FRONTS_NEEDED], Raids::all()),
-            'modes' => ['affixes' => Modes::AFFIXES, 'mythicLevel' => Modes::MYTHIC_LEVEL, 'secondAt' => Modes::SECOND_AT, 'weekly' => Modes::weekly(Modes::week(time()))],
+            'modes' => ['affixes' => Modes::AFFIXES, 'mythicLevel' => Modes::MYTHIC_LEVEL, 'secondAt' => Modes::SECOND_AT, 'weekly' => Modes::weekly(Modes::week(time())), 'seasonAt' => Modes::SEASON_AT, 'seasonal' => Modes::seasonal(Modes::week(time()))],
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
             'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],

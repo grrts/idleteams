@@ -5,6 +5,9 @@
  "starts": "2026-11-02",
  "weeks": 8,
  "summary": "The Sundered Keep has opened its gates. Wear the Keep's teal and gold, the ember wine of its throne room and the moonlit black of its watchmen.",
+ "affix": "sundering",
+ "raid": "sundered-keep",
+ "items": "Keepbreaker, Kingsbane, Warden's Spire and the Breach Helm drop from bosses while the season runs.",
  "track": {
   "tierPoints": 300,
   "tiers": [
@@ -89,5 +92,89 @@
     "premium": "head|sunderedHelm|#4a1a2a|#ff8a5a|#e0b04a"
    }
   ]
+ },
+ "worldRaid": {
+  "name": "The Bone Colossus",
+  "summary": "Something vast walks out of the Rattling Deep every Saturday evening. Up to fifty groups meet it at once; no single group can bring it down.",
+  "day": 6,
+  "hour": 18,
+  "level": 50,
+  "squads": 50,
+  "health": 2.5,
+  "damage": 1.4,
+  "needed": 0.5,
+  "reward": "cape|cape|#2a2a2a|#e9e6e0|#d8a040",
+  "fight": {
+   "name": "The Colossus Field",
+   "wings": [
+    {
+     "name": "The Bone Field",
+     "scene": {
+      "sky": [
+       "#1a1410",
+       "#3a2a1a"
+      ],
+      "rock": "#4a3a2a",
+      "rock2": "#5a4a36",
+      "floor": "#3a2e22",
+      "floor2": "#46382a",
+      "glow": "#e9e6c0",
+      "accent": "#c9a040",
+      "prop": "desert"
+     }
+    }
+   ],
+   "enemies": {
+    "shard": {
+     "name": "Bone Shard",
+     "kind": "shard",
+     "art": "emberSeed"
+    }
+   },
+   "packs": {},
+   "bosses": {
+    "colossus": {
+     "name": "The Bone Colossus",
+     "art": "boneColossus",
+     "scale": 3.4,
+     "health": 3.0,
+     "damage": 1.2,
+     "enrage": 150,
+     "hit": "Crushing Step",
+     "mechanics": [
+      "buster",
+      "rain",
+      "shock",
+      "adds"
+     ]
+    }
+   },
+   "mechanics": {
+    "buster": {
+     "name": "Crushing Step",
+     "every": 12
+    },
+    "rain": {
+     "name": "Rain of Marrow"
+    },
+    "shock": {
+     "name": "Earthshaker",
+     "at": 20,
+     "every": 24
+    },
+    "adds": {
+     "name": "Bone Shards",
+     "enemy": "shard",
+     "count": 3
+    }
+   },
+   "plan": [
+    [
+     "boss",
+     "colossus",
+     0
+    ]
+   ]
+  }
  }
 }

@@ -291,10 +291,15 @@
       for (const id of keys(D.RARITIES).reverse()) { acc += D.RARITIES[id][3]; if (x < acc) return id; }
       return 'common';
     },
-    generate(r, ilvl, rarity, slot = null, base = null, prefer = []) {
+    /** Art::dropBases: no shop art, and a season's own art only while that season runs. */
+    dropBases(slot, season) {
+      const kind = { head: 'hat', top: 'top', weapon: 'weapon', offhand: 'offhand' }[slot];
+      return keys(D.BASES[slot]).filter((id) => { const p = kind && D.ART.parts[kind][id]; return !p || (!p.shop && (!p.season || p.season === season)); });
+    },
+    generate(r, ilvl, rarity, slot = null, base = null, prefer = [], season = null) {
       const slots = keys(D.SLOTS);
       slot = slot || slots[r.getInt(0, slots.length - 1)];
-      const bases = keys(D.DROP_BASES[slot]);
+      const bases = I.dropBases(slot, season);
       base = base || bases[r.getInt(0, bases.length - 1)];
       let [, nAffix, sockets] = D.RARITIES[rarity];
       if (['ring1', 'ring2', 'amulet', 'trinket'].includes(slot)) nAffix = Math.min(4, nAffix + 1);
@@ -478,12 +483,20 @@
     share: (budget, share) => { const m = typeof share === 'string' && share.match(/^(\d+)\/(\d+)$/); return m ? (budget * +m[1]) / +m[2] : budget * share; },
   });
 
+  // ---------- Seasons (src/Game/Seasons.php): when each runs and its affix
+  E.Seasons = { current: (time) => (D.SEASONS || []).find((s) => s.startsAt <= time && time < s.endsAt) || null };
+
   // ---------- Heroic and Mythic (src/Game/Modes.php)
   const Md = (E.Modes = {
-    MYTHIC_LEVEL: 50, SECOND: ['volcanic', 'raging', 'bolstering', 'quaking'], SECOND_AT: 4,
+    MYTHIC_LEVEL: 50, SECOND: ['volcanic', 'raging', 'bolstering', 'quaking'], SECOND_AT: 4, SEASON_AT: 7,
     week: (time) => Math.floor((time - 345600) / 604800),
     weekly: (week) => [week % 2 ? 'tyrannical' : 'fortified', Md.SECOND[Math.floor(week / 2) % Md.SECOND.length]],
-    affixes: (mode, tier, week) => (mode !== 'mythic' ? [] : tier >= Md.SECOND_AT ? Md.weekly(week) : [Md.weekly(week)[0]]),
+    seasonal: (week) => (E.Seasons.current(345600 + 604800 * week) || {}).affix || null,
+    affixes(mode, tier, week) {
+      if (mode !== 'mythic') return [];
+      const out = tier >= Md.SECOND_AT ? Md.weekly(week) : [Md.weekly(week)[0]], s = tier >= Md.SEASON_AT && Md.seasonal(week);
+      return s ? [...out, s] : out;
+    },
     heroicOpen: (d, median) => median >= (d.levels[1] || Md.MYTHIC_LEVEL),
     mythicOpen: (median) => median >= Md.MYTHIC_LEVEL,
     level: (d, level, mode) => (mode === 'normal' ? Math.max(d.levels[0], d.levels[1] > 0 ? Math.min(d.levels[1], level) : level) : Math.max(d.levels[1] || Md.MYTHIC_LEVEL, level)),
@@ -575,7 +588,7 @@
     fight(phase, id) {
       this.phase = phase; const f = this.difficulty(), ref = this.ref;
       this.e = {}; this.shardsSpawned = false; this.enraged = false;
-      [this.hpMod, this.dmgMod] = this.mods[phase]; this.affixAt = { volcanic: 9, quaking: 15 };
+      [this.hpMod, this.dmgMod] = this.mods[phase]; this.affixAt = { volcanic: 9, quaking: 15, sundering: 12 };
       const hitDmg = (ref.hps * 0.14 * 2 * f) / (1 - ref.tankDr);
       let name;
       if (phase === 'pack') {
@@ -662,6 +675,13 @@
         this.affixAt.volcanic += 9;
         const alive = this.h.filter((h) => !h.dead && h.role !== 'tank').map((h) => h.i);
         if (alive.length) { const i = alive[this.r.getInt(0, alive.length - 1)]; this.emit('mech', -1, i, 0, 0, { name: 'Volcanic' }); this.damageHero(i, ref.avgHp * 0.16 * f, { fire: true, magic: true, src: -1, what: 'Volcanic' }); }
+      }
+      if (this.affix('sundering') && t >= this.affixAt.sundering) {
+        this.affixAt.sundering += 12;
+        const healers = this.h.filter((h) => !h.dead && h.role === 'healer').map((h) => h.i), others = this.h.filter((h) => !h.dead && h.role !== 'healer').map((h) => h.i);
+        const hit = [...(healers.length ? [healers[0]] : []), ...(others.length ? [others[this.r.getInt(0, others.length - 1)]] : [])];
+        this.emit('mech', -1, -1, 0, 0, { name: 'Sundering' });
+        for (const i of hit) this.damageHero(i, ref.avgHp * 0.12 * f, { magic: true, src: -1, what: 'Sundering' });
       }
       if (this.affix('quaking') && t >= this.affixAt.quaking) {
         this.affixAt.quaking += 15;

@@ -8,6 +8,7 @@ use App\Entity\Guild;
 use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
+use App\Entity\User;
 use App\Game\Combatants;
 use App\Game\Dungeons;
 use App\Game\GuildHall;
@@ -304,17 +305,8 @@ class Game
                 \App\Game\Funnel::mark($h->user, 'clear', $b->endsAt);
             }
             // The season track: points for the account, and any looks the new tiers bring.
-            if (($season = Seasons::current($b->endsAt)) && !$h->user->demo) {
-                $u = $h->user;
-                $sp = $u->seasonPoints ?? [];
-                $before = $sp[$season['id']] ?? 0;
-                $sp[$season['id']] = $before + Seasons::points($rep, $b->mode, $b->tier);
-                $u->seasonPoints = $sp;
-                [$t0, $t1] = [Seasons::tier($season, $before), Seasons::tier($season, $sp[$season['id']])];
-                if ($t1 > $t0) {
-                    (new Roster($this->em))->grant($u, Seasons::rewards($season, $t0, $t1, in_array($season['id'], $u->seasonPremium ?? [], true)));
-                    $rep['heroes'][$k]['seasonTier'] = $t1;
-                }
+            if ($tier = $this->trackPoints($h->user, Seasons::points($rep, $b->mode, $b->tier), $b->endsAt)) {
+                $rep['heroes'][$k]['seasonTier'] = $tier;
             }
             // Heritage: Renown for running with your own race, twice for your own culture.
             $others = [];
@@ -385,7 +377,7 @@ class Game
         foreach (array_slice(array_values(array_filter($plan, fn ($x) => $x[0] === 'boss')), 0, $rep['bossesKilled']) as $n => [, $bossId]) {
             $boss = $dungeon['bosses'][$bossId]['name'];
             if ($r->getFloat(0, 1) < self::BOSS_DROP[$n === $bossCount - 1 ? 2 : min($n, 1)] + $reward['drop']) {
-                $chest[] = ['spec' => Items::generate($r, 2 * $dl + $reward['ilvl'], Items::rollRarity($r, ($keenEye ? 0.08 : 0.0) + $reward['luck'])), 'rolls' => [], 'winner' => null, 'from' => $boss];
+                $chest[] = ['spec' => Items::generate($r, 2 * $dl + $reward['ilvl'], Items::rollRarity($r, ($keenEye ? 0.08 : 0.0) + $reward['luck']), null, null, [], Seasons::current($b->endsAt)['id'] ?? null), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
             if ($dl >= 15 && $r->getFloat(0, 1) < 0.2) {
                 $chest[] = ['spec' => Items::glyph($r, 2 * $dl + $reward['ilvl']), 'rolls' => [], 'winner' => null, 'from' => $boss];
@@ -445,6 +437,30 @@ class Game
                 }
             }
         }
+    }
+
+    /**
+     * Season track points for an account, and the looks of any tiers they reach.
+     *
+     * @return int|null the new tier, if one was reached
+     */
+    public function trackPoints(User $u, int $points, int $at): ?int
+    {
+        $season = Seasons::current($at);
+        if (!$season || $u->demo || $points <= 0) {
+            return null;
+        }
+        $sp = $u->seasonPoints ?? [];
+        $before = $sp[$season['id']] ?? 0;
+        $sp[$season['id']] = $before + $points;
+        $u->seasonPoints = $sp;
+        [$t0, $t1] = [Seasons::tier($season, $before), Seasons::tier($season, $sp[$season['id']])];
+        if ($t1 <= $t0) {
+            return null;
+        }
+        (new Roster($this->em))->grant($u, Seasons::rewards($season, $t0, $t1, in_array($season['id'], $u->seasonPremium ?? [], true)));
+
+        return $t1;
     }
 
     public function addXp(Hero $h, int $xp): void
