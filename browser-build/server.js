@@ -252,7 +252,11 @@
     post(heroChannel(h), 'Oath Day: ' + h.name + ' swore to ' + what + '.', { type: 'hero', hero: h.id });
   }
   function earnMarks(h, k, rep, group, dungeon) {
-    h.marks = uniq([...h.marks, ...E.Marks.fromBattle({ level: h.level, career: h.career }, k, rep, group, dungeon, Object.keys(D.DUNGEONS))]);
+    const fresh = uniq(E.Marks.fromBattle({ level: h.level, career: h.career }, k, rep, group, dungeon, Object.keys(D.DUNGEONS))).filter((m) => !h.marks.includes(m));
+    h.marks = [...h.marks, ...fresh];
+    // New marks are shown off where the hero's people will see them: the guild, else the group.
+    const channel = h.guild ? 'guild:' + h.guild : h.party ? 'party:' + h.party : null;
+    if (channel && !(userOf(h) || {}).demo) for (const m of fresh) post(channel, h.name + ' earned the mark ' + (D.MARKS[m] || [m])[0] + '.', { type: 'mark', hero: h.id, mark: m });
   }
 
   function roll(b, h, idx, choice) {
@@ -399,9 +403,28 @@
     if (roster) out.members = ms.sort((a, b) => b.level - a.level).map((m) => Object.assign(heroCard(m), { rank: m.guildRank, lastSeen: isDemo(m) ? null : userOf(m).lastSeenAt }));
     return out;
   }
+  // Inspect (Present::inspect): locked choices, carved attributes, key stats, gear, marks and career.
+  function inspect(h) {
+    const b = build(h), attrs = S.attributes(b), st = S.derive(b), skills = R.classSkills(h.cls), lf = LG.get(h.path, h.legend);
+    return Object.assign(heroCard(h), {
+      classPath: h.path ? D.CLASSES[h.cls].paths[h.path][0] : null, oathTaken: !!h.oathTaken,
+      keystoneList: Object.entries(h.keystones || {}).map(([lvl, id]) => { const k = (D.KEYSTONES[role(h)] || {})[id] || [id, '']; return { level: +lvl, name: k[0], text: k[1] }; }),
+      signature: h.signature ? { name: h.signatureName || skills[h.signature][0], skill: skills[h.signature][0], mastery: R.signatureMastery(h.signatureXp || 0) } : null,
+      legendForm: lf ? { title: lf[0], capstone: lf[2], text: T.describe({ stat: lf[3] }) } : null,
+      carved: h.carved || {}, spent: h.spent || {}, attributes: Object.fromEntries(Object.entries(attrs.total).map(([k, v]) => [k, round1(v)])),
+      stats: { maxHp: Math.trunc(st.maxHp), power: Math.trunc(Math.max(st.might, st.arcana, st.spirit)), crit: st.crit, haste: st.haste, dodge: st.dodge, dr: st.dr, block: st.block },
+      talentsTaken: sum(Object.values(h.talents || {})), career: h.career || {}, gear: equipped(h).map((i) => presentItem(i)),
+      biography: h.story ? E.LifeStory.biography(h.race, h.name, h.story).slice(0, 2) : [],
+    });
+  }
+  const heroChip = (h) => (h ? { id: h.id, name: h.name, level: h.level, cls: h.cls, title: (LG.get(h.path, h.legend) || [null])[0], look: look(h) } : null);
   function presentChat(m) {
     const a = m.author ? find('heroes', m.author) : null;
-    return { id: m.id, channel: m.channel, body: m.body, card: m.card, at: m.createdAt, author: a ? { id: a.id, name: a.name, cls: a.cls } : null };
+    let card = m.card;
+    if (card && (card.type === 'hero' || card.type === 'mark') && card.hero) card = Object.assign({}, card, { chip: heroChip(find('heroes', card.hero)) });
+    if (card && card.type === 'mark') card = Object.assign({}, card, { markName: (D.MARKS[card.mark] || [card.mark])[0], markText: (D.MARKS[card.mark] || ['', ''])[1] });
+    if (card && card.type === 'item' && card.spec) card = Object.assign({}, card, { spec: Object.assign({}, card.spec, { tint: I.tint(card.spec) }) });
+    return { id: m.id, channel: m.channel, body: m.body, card, at: m.createdAt, author: a ? { id: a.id, name: a.name, cls: a.cls } : null };
   }
   function presentBattle(b, viewer, withTimeline) {
     const chest = b.chest.map((c, idx) => ({
@@ -1044,7 +1067,7 @@
     ['POST', /^\/prologue\/done$/, () => { const h = hero(); h.prologueDone = true; return presentHero(h); }],
     ['POST', /^\/battle\/(\d+)\/roll$/, (m, b) => { const h = hero(), bt = must('battles', m[1]); roll(bt, h, int(b.idx, -1), String(b.choice || '')); return presentBattle(bt, h, false); }],
     ['POST', /^\/hero$/, (m, b) => presentHero(createHero(me(), b))],
-    ['GET', /^\/hero\/(\d+)$/, (m) => { const h = must('heroes', m[1]); return Object.assign(heroCard(h), { gear: equipped(h).map((i) => presentItem(i)) }); }],
+    ['GET', /^\/hero\/(\d+)$/, (m) => inspect(must('heroes', m[1]))],
     ['POST', /^\/hero\/act$/, (m, b) => heroAct(b)],
     ['POST', /^\/item\/(\d+)\/(\w+)$/, (m, b) => itemAct(+m[1], m[2], b)],
     ['POST', /^\/craft$/, (m, b) => { const h = hero(); return presentItem(craft(h, String(b.slot || ''), b.base ? String(b.base) : null), h); }],
@@ -1071,7 +1094,13 @@
     ['POST', /^\/chat\/(\d+)\/report$/, (m) => { hero(); must('chat', m[1]); return { ok: true }; }],
     ['POST', /^\/block$/, (m, b) => { const h = hero(); return block(h, b.hero !== undefined ? must('heroes', b.hero) : (db.heroes.find((x) => x.name === String(b.name || '').trim()) || fail('No hero called ' + b.name + '.'))); }],
     ['DELETE', /^\/block\/(\d+)$/, (m) => { const u = userOf(hero()); u.blocked = (u.blocked || []).filter((id) => id !== int(m[1])); return { blocked: userCard(u).blocked }; }],
-    ['POST', /^\/chat$/, (m, b) => presentChat(say(hero(), String(b.channel || 'tavern'), String(b.body || ''), b.item !== undefined ? { type: 'item', item: int(b.item) } : null))],
+    ['POST', /^\/chat$/, (m, b) => {
+      const h = hero();
+      let card = null;
+      if (b.item !== undefined) { const i = own(h, int(b.item)); card = { type: 'item', spec: I.spec(i) }; }
+      else if (b.hero) card = { type: 'hero', hero: h.id };
+      return presentChat(say(h, String(b.channel || 'tavern'), String(b.body || ''), card));
+    }],
   ];
 
   window.IT_SERVER = {

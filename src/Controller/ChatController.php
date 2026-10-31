@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\ChatMessage;
+use App\Game\Items;
+use App\Entity\Item;
 use App\Service\GameError;
 use App\Service\Moderation;
 use App\Service\Present;
@@ -31,7 +33,17 @@ class ChatController extends ApiController
             throw new GameError('Slow down a little: you can send a few lines every few seconds.');
         }
         $in = $this->body($r);
-        $card = isset($in['item']) ? ['type' => 'item', 'item' => (int) $in['item']] : null;
+        $card = null;
+        if (isset($in['item'])) {
+            // Show off an item you own: the card keeps its spec, so it still shows after the item is sold or salvaged.
+            $item = $this->em->find(Item::class, (int) $in['item']);
+            if (!$item || $item->owner !== $hero) {
+                throw new GameError('That item is not yours.');
+            }
+            $card = ['type' => 'item', 'spec' => Items::spec($item)];
+        } elseif (!empty($in['hero'])) {
+            $card = ['type' => 'hero', 'hero' => $hero->id];
+        }
         $m = $social->say($hero, (string) ($in['channel'] ?? 'tavern'), (string) ($in['body'] ?? ''), $card);
         $this->em->flush();
 

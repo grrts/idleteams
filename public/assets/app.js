@@ -1290,6 +1290,7 @@
     else {
       actions += i.equipped ? '<button data-act="item" data-a="unequip" data-id="' + i.id + '">Take off</button>' : '<button class="primary" data-act="item" data-a="equip" data-id="' + i.id + '">Wear</button>';
       actions += '<button data-act="item" data-a="temper" data-id="' + i.id + '" title="+3% to everything on the item per step">Temper to +' + (i.temper + 1) + '</button>';
+      actions += '<button class="ghost" data-act="shareItem" data-id="' + i.id + '" title="Post it as a card in the chat channel you have open">' + ico('chat') + ' Show in chat</button>';
       if (h.codexPowers.length) actions += '<select id="imprintPower" aria-label="Codex power">' + h.codexPowers.map((p) => '<option value="' + p + '">' + esc(cfg.powers[p][0]) + '</option>').join('') + '</select><button data-act="imprint" data-id="' + i.id + '">Imprint (20 essence)</button>';
       if (h.level >= cfg.reforgeLevel && i.affixes.length) actions += '<select id="reforgeAffix" aria-label="Affix">' + i.affixes.map(([a], k) => '<option value="' + k + '">' + attrName(a) + '</option>').join('') + '</select>→<select id="reforgeAttr" aria-label="New attribute">' + Object.keys(cfg.attributes).map((a) => '<option value="' + a + '">' + attrName(a) + '</option>').join('') + '</select><button data-act="reforge" data-id="' + i.id + '">Reforge</button>';
     }
@@ -1335,7 +1336,7 @@
     return '<span class="chip kin" title="' + esc((cult ? cult + '. ' : '') + 'Same race: more Renown from every run together' + (twice ? ', twice for your culture' : '')) + '">' + ico('heritage') + (twice ? 'Kin ×2' : 'Kin') + '</span>';
   }
   function memberCard(m, extra) {
-    return '<div class="panel tight member">' + por(m.look) + '<div style="flex:1;min-width:0"><b>' + esc(m.name) + '</b><div class="row" style="gap:6px"><span class="small muted">Lv ' + m.level + ' ' + className(m.cls) + '</span>' + role(m.role) + kinChip(m) + (m.newcomer ? '<span class="chip new" title="A new hero: veterans of level ' + S.cfg.mentorLevel + ' and up earn ' + Math.round(S.cfg.mentorBonus * 100) + '% more gold and materials on every run with them">New</span>' : '') + '</div>' + (extra || '') + '</div></div>';
+    return '<div class="panel tight member">' + por(m.look) + '<div style="flex:1;min-width:0"><button class="linkish" data-act="inspect" data-id="' + m.id + '"><b>' + esc(m.name) + '</b></button><div class="row" style="gap:6px"><span class="small muted">Lv ' + m.level + ' ' + className(m.cls) + '</span>' + role(m.role) + kinChip(m) + (m.newcomer ? '<span class="chip new" title="A new hero: veterans of level ' + S.cfg.mentorLevel + ' and up earn ' + Math.round(S.cfg.mentorBonus * 100) + '% more gold and materials on every run with them">New</span>' : '') + '</div>' + (extra || '') + '</div></div>';
   }
   function groupView() {
     const st = S.st, h = st.hero, p = st.party, tv = S.tavern;
@@ -1344,7 +1345,7 @@
       const lead = p.leader === h.id;
       const reqs = p.requests.map((r) => '<div class="row small">' + (r.kind === 'application' ? '<b>' + esc(r.hero.name) + '</b> (Lv ' + r.hero.level + ' ' + className(r.hero.cls) + ') wants to join' + (r.message ? ': “' + esc(r.message) + '”' : '') + (lead ? ' <button class="small primary" data-act="answer" data-id="' + r.id + '" data-a="accept">Accept</button><button class="small" data-act="answer" data-id="' + r.id + '" data-a="decline">Decline</button>' : '') : 'Invited <b>' + esc(r.hero.name) + '</b>, waiting for an answer') + '</div>').join('');
       mine = '<div class="camp" style="text-align:left"><div class="head"><div><div class="eyebrow">Your group</div><h1>' + esc(p.name) + '</h1></div><span class="row" style="gap:6px">' + (h.bonusRolls ? '<span class="chip gold" title="You joined in a scarce role">Rolling twice: ' + h.bonusRolls + ' chest' + (h.bonusRolls === 1 ? '' : 's') + ' left</span>' : '') + '<span class="chip gold">' + p.battlesTogether + ' runs together · bond +' + Math.min(10, p.battlesTogether) + '% XP</span></span></div>' +
-        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + kinChip(m) + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
+        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<button class="linkish" data-act="inspect" data-id="' + m.id + '"><b>' + esc(m.name) + '</b></button><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + kinChip(m) + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
         Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div></div>' +
         '<div class="panel stack tight">' + (reqs ? '<div>' + reqs + '</div>' : '') +
         dungeonRow(p, lead) +
@@ -1404,26 +1405,68 @@
     const chans = S.st.channels, ch = chans[S.chat.channel] ? S.chat.channel : 'tavern';
     S.chat.channel = ch;
     const msgs = (S.chat.msgs[ch] || []).map((m) => {
-      const card = m.card && m.card.type === 'item' && m.card.spec ? ' <span class="card r-' + m.card.spec.rarity + '"><img class="ico" alt="" src="' + ITA.icon(m.card.spec) + '">' + esc(itemName(m.card.spec)) + '</span>' : '';
+      const card = chatCard(m.card);
       if (!m.author) return '<div class="msg sys">' + esc(m.body) + card + '</div>';
       const who = m.author.id === S.st.hero.id ? '<span class="a">' + esc(m.author.name) + '</span>' : '<button class="a who" data-act="chatWho" data-id="' + m.id + '" title="Report or block">' + esc(m.author.name) + '</button>';
       return '<div class="msg">' + who + esc(m.body) + card + '</div>';
     }).join('');
     return '<div class="chat-tabs">' + Object.entries(chans).map(([id, n]) => '<button class="' + (id === ch ? 'on' : '') + '" data-act="chan" data-id="' + id + '">' + n + '</button>').join('') + '<button class="small chat-close" data-act="toggleChat" aria-label="Close chat">✕</button></div><div class="msgs">' + (msgs || '<p class="muted small">Nothing said yet.</p>') + '</div>' + chatInput() + '';
   }
+  // Cards in chat: an item (hover for its lines), or a hero or a new mark (click to inspect the hero).
+  function chatCard(c) {
+    if (!c) return '';
+    if (c.type === 'item' && c.spec) return ' <span class="card r-' + c.spec.rarity + '" data-tip="' + (TIPS.push(c.spec) - 1) + '"><img class="ico" alt="" src="' + ITA.icon(c.spec) + '">' + esc(itemName(c.spec)) + '</span>';
+    const ch = c.chip;
+    if ((c.type === 'hero' || c.type === 'mark') && ch) {
+      return '<button class="herocard" data-act="inspect" data-id="' + ch.id + '" title="Inspect ' + esc(ch.name) + '">' + por(ch.look, 'pframe xs') + '<span><b>' + esc(ch.name) + (ch.title ? ' ' + esc(ch.title) : '') + '</b><span class="tiny muted">Level ' + ch.level + ' ' + esc(className(ch.cls)) + '</span>' +
+        (c.type === 'mark' ? '<span class="tiny gold">' + ico('star') + esc(c.markName) + ': ' + esc(c.markText) + '</span>' : '') + '</span></button>';
+    }
+    return '';
+  }
   function chatInput() {
     const mute = S.st.user && S.st.user.mutedUntil;
     if (mute) return '<form class="chat-in" data-form="chat"><input disabled placeholder="Muted until ' + new Date(mute * 1000).toLocaleString([], mute - Date.now() / 1000 > 72000 ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' }) + '" title="A moderator muted this account" aria-label="Message"><button type="submit" disabled>Send</button></form>';
-    return '<form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off" aria-label="Message"><button type="submit">Send</button></form>';
+    return '<form class="chat-in" data-form="chat"><input id="chatBody" name="body" maxlength="500" placeholder="Say something" autocomplete="off" aria-label="Message"><button type="button" class="ghost" data-act="shareHero" title="Show your hero in this channel">' + ico('hero') + '</button><button type="submit">Send</button></form>';
   }
   const REPORT_REASONS = [['abuse', 'Abuse or harassment'], ['spam', 'Spam or selling gold'], ['cheat', 'Cheating'], ['other', 'Something else']];
+  // Inspect: another hero's locked choices, carved attributes, gear and marks, so builds become conversation.
+  async function inspect(id, msg) {
+    let x;
+    try { x = await get('/hero/' + id); } catch (e) { toast(e.message); return; }
+    const cfg = S.cfg, lock = (label, val, sub) => '<div class="lk">' + ico('lock') + '<span class="tiny muted">' + label + '</span><b>' + val + '</b>' + (sub ? '<span class="tiny muted">' + sub + '</span>' : '') + '</div>';
+    const choices = [
+      lock('Race', esc(cfg.races[x.race].name), x.culture ? esc(cfg.cultures[x.race][x.culture]) : ''),
+      lock('Class', esc(className(x.cls)), ROLE[x.role]),
+      lock('Origin', esc(cfg.origins[x.origin][0]), ''),
+      x.classPath ? (x.oathTaken ? lock('Path · Oathsworn', esc(x.classPath), '') : '<div class="lk open"><span class="tiny muted">Path (not sworn yet)</span><b>' + esc(x.classPath) + '</b></div>') : '',
+      ...x.keystoneList.map((k) => lock('Keystone · ' + k.level, esc(k.name), esc(k.text))),
+      x.signature ? lock('Signature', esc(x.name) + "'s " + esc(x.signature.name), esc(x.signature.skill) + ' · Mastery ' + x.signature.mastery) : '',
+      x.legendForm ? lock('Legend', esc(x.legendForm.title), esc(x.legendForm.capstone) + ': ' + esc(x.legendForm.text)) : '',
+    ].join('');
+    const attrs = Object.keys(cfg.attributes).filter((a) => (x.attributes[a] || 0) > 0).sort((a, b) => x.attributes[b] - x.attributes[a]).slice(0, 8);
+    const top = Math.max(1, ...attrs.map((a) => x.attributes[a]));
+    const bars = attrs.map((a) => { const carved = x.carved[a] || 0, spent = x.spent[a] || 0, tot = x.attributes[a]; return '<div class="ab"><span class="small">' + attrName(a) + '</span><span class="bar"><i class="carved" style="width:' + (100 * Math.min(carved, tot)) / top + '%"></i><i class="rest" style="width:' + (100 * Math.max(0, tot - carved)) / top + '%"></i></span><span class="tiny">' + fmt(tot) + (carved ? ' <span class="muted">(' + carved + ' carved)</span>' : '') + '</span></div>'; }).join('');
+    const gear = x.gear.map((i) => tile(i, { act: false })).join('');
+    const marks = x.marks.map((m) => '<span class="chip gold" title="' + esc((cfg.marks[m] || ['', ''])[1]) + '">' + ico('star') + esc((cfg.marks[m] || [m])[0]) + '</span>').join(' ');
+    const st = x.stats, c = x.career || {};
+    const mod = msg ? '<hr><div class="eyebrow">About this line: “' + esc(msg.body) + '”</div><div class="row wrap">' + REPORT_REASONS.map(([k, n]) => '<button class="small" data-act="report" data-id="' + msg.id + '" data-r="' + k + '">Report: ' + n + '</button>').join('') + '</div>' +
+      '<div class="row"><button class="small" data-act="blockHero" data-hid="' + x.id + '">Block ' + esc(x.name) + '</button><span class="tiny muted">Blocked heroes\' lines disappear from your chat. You can unblock them in Settings.</span></div>' : '';
+    modal('<div class="inspect"><div class="row" style="gap:14px;align-items:flex-start">' + '<div class="stage">' + spr(x.look, 2.5, 'idle') + '</div><div class="stack tight" style="flex:1;min-width:0">' +
+      '<div class="eyebrow">' + (x.guild ? '[' + esc(x.guild.tag) + '] ' + esc(x.guild.name) : 'No guild') + '</div><h2>' + esc(x.name) + (x.title ? ' <span class="gold legend-title">' + esc(x.title) + '</span>' : '') + '</h2>' +
+      '<div class="small">Level ' + x.level + ' ' + esc(className(x.cls)) + ' ' + role(x.role) + (x.newcomer ? '<span class="chip new">New</span>' : '') + '</div>' +
+      '<div class="tiny muted">' + fmt(st.maxHp) + ' health · ' + fmt(st.power) + ' power · ' + pct(st.crit) + ' crit · +' + pct(st.haste - 1) + ' haste · ' + (x.role === 'tank' ? pct(st.dr) + ' damage cut' : pct(st.dodge) + ' dodge') + '</div>' +
+      '<div class="tiny muted">' + (c.battles || 0) + ' runs · ' + (c.dungeons || 0) + ' clears · ' + (c.bossKills || 0) + ' bosses · Heritage rank ' + x.heritageRank + ' · ' + x.talentsTaken + ' talents · Codex ' + x.codex + '</div></div></div>' +
+      '<h4>Locked choices</h4><div class="lks">' + choices + '</div>' +
+      (bars ? '<h4>Attributes <span class="tiny muted">gold is carved in at the Oath</span></h4><div class="abars">' + bars + '</div>' : '') +
+      (gear ? '<h4>Worn</h4><div class="bag slots-grid">' + gear + '</div>' : '') +
+      (marks ? '<h4>Marks</h4><div class="row wrap">' + marks + '</div>' : '') +
+      (x.biography.length ? '<div class="storybio short">' + bioHtml(x.biography) + '</div>' : '') + mod +
+      '<div class="row" style="justify-content:flex-end"><button class="small ghost" data-act="closeModal">Close</button></div></div>');
+  }
+  // A name in chat opens the hero, with ways to report the line or block them.
   function chatWho(id) {
     const m = Object.values(S.chat.msgs).flat().find((x) => x.id === +id);
-    if (!m || !m.author) return;
-    modal('<h3>' + esc(m.author.name) + '</h3><p class="small muted">“' + esc(m.body) + '”</p>' +
-      '<div class="eyebrow">Report this line</div><div class="row wrap">' + REPORT_REASONS.map(([k, n]) => '<button class="small" data-act="report" data-id="' + m.id + '" data-r="' + k + '">' + n + '</button>').join('') + '</div>' +
-      '<div class="eyebrow">Or stop seeing them</div><div class="row"><button class="small" data-act="blockHero" data-hid="' + m.author.id + '">Block ' + esc(m.author.name) + '</button><button class="small ghost" data-act="closeModal">Cancel</button></div>' +
-      '<p class="small muted">Blocked heroes\' lines disappear from your chat. You can unblock them in Settings.</p>');
+    if (m && m.author) inspect(m.author.id, m);
   }
 
   // ------------------------------------------------------------------ settings, account and moderation
@@ -1668,6 +1711,9 @@
       S.push.busy = false; render();
     },
     chatWho: (d) => chatWho(d.id),
+    inspect: (d) => inspect(+d.id),
+    shareHero: () => act(() => post('/chat', { channel: S.chat.channel, hero: true }).then(() => pollChat())),
+    shareItem: (d) => act(() => post('/chat', { channel: S.chat.channel, item: +d.id }).then(() => { S.chatOpen = true; return pollChat(); }), 'Shown in ' + (S.st.channels[S.chat.channel] || 'chat') + '.'),
     report: async (d) => { try { await post('/chat/' + d.id + '/report', { reason: d.r }); closeModal(); toast('Thanks. A moderator will look at it.', true); } catch (e) { toast(e.message); } },
     blockHero: async (d) => { try { await post('/block', { hero: +d.hid }); closeModal(); S.chat.msgs = {}; S.chat.last = {}; await refresh(); await pollChat(); toast('Blocked. Their lines are hidden now.', true); } catch (e) { toast(e.message); } },
     unblock: async (d) => { try { await api('DELETE', '/block/' + d.hid); S.chat.msgs = {}; S.chat.last = {}; await refresh(); render(); pollChat(); } catch (e) { toast(e.message); } },

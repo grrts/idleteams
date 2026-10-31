@@ -401,7 +401,15 @@ class Game
     private function earnMarks(Hero $h, int $k, array $rep, array $group, string $dungeon): void
     {
         $hero = ['level' => $h->level, 'role' => $h->role(), 'career' => $h->career];
-        $h->marks = array_values(array_unique([...$h->marks, ...Marks::fromBattle($hero, $k, $rep, $group, $dungeon, array_keys(Dungeons::all()))]));
+        $new = array_values(array_diff(array_unique(Marks::fromBattle($hero, $k, $rep, $group, $dungeon, array_keys(Dungeons::all()))), $h->marks));
+        $h->marks = [...$h->marks, ...$new];
+        // New marks are shown off where the hero's people will see them: the guild, else the group.
+        foreach ($new as $mark) {
+            $channel = $h->guild ? 'guild:'.$h->guild->id : ($h->party ? 'party:'.$h->party->id : null);
+            if ($channel && !$h->user->demo) {
+                $this->post($channel, sprintf('%s earned the mark %s.', $h->name, Marks::ALL[$mark][0] ?? $mark), ['type' => 'mark', 'hero' => $h->id, 'mark' => $mark]);
+            }
+        }
     }
 
     // ------------------------------------------------------------------ chest

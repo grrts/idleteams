@@ -23,11 +23,9 @@ class HeroController extends ApiController
     #[Route('/api/hero/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(int $id, Present $present): JsonResponse
     {
-        $h = $this->find(Hero::class, $id);
+        $this->hero();
 
-        return $this->json($present->heroCard($h) + ['gear' => array_map(fn ($i) => $present->item($i), array_values(array_filter(
-            $this->em->getRepository(\App\Entity\Item::class)->findBy(['owner' => $h]), fn ($i) => $i->equipped !== null,
-        )))]);
+        return $this->json($present->inspect($this->find(Hero::class, $id)));
     }
 
     /** One endpoint per growth action keeps the menus simple: {action, ...}. */

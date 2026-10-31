@@ -17,6 +17,7 @@ use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Items;
 use App\Game\Legends;
+use App\Game\Marks;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Stats;
@@ -125,6 +126,41 @@ class Present
             'guild' => $h->guild ? ['id' => $h->guild->id, 'name' => $h->guild->name, 'tag' => $h->guild->tag] : null,
             'party' => $h->party?->id, 'keystones' => $h->keystones, 'codex' => count($h->codex), 'demo' => $h->user->demo,
         ];
+    }
+
+    /**
+     * What another player sees when they inspect a hero: the locked choices (race, class, Origin, Path and Oath,
+     * Keystones, Signature, Legend), the carved and current attributes, key stats, worn gear, marks and career.
+     */
+    public function inspect(Hero $h): array
+    {
+        $build = $this->game->build($h);
+        $attrs = Stats::attributes($build);
+        $st = Stats::derive($build);
+        $ks = [];
+        foreach ($h->keystones as $lvl => $id) {
+            $k = Rules::KEYSTONES[$h->role()][$id] ?? null;
+            $ks[] = ['level' => (int) $lvl, 'name' => $k[0] ?? $id, 'text' => $k[1] ?? ''];
+        }
+        $sig = $h->signature ? ['name' => $h->signatureName ?: Rules::classSkills($h->cls)[$h->signature][0], 'skill' => Rules::classSkills($h->cls)[$h->signature][0], 'mastery' => Rules::signatureMastery($h->signatureXp)] : null;
+        $lf = Legends::get($h->path, $h->legend);
+        $gear = array_map(fn (Item $i) => $this->item($i), $this->game->equipped($h));
+
+        return $this->heroCard($h) + [
+            'classPath' => $h->path ? Rules::CLASSES[$h->cls]['paths'][$h->path][0] : null, 'oathTaken' => $h->oathTaken,
+            'keystoneList' => $ks, 'signature' => $sig,
+            'legendForm' => $lf ? ['title' => $lf[0], 'capstone' => $lf[2], 'text' => Talents::describe(['stat' => $lf[3]])] : null,
+            'carved' => (object) $h->carved, 'spent' => (object) $h->spent, 'attributes' => array_map(fn ($v) => round($v, 1), $attrs['total']),
+            'stats' => ['maxHp' => (int) $st['maxHp'], 'power' => (int) max($st['might'], $st['arcana'], $st['spirit']), 'crit' => $st['crit'], 'haste' => $st['haste'], 'dodge' => $st['dodge'], 'dr' => $st['dr'], 'block' => $st['block']],
+            'talentsTaken' => array_sum($h->talents), 'heritageRank' => $h->heritageRank(), 'career' => (object) $h->career,
+            'gear' => $gear, 'biography' => $h->story ? array_slice(LifeStory::biography($h->race, $h->name, $h->story), 0, 2) : [],
+        ];
+    }
+
+    /** A chat card for a hero: enough for a small portrait line. */
+    public function heroChip(?Hero $h): ?array
+    {
+        return $h ? ['id' => $h->id, 'name' => $h->name, 'level' => $h->level, 'cls' => $h->cls, 'title' => Legends::get($h->path, $h->legend)[0] ?? null, 'look' => $this->game->look($h)] : null;
     }
 
     /** The full sheet for the hero's own player. */
@@ -298,7 +334,20 @@ class Present
 
     public function chat(ChatMessage $m): array
     {
-        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $m->card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls] : null];
+        $card = $m->card;
+        // Hero and mark cards carry a small portrait line, read fresh so it shows the hero as they are now.
+        if (in_array($card['type'] ?? null, ['hero', 'mark'], true) && isset($card['hero'])) {
+            $card['chip'] = $this->heroChip($this->em->find(Hero::class, $card['hero']));
+        }
+        if (($card['type'] ?? null) === 'item' && isset($card['spec'])) {
+            $card['spec']['tint'] = Items::tint($card['spec']);
+        }
+        if (($card['type'] ?? null) === 'mark') {
+            $card['markName'] = Marks::ALL[$card['mark']][0] ?? $card['mark'];
+            $card['markText'] = Marks::ALL[$card['mark']][1] ?? '';
+        }
+
+        return ['id' => $m->id, 'channel' => $m->channel, 'body' => $m->body, 'card' => $card, 'at' => $m->createdAt, 'author' => $m->author ? ['id' => $m->author->id, 'name' => $m->author->name, 'cls' => $m->author->cls] : null];
     }
 
     /** A battle for playback (running) or for its report and chest (chest, done). */

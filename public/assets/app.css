@@ -911,3 +911,23 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .wr { gap: 8px; margin-top: 4px; }
 .wr select { flex: 1; min-width: 0; }
 @media (max-width: 600px) { .dyebox { grid-template-columns: 1fr; } }
+
+/* Hero cards in chat and the inspect sheet */
+.herocard { display: flex; gap: 8px; align-items: center; text-align: left; margin-top: 4px; padding: 4px 8px 4px 4px; min-height: 0; width: 100%; background: #ffffff0a; border: 1px solid #f0c23a44; box-shadow: none; font: inherit; color: inherit; text-transform: none; letter-spacing: 0; }
+.herocard > span { display: grid; gap: 1px; min-width: 0; }
+.herocard .ico { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.pframe.xs { width: 34px; height: 34px; border-width: 5px; flex: none; }
+.linkish { all: unset; cursor: pointer; }
+.linkish:hover b, .linkish:focus-visible b { text-decoration: underline; color: #ffd25a; }
+.inspect h4 { margin: 12px 0 6px; }
+.inspect .stage { background: #00000033; border-radius: 4px; padding: 6px; }
+.lks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.lk { display: grid; gap: 1px; padding: 6px 8px 6px 26px; position: relative; border: 1px solid #f0c23a44; border-radius: 4px; background: #f0c23a0d; }
+.lk > .ico { position: absolute; left: 6px; top: 8px; }
+.lk.open { border-style: dashed; padding-left: 8px; background: none; }
+.abars { display: grid; gap: 4px; }
+.ab { display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; }
+.ab .bar { display: flex; height: 8px; }
+.ab .bar i { position: static; height: 100%; display: block; }
+.ab .bar i.carved { background: #f0c23a; }
+.ab .bar i.rest { background: #6fb7ff; }
