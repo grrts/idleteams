@@ -471,6 +471,22 @@
     shard: (frame) => shard(frame),
   };
   A.SPRITES = SPRITES;
+  // Monsters from the art catalogue (content/<pack>/art, kind "monster"): layers in sprite pixels, facing right.
+  // idle1 lifts every layer a pixel except those marked still; the attack frame moves layers marked with
+  // atk: [dx, dy] and swaps the idle-only layers for the attack-only ones.
+  function dataMonster(frame, key) {
+    const M = (ITP.PARTS.monster || {})[key];
+    if (!M) return null;
+    // a margin on the top and sides so heads, weapons and attack lunges are not cut off; feet stay on the bottom row
+    const PAD = 6, b = new Buf(M.size[0] + 2 * PAD, M.size[1] + PAD), up = frame === 'idle1' ? -1 : 0, atk = frame === 'atk', c = M.colors || {};
+    const optOf = (L) => { const o = L[L.length - 1]; return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; };
+    [...(M.layers || []), ...((atk ? M.atk : M.idle) || [])].forEach((L) => {
+      const o = optOf(L), [dx, dy] = atk && o.atk ? o.atk : [0, 0], lift = o.still ? 0 : up;
+      ITP.drawLayers(b, [L], c, (x, y) => [x + dx + PAD, y + dy + lift + PAD], 1, 1);
+    });
+    return b.toCanvas();
+  }
+  A.dataMonster = dataMonster;
   // Recolours a finished sprite: [hue shift in degrees, saturation factor, lightness factor]. Lets one sprite serve
   // several dungeons until each has its own art.
   function tint(src, [dh, ds = 1, dl = 1]) {
@@ -498,7 +514,7 @@
   let cast = {};
   A.monster = (kind, name, frame) => memo(['m', kind, name, frame].join(':'), () => {
     const who = cast[name] || {}, key = who.art || (kind === 'boss' ? 'golem' : kind === 'brute' || kind === 'shard' ? kind : 'imp');
-    const img = (SPRITES[key] || SPRITES.imp)(frame);
+    const img = SPRITES[key] ? SPRITES[key](frame) : dataMonster(frame, key) || SPRITES.imp(frame);
     return who.tint ? tint(img, who.tint) : img;
   });
   // Scale each piece of art is drawn at in the arena.
@@ -543,19 +559,47 @@
     const dk = (col, k) => mix(col, '#05020a', k), lt = (col, k) => mix(col, '#fff1d0', k);
     // a stone block with a lit top-left edge, a dark bottom-right edge and the odd crack
     const block = (x, y, ww, hh, col) => { px(x, y, ww, hh, col); px(x, y, ww, 1, lt(col, 0.14)); px(x, y, 1, hh, lt(col, 0.08)); px(x, y + hh - 1, ww, 1, dk(col, 0.35)); px(x + ww - 1, y, 1, hh, dk(col, 0.3)); if (r() < 0.25) { let cx = x + 2 + r() * (ww - 4), cy = y + 1; for (let k = 0; k < hh - 2; k++) { px(cx, cy + k, 1, 1, dk(col, 0.45)); cx += r() < 0.3 ? (r() < 0.5 ? -1 : 1) : 0; } } };
+    const disc = (x, y, rad, col) => [0, -W, W].forEach((o) => { g.fillStyle = col; g.beginPath(); g.arc(x + o, y, rad, 0, Math.PI * 2); g.fill(); });
+    // outdoor wings (grove, snow, desert, cliffs) have an open sky and natural ground instead of a cave
+    const OUT = ['grove', 'snow', 'desert', 'cliffs'].includes(P2.prop);
     if (which === 0) {
       // banded, dithered gradient: deep at the top, warm toward the floor
       const bands = [dk(P2.sky[0], 0.3), P2.sky[0], mix(P2.sky[0], P2.sky[1], 0.5), P2.sky[1], mix(P2.sky[1], P2.glow, 0.12)];
       for (let y = 0; y < H; y++) { const f = (y / H) * (bands.length - 1), i = Math.floor(f), fr = f - i; for (let x = 0; x < W; x++) if (fr < 0.5 || (x + y) % 2) { g.fillStyle = bands[i]; g.fillRect(x, y, 1, 1); } else { g.fillStyle = bands[Math.min(bands.length - 1, i + 1)]; g.fillRect(x, y, 1, 1); } }
       // two ranges of far rock, the nearer one darker and lit from below
+      if (OUT) {
+        // stars, and a moon (or a hazy sun over the desert) with its halo
+        for (let k = 0; k < 70; k++) px(r() * W, r() * 90, 1, 1, hexA('#ffffff', 0.15 + r() * 0.45));
+        const sx = 80 + r() * 480, sy = 26 + r() * 18, sun = P2.prop === 'desert';
+        halo(sx, sy, sun ? 90 : 50, sun ? P2.glow : P2.accent, sun ? 0.35 : 0.2);
+        disc(sx, sy, sun ? 15 : 9, mix(sun ? P2.glow : P2.accent, '#ffffff', 0.55));
+        if (!sun) disc(sx + 4, sy - 2, 8, mix(P2.sky[0], P2.sky[1], 0.4));
+      }
+      const jag = P2.prop === 'desert' ? 0.08 : P2.prop === 'cliffs' ? 1.1 : 0.5;
       [[0.5, 70, 40], [0.25, 95, 34]].forEach(([k, base, amp], n) => {
         const col = mix(P2.rock, P2.sky[1], k), pts = [[0, H]];
-        for (let x = 0; x <= W; x += 8) pts.push([x, base + Math.sin((x / W) * Math.PI * 2 * (3 + n)) * amp * 0.4 + (r() - 0.5) * amp * 0.5]);
+        for (let x = 0; x <= W; x += 8) pts.push([x, base + Math.sin((x / W) * Math.PI * 2 * (3 + n)) * amp * 0.4 + (r() - 0.5) * amp * jag]);
         pts[pts.length - 1][1] = pts[1][1]; pts.push([W, H]);
         g.fillStyle = col; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill();
-        for (let x = 0; x < W; x += 2) { const y = pts[Math.min(pts.length - 2, 1 + Math.floor(x / 8))][1]; px(x, y, 2, 1, lt(col, 0.12)); }
+        for (let x = 0; x < W; x += 2) { const y = pts[Math.min(pts.length - 2, 1 + Math.floor(x / 8))][1]; px(x, y, 2, 1, lt(col, 0.12)); if (P2.prop === 'snow' && y < base) px(x, y, 2, Math.min(5, (base - y) / 3 + 1), mix(col, '#eef6ff', 0.65 - n * 0.2)); }
       });
-      if (P2.prop === 'lava') {
+      if (P2.prop === 'grove') {
+        // a far wood of bare, burnt trees, and smoke drifting low
+        for (let x = 0; x < W; x += 5 + r() * 7) { const h = 30 + r() * 40, col = mix(P2.rock, P2.sky[1], 0.25); px(x, 130 - h, 2, h + 20, col); for (let b = 0; b < 3; b++) { const by = 130 - h + 6 + b * 9, d = r() < 0.5 ? -1 : 1; for (let i = 0; i < 6; i++) px(x + d * i, by - i, 1, 1, col); } }
+        for (let k = 0; k < 4; k++) { const y = 104 + k * 14; for (let x = 0; x < W; x += 4) if ((x / 4 + k) % 3) px(x, y + Math.sin(x / 50 + k) * 4, 4, 2, hexA('#b0a8b8', 0.05 + k * 0.02)); }
+        for (let k = 0; k < 24; k++) { const x = r() * W, y = 60 + r() * 100; px(x, y, 1, 1, P2.accent); halo(x, y, 5, P2.accent, 0.3); }
+      } else if (P2.prop === 'snow') {
+        // falling snow over the peaks
+        for (let k = 0; k < 140; k++) px(r() * W, r() * H, r() < 0.2 ? 2 : 1, 1, hexA('#eef6ff', 0.3 + r() * 0.4));
+      } else if (P2.prop === 'desert') {
+        // broken columns of an old road half sunk in sand, and heat haze
+        for (let n = 0; n < 5; n++) { const x = r() * W, ht = 16 + r() * 30, col = mix(P2.rock, P2.sky[1], 0.2); px(x, 128 - ht, 7, ht, col); px(x - 2, 128 - ht, 11, 3, lt(col, 0.08)); }
+        for (let k = 0; k < 4; k++) { const y = 112 + k * 9; for (let x = 0; x < W; x += 3) if ((x / 3 + k) % 4) px(x, y + Math.sin(x / 30 + k * 2) * 2, 3, 1, hexA(P2.glow, 0.05)); }
+      } else if (P2.prop === 'cliffs') {
+        // tall spires in the haze and wyverns circling far off
+        for (let n = 0; n < 7; n++) { const x = r() * W, top = 28 + r() * 50, wv = 14 + r() * 16, col = mix(P2.rock, P2.sky[1], 0.35 - n * 0.02); poly([[x - wv, H], [x - wv * 0.4, top + 10], [x - 2, top], [x + wv * 0.3, top + 6], [x + wv, H]], col); px(x - wv * 0.4, top + 10, wv * 0.5, 1, lt(col, 0.12)); }
+        for (let n = 0; n < 5; n++) { const x = r() * W, y = 20 + r() * 50, ww = 3 + Math.round(r() * 3); for (let i = 0; i < ww; i++) { px(x - i, y - i * 0.6, 1, 1, dk(P2.rock, 0.3)); px(x + i, y - i * 0.6, 1, 1, dk(P2.rock, 0.3)); } }
+      } else if (P2.prop === 'lava') {
         // ruined arches against a lava-lit horizon
         halo(320, 175, 260, P2.glow, 0.28);
         for (let n = 0; n < 3; n++) { const x = 60 + n * 220 + r() * 40, top = 52 + r() * 14, col = mix(P2.rock, P2.sky[1], 0.15); px(x, top, 12, 120, col); px(x + 58, top + 8, 12, 112, col); for (let a = 0; a <= 20; a++) { const t = (a / 20) * Math.PI, ax = x + 35 - Math.cos(t) * 29, ay = top + 8 - Math.sin(t) * 20; px(ax - 4, ay, 8, 8, col); } px(x - 2, top - 3, 16, 4, lt(col, 0.1)); if (r() < 0.7) px(x + 58, top + 3, 14, 6, col); }
@@ -570,7 +614,9 @@
         for (let n = 0; n < 9; n++) { const x = r() * W, y = 96 + r() * 30; px(x, y, 6, 9, dk(P2.rock, 0.3)); px(x + 1, y + 1, 4, 7, mix(P2.glow, '#ffe0a0', 0.3)); px(x + 1, y + 4, 4, 1, dk(P2.rock, 0.3)); halo(x + 3, y + 5, 14, P2.glow, 0.25); }
       }
       // stalactites along the ceiling with a lit edge
-      for (let x = 0; x < W; x += 6 + r() * 16) { const h = 10 + r() * 30, wv = 5 + r() * 9, col = dk(P2.rock, 0.25); poly([[x, 0], [x + wv, 0], [x + wv * 0.45, h]], col); poly([[x, 0], [x + 2, 0], [x + wv * 0.45, h]], lt(col, 0.1)); }
+      if (!OUT) for (let x = 0; x < W; x += 6 + r() * 16) { const h = 10 + r() * 30, wv = 5 + r() * 9, col = dk(P2.rock, 0.25); poly([[x, 0], [x + wv, 0], [x + wv * 0.45, h]], col); poly([[x, 0], [x + 2, 0], [x + wv * 0.45, h]], lt(col, 0.1)); }
+    } else if (which === 1 && OUT) {
+      outdoorProps(g, P2, r, px, poly, halo, disc, dk, lt, W);
     } else if (which === 1) {
       // pillars of fitted stone with capitals, bases and per-block shading
       for (let n = 0; n < 4; n++) {
@@ -604,6 +650,7 @@
       }
     } else {
       // the floor: a lit lip, then uneven flagstones with cracks, pebbles and the wing's seams
+      if (OUT) return outdoorGround(c, g, P2, r, px, halo, dk, lt, W, H);
       const ledge = mix(P2.floor2, '#000000', 0.2);
       px(0, 146, W, 4, ledge); px(0, 146, W, 1, lt(ledge, 0.2)); px(0, 150, W, 2, dk(ledge, 0.5));
       for (let y = 152, row = 0; y < H; row++) {
@@ -615,6 +662,75 @@
       if (P2.prop === 'lava' || P2.prop === 'forge') for (let k = 0; k < 10; k++) { const x = r() * W, y = 156 + r() * 20, len = 8 + r() * 18; for (let i = 0; i < len; i++) { const yy = y + Math.round(Math.sin(i * 0.7 + k) * 1.2); px(x + i, yy, 1, 1, mix(P2.glow, '#ffe080', 0.3)); } halo(x + len / 2, y, 12, P2.glow, 0.22); }
       if (P2.prop === 'crystal') for (let k = 0; k < 6; k++) { const x = r() * W, y = 158 + r() * 16, ww = 22 + r() * 30; px(x + 2, y, ww - 4, 1, hexA('#9ad8ff', 0.4)); px(x, y + 1, ww, 3, hexA('#2a4a7a', 0.7)); px(x + 3, y + 1, ww * 0.4, 1, hexA('#cfeaff', 0.6)); }
       if (P2.prop === 'forge') for (let k = 0; k < 3; k++) { const x = r() * W; px(x, 160, 30, 12, '#2a2226'); for (let i = 2; i < 30; i += 4) px(x + i, 162, 2, 8, mix(P2.glow, '#000000', 0.4)); px(x, 160, 30, 1, '#5a5058'); }
+    }
+    return c;
+  }
+  // The middle strip outdoors: trees, pines, wrecks or rock spires standing on the ground line (y 150).
+  function outdoorProps(g, P2, r, px, poly, halo, disc, dk, lt, W) {
+    if (P2.prop === 'grove') {
+      // burnt trees with forked branches and embers still glowing in the bark
+      for (let n = 0; n < 5; n++) {
+        const x = n * 128 + 20 + r() * 70, tw = 8 + Math.round(r() * 5), col = dk(P2.rock2, 0.15);
+        poly([[x - 4, 152], [x, 20 + r() * 20], [x + tw, 20 + r() * 20], [x + tw + 4, 152]], col);
+        px(x, 30, 2, 118, lt(col, 0.1));
+        for (let b = 0; b < 4; b++) {
+          const by = 34 + b * 18 + r() * 8, d = b % 2 ? 1 : -1, len = 14 + r() * 18, bx = d > 0 ? x + tw : x;
+          for (let i = 0; i < len; i++) px(bx + d * i, by - i * 0.7, 2, 2, col);
+          for (let i = 0; i < 6; i++) px(bx + d * (len - 4 + i), by - len * 0.7 - i, 1, 1, col);
+        }
+        for (let k = 0; k < 4; k++) { const ey = 60 + r() * 80; px(x + 2 + r() * (tw - 2), ey, 2, 1, P2.accent); halo(x + tw / 2, ey, 10, P2.accent, 0.25); }
+      }
+      for (let n = 0; n < 6; n++) { const x = r() * W; poly([[x, 152], [x + 4, 144], [x + 16, 142], [x + 24, 146], [x + 26, 152]], dk(P2.rock2, 0.3)); }
+    } else if (P2.prop === 'snow') {
+      // pines in tiers with snow on every tier, and snowy boulders
+      for (let n = 0; n < 7; n++) {
+        const x = n * 92 + r() * 50, ht = 90 + r() * 50, col = mix(P2.rock2, '#1a3a30', 0.5);
+        px(x - 2, 140, 5, 12, '#3a2a22');
+        for (let t = 0; t < 4; t++) { const ty = 150 - ht + t * ht * 0.2, tw2 = 10 + t * 7; poly([[x, ty], [x + tw2, ty + ht * 0.3], [x - tw2, ty + ht * 0.3]], col); poly([[x, ty], [x + tw2 * 0.5, ty + ht * 0.15], [x - tw2 * 0.6, ty + ht * 0.14]], '#e8f2fa'); px(x - tw2, ty + ht * 0.3 - 1, tw2 * 2, 2, '#d0e0ee'); }
+      }
+      for (let n = 0; n < 5; n++) { const x = r() * W, bw = 20 + r() * 20; poly([[x, 152], [x + 4, 140], [x + bw * 0.6, 134], [x + bw, 142], [x + bw + 2, 152]], dk(P2.rock2, 0.1)); poly([[x + 4, 140], [x + bw * 0.6, 134], [x + bw, 142], [x + bw * 0.6, 139]], '#e8f2fa'); }
+    } else if (P2.prop === 'desert') {
+      // wrecked wagons, wheels and crates half buried in sand
+      for (let n = 0; n < 4; n++) {
+        const x = n * 160 + r() * 80, wood = '#6a4a2a', dkw = '#3a2818';
+        poly([[x, 150], [x + 6, 118], [x + 60, 112], [x + 66, 140], [x + 60, 150]], wood);
+        for (let i = 0; i < 5; i++) px(x + 8 + i * 11, 116 - i, 1, 30, dkw);
+        poly([[x + 4, 118], [x + 30, 92], [x + 62, 112]], hexA('#d8c8a0', 0.75));
+        px(x + 30, 92, 1, 22, dkw);
+        const wx = x + 70, wy = 140; for (let a = 0; a < 8; a++) { const t = (a / 8) * Math.PI * 2; for (let i = 0; i < 9; i++) px(wx + Math.cos(t) * i, wy + Math.sin(t) * i, 1, 1, wood); }
+        for (let a = 0; a < 24; a++) { const t = (a / 24) * Math.PI * 2; px(wx + Math.cos(t) * 10, wy + Math.sin(t) * 10, 2, 2, wood); }
+        if (r() < 0.7) { const cx = x + 90; px(cx, 136, 14, 14, wood); px(cx, 136, 14, 1, lt(wood, 0.2)); px(cx, 142, 14, 1, dkw); px(cx + 6, 136, 1, 14, dkw); }
+      }
+      for (let n = 0; n < 5; n++) { const x = r() * W, dw = 50 + r() * 50; poly([[x, 152], [x + dw * 0.4, 140 - r() * 6], [x + dw, 152]], mix(P2.floor2, '#ffe0a0', 0.15)); }
+    } else {
+      // cliffs: rock spires with ledges, nests of sticks and bones
+      for (let n = 0; n < 4; n++) {
+        const x = n * 160 + r() * 60, sw = 30 + r() * 20, top = 10 + r() * 40, col = P2.rock2;
+        poly([[x, 152], [x + sw * 0.15, top + 20], [x + sw * 0.45, top], [x + sw * 0.8, top + 14], [x + sw, 152]], col);
+        poly([[x + sw * 0.45, top], [x + sw * 0.8, top + 14], [x + sw, 152], [x + sw * 0.75, 152]], dk(col, 0.25));
+        for (let k = 0; k < 4; k++) { const ly = top + 30 + k * 26; px(x + 2, ly, sw - 4, 2, lt(col, 0.1)); px(x + 2, ly + 2, sw - 4, 1, dk(col, 0.3)); }
+        const ny = top + 28; for (let i = 0; i < 14; i++) px(x + sw * 0.5 - 12 + i * 2 + r() * 2, ny - 4 + r() * 4, 4, 1, '#5a4030');
+        if (r() < 0.6) { disc(x + sw * 0.5 - 3, ny - 5, 3, '#e8dcc0'); disc(x + sw * 0.5 + 3, ny - 6, 3, mix(P2.glow, '#3a1a1a', 0.4)); }
+      }
+      for (let n = 0; n < 8; n++) { const x = r() * W; px(x, 148, 8, 2, '#e8dcc0'); px(x - 1, 147, 2, 4, '#e8dcc0'); px(x + 7, 147, 2, 4, '#e8dcc0'); }
+    }
+  }
+  // The ground outdoors: ash, snow, sand or bare rock with a soft uneven top instead of a stone lip.
+  function outdoorGround(c, g, P2, r, px, halo, dk, lt, W, H) {
+    const top = (x) => 148 + Math.round(Math.sin((x / W) * Math.PI * 6) * 2 + Math.sin((x / W) * Math.PI * 14) * 1);
+    for (let x = 0; x < W; x++) { const y = top(x); px(x, y, 1, H - y, P2.floor); px(x, y, 1, 1, lt(P2.floor2, 0.2)); px(x, y + 1, 1, 2, P2.floor2); }
+    for (let y = 154; y < H; y += 3) for (let x = 0; x < W; x += 2) if (r() < 0.12) px(x, y + r() * 2, 2, 1, r() < 0.5 ? P2.floor2 : dk(P2.floor, 0.25));
+    if (P2.prop === 'grove') {
+      for (let k = 0; k < 30; k++) { const x = r() * W, y = 150 + r() * 6; for (let i = 0; i < 3; i++) px(x + i * 2, y - 2 - (i % 2) * 2, 1, 3, dk(P2.floor2, 0.2)); }
+      for (let k = 0; k < 14; k++) { const x = r() * W, y = 156 + r() * 20; px(x, y, 2, 1, P2.accent); halo(x, y, 6, P2.accent, 0.3); }
+    } else if (P2.prop === 'snow') {
+      for (let k = 0; k < 50; k++) px(r() * W, 152 + r() * 26, 1, 1, '#ffffff');
+      for (let k = 0; k < 8; k++) { const x = r() * W, y = 160 + r() * 14; px(x, y, 18, 1, hexA('#8aa8c8', 0.5)); px(x + 4, y + 1, 10, 1, hexA('#8aa8c8', 0.3)); }
+    } else if (P2.prop === 'desert') {
+      for (let k = 0; k < 12; k++) { const y = 154 + k * 2.2, ph = r() * 6; for (let x = 0; x < W; x += 2) if (Math.sin(x / 9 + ph) > 0.4) px(x, y + Math.sin(x / 23 + ph) * 1.5, 2, 1, dk(P2.floor, 0.18)); }
+    } else {
+      for (let k = 0; k < 16; k++) { const x = r() * W, y = 154 + r() * 20; let cx = x; for (let i = 0; i < 10; i++) { px(cx, y + i * 0.6, 1, 1, dk(P2.floor, 0.4)); cx += r() < 0.5 ? 1 : -1; } }
+      for (let k = 0; k < 10; k++) { const x = r() * W, y = 156 + r() * 20; px(x, y, 5, 1, '#e8dcc0'); }
     }
     return c;
   }

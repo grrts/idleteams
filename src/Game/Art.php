@@ -15,7 +15,10 @@ namespace App\Game;
 final class Art
 {
     /** Part kind => item slot it fills (null: chosen at hero creation, not worn). */
-    public const KINDS = ['hair' => null, 'feature' => null, 'hat' => 'head', 'top' => 'top', 'weapon' => 'weapon', 'offhand' => 'offhand'];
+    public const KINDS = ['hair' => null, 'feature' => null, 'hat' => 'head', 'top' => 'top', 'weapon' => 'weapon', 'offhand' => 'offhand', 'monster' => null];
+
+    /** Monster art keys drawn in code (public/assets/art.js); data monsters add to them. */
+    public const BUILTIN_MONSTERS = ['imp', 'brute', 'shard', 'hound', 'matron', 'golem'];
 
     public const LAYERS = ['path', 'ellipse', 'line', 'glow', 'dot', 'poly'];
 
@@ -166,7 +169,16 @@ final class Art
         if (isset(Rules::BASES[self::KINDS[$kind] ?? ''][$id]) || ($kind === 'hair' && in_array($id, ['bald', 'crop', 'spiky', 'long', 'ponytail', 'bob', 'buns', 'mohawk'], true))) {
             return "$kind $id is already built in.";
         }
-        $groups = ['layers', 'back', 'front', 'over', 'icon'];
+        $groups = ['layers', 'back', 'front', 'over', 'icon', 'idle', 'atk'];
+        if ($kind === 'monster') {
+            $size = $p['size'] ?? null;
+            if (!is_array($size) || count($size) !== 2 || array_filter($size, fn ($v) => !is_int($v) || $v < 8 || $v > 128)) {
+                return "monster $id needs a size: [width, height], 8 to 128 pixels.";
+            }
+            if (isset(Rules::BASES['weapon'][$id]) || in_array($id, self::BUILTIN_MONSTERS, true)) {
+                return "monster $id is already built in.";
+            }
+        }
         if ($kind === 'weapon' && !in_array($p['grip'] ?? null, self::GRIPS, true)) {
             return "weapon $id needs a grip: ".implode(', ', self::GRIPS).'.';
         }

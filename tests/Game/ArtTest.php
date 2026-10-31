@@ -4,6 +4,7 @@ namespace App\Tests\Game;
 
 use App\Game\Art;
 use App\Game\Crowd;
+use App\Game\Dungeons;
 use App\Game\Items;
 use App\Game\Rules;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +31,19 @@ class ArtTest extends TestCase
             $this->assertGreaterThanOrEqual(6, count(Art::creator()['features'][$race] ?? []), $race);
         }
         $this->assertCount(32, Rules::DYES);
+    }
+
+    public function testEveryDungeonEnemyAndBossHasArt(): void
+    {
+        $known = [...Art::BUILTIN_MONSTERS, ...array_keys(Art::parts('monster'))];
+        $this->assertGreaterThanOrEqual(30, count(Art::parts('monster')));
+        foreach (Dungeons::all() as $d) {
+            foreach ([...array_values($d['enemies']), ...array_values($d['bosses'])] as $e) {
+                $this->assertContains($e['art'], $known, $d['id'].': '.$e['name']);
+            }
+        }
+        $this->assertStringContainsString('size', (string) Art::check('monster', 'blob', ['name' => 'Blob', 'layers' => [['dot', 0, 0, 'dye1']]]));
+        $this->assertStringContainsString('built in', (string) Art::check('monster', 'golem', ['name' => 'Golem', 'size' => [20, 20], 'layers' => [['dot', 0, 0, 'dye1']]]));
     }
 
     public function testWornPartsBecomeItemBasesThatDrop(): void

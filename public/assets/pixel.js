@@ -176,7 +176,7 @@
   // ---------- data parts (content/<pack>/art/*.json, see content/README.md) ----------
   // Parts drawn from layers: hair, hats and race features in head space, weapons and off-hands in hand space, tops in
   // torso space (u across the chest from -1 to 1, v from the shoulders at 0 to the hips at 1).
-  const PARTS = { hair: {}, feature: {}, hat: {}, top: {}, weapon: {}, offhand: {} };
+  const PARTS = { hair: {}, feature: {}, hat: {}, top: {}, weapon: {}, offhand: {}, monster: {} };
   const NAMED = { wood: "#8a5a34", darkwood: "#5e3b22", leather: "#6e4a31", steel: "#dfe6ec", iron: "#5b5f6b", bone: "#eadfc4", gold: "#f0c23a", paper: "#f2e8d0", dark: "#2a1e30", white: "#fbf6ee" };
   // "dye1", "metal:0.3" (darker), "steel+0.4" (lighter) or "#rrggbb"
   function colour(ref, c) {
@@ -207,7 +207,7 @@
     const OPT = { hair: "hair", hat: "hat", top: "top", weapon: "weapon", offhand: "offhand", feature: "feature" };
     for (const [kind, parts] of Object.entries(art.parts || {})) {
       if (!PARTS[kind]) continue;
-      for (const [id, p] of Object.entries(parts || {})) { PARTS[kind][id] = p; (OPTIONS[OPT[kind]] = OPTIONS[OPT[kind]] || {})[id] = p.name; }
+      for (const [id, p] of Object.entries(parts || {})) { PARTS[kind][id] = p; if (OPT[kind]) (OPTIONS[OPT[kind]] = OPTIONS[OPT[kind]] || {})[id] = p.name; }
     }
     const pal = art.palettes || {};
     [[DYES, pal.dyes], [HAIRS, pal.hairs], [EYES, pal.eyes], [METALS, pal.metals]].forEach(([to, from]) => (from || []).forEach((x) => { if (!to.includes(x)) to.push(x); }));

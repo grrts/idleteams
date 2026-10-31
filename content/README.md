@@ -22,8 +22,8 @@ fails at load with the file name and what is wrong.
 | `levels` | `[from, to]` the level band. A group may enter every dungeon whose band starts at or below its median level, runs the newest by default, and fights an older one at the top of its band. `0` means no upper end |
 | `lore` | The lore entry for the dungeon (default `hollow:<id>`); every boss also names its `lore` entry. The tests check they exist |
 | `order` | Sorts dungeons with the same starting level |
-| `wings` | `name` and `scene`, the scenery palette (`sky`, `rock`, `rock2`, `floor`, `floor2`, `glow`, `accent`, `prop`: `lava`, `crystal` or `forge`) |
-| `enemies` | `id: { name, kind, art, tint }`. `tint` is `[hue shift, saturation, lightness]` to recolour shared art until a dungeon has its own. `kind` is `add`, `brute` (the tank must hold it) or `shard` (boss adds); `art` is a sprite key in `public/assets/art.js` (`imp`, `brute`, `shard`, `hound`, `matron`, `golem`) |
+| `wings` | `name` and `scene`, the scenery palette (`sky`, `rock`, `rock2`, `floor`, `floor2`, `glow`, `accent`, `prop`: the indoor `lava`, `crystal` or `forge`, or the outdoor `grove`, `snow`, `desert` or `cliffs`, which have an open sky and natural ground) |
+| `enemies` | `id: { name, kind, art, tint }`. `kind` is `add`, `brute` (the tank must hold it) or `shard` (boss adds); `art` is a built-in sprite (`imp`, `brute`, `shard`, `hound`, `matron`, `golem`) or a `monster` art part (see Art). Optional `tint` is `[hue shift, saturation, lightness]` to recolour shared art |
 | `packs` | `id: { name, spawn: [{ enemy, count, health, damage, swing }] }`. A pack shares one health budget: `health` is each enemy's share, as a number or a fraction such as `"1/3"`. `damage` multiplies a normal hit (default 1), `swing` is seconds between hits (default 2) |
 | `bosses` | `id: { name, art, scale, health, damage, enrage, hit, mechanics }`. `health` and `damage` are shares of a full boss (1.0 is the hardest), `enrage` is the second the boss enrages, `hit` names its melee attack, `mechanics` lists the mechanics it uses |
 | `mechanics` | Names the mechanics of this dungeon: `buster` (hits the tank hard), `rain` (hits everyone; `fire: true` makes it fire), `shock` (knocks back), `curse` (burns a random non-tank), `adds` (spawns `count` of `enemy` at half health). Each may set `at` (first use, seconds into the fight) and `every` (repeat) |
@@ -49,6 +49,12 @@ fails at load with its file and what is wrong. `php bin/console app:crowd` check
 | `weapon` | hand space | `layers`, `grip`: how it is held and swung (`sword`, `axe`, `hammer`, `spear`, `staff`, `wand`, `bow`, `daggers`, `pan`, `fish`) |
 | `offhand` | hand space | `layers` |
 | `top` | torso space | `layers`, `base`: the garment it is drawn over (`tunic`, `plate`, `leather`, `robe`, `sweater`), optional `sleeve` colour |
+| `monster` | its own box | `size: [w, h]` in pixels (8 to 128), `colors` (`dye1`, `dye2`, `metal`), `layers`, optional `idle` and `atk` (drawn only in those frames) |
+
+**Monsters** face right with their feet on the bottom row; a dungeon names one by its id in an enemy's or boss's
+`art`, and a boss's `scale` sets how large it is drawn (trash is drawn at 2.6, bosses at 3.4). Every layer bobs one
+pixel in the idle animation unless its opts say `"still": true` (feet, the ground), and `"atk": [dx, dy]` moves it in
+the attack frame (an arm swinging forward).
 
 **Spaces.** Head space is centred on the head (radius about 12.5, the face toward −x, the crown near y −15). Hand
 space has the hand at 0,0 and the weapon pointing up (−y); a sword blade runs from −3 to −25. Torso space runs `u`
