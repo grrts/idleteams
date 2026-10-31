@@ -25,7 +25,7 @@
     signatureMastery: (xp) => Math.floor(Math.sqrt(Math.max(0, xp) / 120)),
     signatureXpFor: (m) => 120 * m * m,
     signatureTraits(m) { const out = { swift: 0, potent: 0, echo: 0 }; for (let k = 0; k < Math.floor(m / 10); k++) out[C.SIGNATURE_TRAITS[k % C.SIGNATURE_TRAITS.length]]++; return out; },
-    xpForLevel(level) { let base = 160 * level ** 1.5; if (level >= 50) base = 160 * 50 ** 1.5 * 1.08 ** (level - 50); return Math.round(base); },
+    xpForLevel(level) { const curve = (l) => 160 * l ** 1.5 * (1 + (l - 1) / 5); return Math.round(level >= 50 ? curve(50) * 1.08 ** (level - 50) : curve(level)); },
     role: (cls) => D.CLASSES[cls].role,
     classSkills(cls) {
       const c = D.CLASSES[cls], out = {};

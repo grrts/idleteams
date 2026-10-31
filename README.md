@@ -274,9 +274,10 @@ another pass once gear past 50 is designed. Every number lives in `Rules.php`, `
 
 `php bin/console app:pacing` plays a reference group on the production clock (3-hour runs, the 12-hour offline cap,
 a wipe stopping the chain until the next check-in) through the dungeon bands with the real XP rules, and fails
-outside the target (`--target=6-8` days to level 50). With check-ins at 8, 12, 18 and 22 o'clock (or just morning
-and evening, since the cap covers the gap) the group reaches 20 on day 2.8, 30 on day 4.0 and 50 on day 6.2. Once a
-day (`--checkins=19`) it is level 40 on day 9. The reference group keeps its gear up to date and never wipes, so real
+outside the target (`--target=28-38` days to level 50). Levelling is meant to take a season, not a week: with
+check-ins at 8, 12, 18 and 22 o'clock (or just morning and evening, since the cap covers the gap) the group reaches 10
+on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Once a day (`--checkins=19`) it is level 30 on
+day 25 and 40 on day 42. The reference group keeps its gear up to date and never wipes, so real
 groups will be somewhat slower; the alpha will tell by how much. CI runs it on every push.
 
 ## Browser build

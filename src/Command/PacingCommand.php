@@ -16,7 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * The promise of the first week, checked: a reference group of five plays on the production clock (3-hour runs, a
+ * The levelling pace, checked: a reference group of five plays on the production clock (3-hour runs, a
  * 12-hour offline cap, a wipe stops the chain until someone checks in) and levels with the real XP rules, dungeons,
  * bands and simulator. Gear follows the reference build for each level, which assumes players keep up.
  */
@@ -25,11 +25,11 @@ final class PacingCommand extends Command
 {
     protected function configure(): void
     {
-        $this->addOption('days', null, InputOption::VALUE_REQUIRED, 'Days to simulate', '10')
+        $this->addOption('days', null, InputOption::VALUE_REQUIRED, 'Days to simulate', '45')
             ->addOption('checkins', null, InputOption::VALUE_REQUIRED, 'Hours of the day someone in the group looks in', '8,12,18,22')
             ->addOption('battle', null, InputOption::VALUE_REQUIRED, 'Seconds per run', '10800')
             ->addOption('cap', null, InputOption::VALUE_REQUIRED, 'Offline cap in seconds', '43200')
-            ->addOption('target', null, InputOption::VALUE_REQUIRED, 'Days to level 50 that pass, as from-to', '6-8')
+            ->addOption('target', null, InputOption::VALUE_REQUIRED, 'Days to level 50 that pass, as from-to', '28-38')
             ->addOption('seed', null, InputOption::VALUE_REQUIRED, 'Random seed for the runs', '1');
     }
 
