@@ -59,11 +59,15 @@ class PlayTest extends WebTestCase
         $battle = $em->find(Battle::class, $state['battle']['id']);
         $game = static::getContainer()->get(Game::class);
         $game->progress($battle->party, $battle->endsAt + 1);
-        $this->assertSame('chest', $battle->state);
+        // Loot is never guaranteed: an empty chest settles at once.
+        $this->assertSame($battle->chest ? 'chest' : 'done', $battle->state);
 
         $after = $this->api('GET', '/state');
         $this->assertGreaterThan(0, $after['hero']['xp'] + ($after['hero']['level'] - 1));
         $this->assertGreaterThan(0, $after['hero']['gold']);
+        if (!$battle->chest) {
+            return;
+        }
         $view = $this->api('GET', '/battle');
         foreach ($view['chests'][0]['chest'] as $entry) {
             $this->api('POST', '/battle/'.$battle->id.'/roll', ['idx' => $entry['idx'], 'choice' => 'need']);
