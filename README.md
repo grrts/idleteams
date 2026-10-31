@@ -118,6 +118,9 @@ a database and cron.
    APP_URL=https://your-domain                         # links in mails point here
    VAPID_PRIVATE_KEY=...          # web push; make one with: php bin/console app:push:keys
    VAPID_SUBJECT=mailto:you@your-domain
+   MERCURE_URL=http://127.0.0.1:3000/.well-known/mercure          # live updates; leave empty to poll
+   MERCURE_PUBLIC_URL=https://your-domain/.well-known/mercure
+   MERCURE_JWT_SECRET=<32+ random characters, the same as the hub's>
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
@@ -143,7 +146,23 @@ a database and cron.
    * * * * * cd /var/www/idleteams && php bin/console app:tick > /dev/null 2>&1
    ```
    The game also moves forward whenever a member opens it, so a missed tick never loses rewards.
-6. Skip `app:demo:seed` in production unless you want the demo heroes there.
+6. **Live updates** (optional): run a [Mercure hub](https://mercure.rocks) next to the app and proxy
+   `/.well-known/mercure` on the game's own domain to it, so the subscriber cookie reaches it. Give the hub the same
+   secret as `MERCURE_JWT_SECRET` for both publishers and subscribers. With nginx:
+   ```nginx
+   location /.well-known/mercure {
+       proxy_pass http://127.0.0.1:3000;
+       proxy_read_timeout 24h;
+       proxy_http_version 1.1;
+       proxy_set_header Connection "";
+       proxy_buffering off;
+   }
+   ```
+   The app only sends pings ("your group changed", "a new line in guild chat"), never game data; the browser then
+   reads the API as before. Each player's cookie, refreshed with every `/api/state`, lets them hear only their own
+   topics. Without a hub, or while it is down, the client polls every few seconds as before; with it, polling slows
+   to a safety net every 30 seconds or so.
+7. Skip `app:demo:seed` in production unless you want the demo heroes there.
 
 ## How the code is laid out
 

@@ -1,0 +1,19 @@
+# Live updates (src/Service/Live.php). With MERCURE_URL empty the hub below is a placeholder that is never called,
+# and the client polls instead.
+parameters:
+    env(MERCURE_URL): ''
+    env(MERCURE_PUBLIC_URL): ''
+    mercure.off: 'http://127.0.0.1:1/.well-known/mercure'
+
+mercure:
+    hubs:
+        default:
+            url: '%env(default:mercure.off:MERCURE_URL)%'
+            public_url: '%env(default:mercure.off:MERCURE_PUBLIC_URL)%'
+            jwt:
+                secret: '%env(MERCURE_JWT_SECRET)%'
+                publish: '*'
+                claims:
+                    iss: '%env(MERCURE_JWT_ISSUER)%'
+                    sub: 'app'
+                    client_id: 'app'

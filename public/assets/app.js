@@ -192,9 +192,11 @@
     }
     loadView();
     pushInit();
-    setInterval(() => { if (S.st && S.st.hero && !document.hidden) refresh(); }, 5000);
-    setInterval(() => { if (S.st && S.st.hero && !document.hidden) pollChat(); }, 4000);
-    setInterval(() => { if (S.st && S.st.hero && S.st.party && !document.hidden) loadBattle(); }, 15000);
+    // With live updates the server says when something changed; polling stays as a slow safety net.
+    const due = (k, ms) => { const now = Date.now(), slow = live.ok ? 6 : 1; if (now - (live.last[k] || 0) < ms * slow - 50) return false; live.last[k] = now; return true; };
+    setInterval(() => { if (S.st && S.st.hero && !document.hidden && due('state', 5000)) refresh(); }, 5000);
+    setInterval(() => { if (S.st && S.st.hero && !document.hidden && due('chat', 4000)) pollChat(); }, 4000);
+    setInterval(() => { if (S.st && S.st.hero && S.st.party && !document.hidden && due('battle', 15000)) loadBattle(); }, 15000);
     requestAnimationFrame(frame);
   }
 
@@ -206,8 +208,9 @@
       S.st = st;
       if (st.hero && st.battle && st.battle.id !== prevBattle) loadBattle();
       if (prevLevel && st.hero && st.hero.level > prevLevel) celebrate.level(st.hero);
+      liveSync(st.live);
     } catch (e) {
-      if (e.status === 401) S.st = null; else { toast(e.message); return; }
+      if (e.status === 401) { S.st = null; liveSync(null); } else { toast(e.message); return; }
     }
     render();
   }
@@ -1315,6 +1318,35 @@
   async function loadReports() {
     try { S.reports = await get('/admin/reports'); } catch (e) { S.reports = []; toast(e.message); }
     if (S.view === 'settings') render();
+  }
+
+  // ------------------------------------------------------------------ live updates (Mercure)
+
+  // The server sends pings with no data ("your group changed", "new line in guild chat"); the client reads the rest
+  // from the API. Without a hub (st.live is null) or while the connection is down, the polling above carries on.
+  const live = { es: null, key: '', ok: false, last: {}, timer: null };
+  function liveSync(cfg) {
+    const key = cfg ? cfg.url : '';
+    if (key === live.key) return;
+    if (live.es) { live.es.close(); live.es = null; live.ok = false; }
+    live.key = key;
+    if (!cfg || !window.EventSource) return;
+    const es = (live.es = new EventSource(cfg.url, { withCredentials: true }));
+    es.onopen = () => { live.ok = true; };
+    es.onerror = () => { live.ok = false; };
+    es.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      // Several pings in a burst become one read.
+      live.want = Object.assign(live.want || {}, { [m.t]: m.t === 'chat' ? m.channel : true });
+      clearTimeout(live.timer);
+      live.timer = setTimeout(liveApply, 250);
+    };
+  }
+  function liveApply() {
+    const w = live.want || {}; live.want = null;
+    if (w.party || w.user) { live.last.state = Date.now(); refresh(); }
+    if (w.party && S.st && S.st.party) { live.last.battle = Date.now(); loadBattle(); }
+    if (w.chat && w.chat === S.chat.channel) { live.last.chat = Date.now(); pollChat(); }
   }
 
   // ------------------------------------------------------------------ notifications (Web Push)

@@ -17,6 +17,7 @@
         "symfony/flex": "^2",
         "symfony/framework-bundle": "^7.4",
         "symfony/mailer": "^7.4",
+        "symfony/mercure-bundle": "^0.6.1",
         "symfony/rate-limiter": "^7.4",
         "symfony/runtime": "^7.4",
         "symfony/security-bundle": "^7.4",

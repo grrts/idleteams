@@ -7,18 +7,20 @@ use App\Entity\Hero;
 use App\Entity\PartyRequest;
 use App\Service\Bots;
 use App\Service\Game;
+use App\Service\Live;
 use App\Service\Moderation;
 use App\Service\Present;
 use App\Service\Social;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mercure\Authorization;
 use Symfony\Component\Routing\Attribute\Route;
 
 /** The menus poll this every few seconds. Opening the game is also what moves the group's clock forward. */
 class StateController extends ApiController
 {
     #[Route('/api/state', methods: ['GET'])]
-    public function state(Game $game, Present $present, Bots $bots, Social $social, Moderation $moderation): JsonResponse
+    public function state(Request $request, Game $game, Present $present, Bots $bots, Social $social, Moderation $moderation, Live $live, Authorization $auth): JsonResponse
     {
         $user = $this->me();
         $user->lastSeenAt = time();
@@ -59,8 +61,20 @@ class StateController extends ApiController
             'invites' => $invites,
             'battle' => $battle ? ['id' => $battle->id, 'startedAt' => $battle->startedAt, 'endsAt' => $battle->endsAt, 'dungeonLevel' => $battle->dungeonLevel] : null,
             'pendingRolls' => $pendingRolls,
-            'channels' => $social->channels($hero),
+            'channels' => $channels = $social->channels($hero),
+            'live' => $this->live($request, $live, $auth, $live->topicsFor($user, $hero, $channels)),
         ]);
+    }
+
+    /** Where to listen for live pings, with a cookie that lets this player hear exactly these topics. */
+    private function live(Request $request, Live $live, Authorization $auth, array $topics): ?array
+    {
+        if (!$live->enabled()) {
+            return null;
+        }
+        $auth->setCookie($request, $topics);
+
+        return ['url' => $live->subscribeUrl($topics)];
     }
 
     #[Route('/api/battle', methods: ['GET'])]
