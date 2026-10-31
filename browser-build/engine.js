@@ -588,7 +588,7 @@
     fight(phase, id) {
       this.phase = phase; const f = this.difficulty(), ref = this.ref;
       this.e = {}; this.shardsSpawned = false; this.enraged = false;
-      [this.hpMod, this.dmgMod] = this.mods[phase]; this.affixAt = { volcanic: 9, quaking: 15, sundering: 12 };
+      [this.hpMod, this.dmgMod] = this.mods[phase]; this.affixAt = { volcanic: 9, quaking: 15, sundering: 12, frostbite: 10 };
       const hitDmg = (ref.hps * 0.14 * 2 * f) / (1 - ref.tankDr);
       let name;
       if (phase === 'pack') {
@@ -682,6 +682,14 @@
         const hit = [...(healers.length ? [healers[0]] : []), ...(others.length ? [others[this.r.getInt(0, others.length - 1)]] : [])];
         this.emit('mech', -1, -1, 0, 0, { name: 'Sundering' });
         for (const i of hit) this.damageHero(i, ref.avgHp * 0.12 * f, { magic: true, src: -1, what: 'Sundering' });
+      }
+      if (this.affix('frostbite') && t >= this.affixAt.frostbite) {
+        this.affixAt.frostbite += 10;
+        const alive = this.h.filter((h) => !h.dead), tank = (alive.find((h) => h.role === 'tank') || { i: null }).i;
+        let low = null;
+        for (const h of alive) if (h.i !== tank && (low === null || h.hp / h.s.maxHp < this.h[low].hp / this.h[low].s.maxHp)) low = h.i;
+        this.emit('mech', -1, -1, 0, 0, { name: 'Frostbite' });
+        for (const i of [tank, low]) if (i !== null) this.damageHero(i, ref.avgHp * 0.1 * f, { magic: true, src: -1, what: 'Frostbite' });
       }
       if (this.affix('quaking') && t >= this.affixAt.quaking) {
         this.affixAt.quaking += 15;

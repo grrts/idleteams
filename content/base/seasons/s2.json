@@ -1,0 +1,180 @@
+{
+ "id": "s2",
+ "number": 2,
+ "name": "The Frostbound Season",
+ "starts": "2026-12-28",
+ "weeks": 8,
+ "summary": "Winter has come down from the Frostfang Peaks and does not mean to leave. Wear the deep ice, the new snow and the frost-blue of the northern watch.",
+ "affix": "frostbite",
+ "raid": "sundered-keep",
+ "items": "Rime Edge, the Glacier Staff and the Frost Crown drop from bosses while the season runs.",
+ "track": {
+  "tierPoints": 300,
+  "tiers": [
+   {
+    "free": null,
+    "premium": "top|furCollar|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": "cape|scarf|#e8eef4|#6ab0e0|#d8dee4",
+    "premium": "head|wingedHelm|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "top|starRobe|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "head|beanie|#e8eef4|#6ab0e0|#d8dee4",
+    "premium": "weapon|katana|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "offhand|orb|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "gloves|leather|#2a4a6a|#cfe8ff|#c0c8d0",
+    "premium": "top|nobleCoat|#e8eef4|#6ab0e0|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "head|witchHat|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "shoes|boots|#e8eef4|#6ab0e0|#d8dee4",
+    "premium": "weapon|flamberge|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "cape|cape|#e8eef4|#6ab0e0|#d8dee4"
+   },
+   {
+    "free": "head|laurel|#2a4a6a|#cfe8ff|#c0c8d0",
+    "premium": "offhand|mirrorShield|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "top|gambeson|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "top|tabard|#2a4a6a|#cfe8ff|#c0c8d0",
+    "premium": "head|kabuto|#e8eef4|#6ab0e0|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "weapon|runeblade|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "bottom|kilt|#e8eef4|#6ab0e0|#d8dee4",
+    "premium": "head|tiara|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "offhand|heater|#e8eef4|#6ab0e0|#d8dee4"
+   },
+   {
+    "free": "weapon|sabre|#2a4a6a|#cfe8ff|#c0c8d0",
+    "premium": "top|doublet|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": null,
+    "premium": "weapon|staff|#e8eef4|#6ab0e0|#d8dee4"
+   },
+   {
+    "free": "head|tricorn|#1a2a3a|#7af0ff|#9aa8b8",
+    "premium": "head|feathered|#2a4a6a|#cfe8ff|#c0c8d0"
+   },
+   {
+    "free": null,
+    "premium": "cape|cape|#1a2a3a|#7af0ff|#9aa8b8"
+   },
+   {
+    "free": "cape|scarf|#1a2a3a|#7af0ff|#9aa8b8",
+    "premium": "head|frostCrown|#e8eef4|#6ab0e0|#d8dee4"
+   }
+  ]
+ },
+ "worldRaid": {
+  "name": "The Hoarfrost Titan",
+  "summary": "Every Saturday evening a giant of old ice walks down from the Frostfang Peaks. Up to fifty groups meet it at once; no single group can bring it down.",
+  "day": 6,
+  "hour": 18,
+  "level": 50,
+  "squads": 50,
+  "health": 2.5,
+  "damage": 1.4,
+  "needed": 0.5,
+  "reward": "cape|cape|#e8eef4|#6ab0e0|#d8dee4",
+  "fight": {
+   "name": "The Frozen Pass",
+   "wings": [
+    {
+     "name": "The Frozen Pass",
+     "scene": {
+      "sky": [
+       "#0e1a2a",
+       "#2a4a6a"
+      ],
+      "rock": "#5a6a7a",
+      "rock2": "#7a8a9a",
+      "floor": "#c8d4e0",
+      "floor2": "#a8b8c8",
+      "glow": "#cfe8ff",
+      "accent": "#7af0ff",
+      "prop": "snow"
+     }
+    }
+   ],
+   "enemies": {
+    "shard": {
+     "name": "Ice Shard",
+     "kind": "shard",
+     "art": "iceSpike"
+    }
+   },
+   "packs": {},
+   "bosses": {
+    "titan": {
+     "name": "The Hoarfrost Titan",
+     "art": "frostTroll",
+     "scale": 3.4,
+     "health": 3.0,
+     "damage": 1.2,
+     "enrage": 150,
+     "hit": "Glacial Fist",
+     "mechanics": [
+      "buster",
+      "rain",
+      "shock",
+      "adds"
+     ]
+    }
+   },
+   "mechanics": {
+    "buster": {
+     "name": "Glacial Fist",
+     "every": 12
+    },
+    "rain": {
+     "name": "Hailstorm"
+    },
+    "shock": {
+     "name": "Avalanche",
+     "at": 20,
+     "every": 24
+    },
+    "adds": {
+     "name": "Ice Shards",
+     "enemy": "shard",
+     "count": 3
+    }
+   },
+   "plan": [
+    [
+     "boss",
+     "titan",
+     0
+    ]
+   ]
+  }
+ }
+}
