@@ -58,6 +58,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => 0])]
     public int $mutedUntil = 0;
 
+    /** The id the stores know this account by (RevenueCat app user id): random, so it says nothing about the player. */
+    #[ORM\Column(length: 36, unique: true, nullable: true)]
+    public ?string $billingId = null;
+
+    /** The linked Steam account (SteamID64), for logging in from the Steam build and for Steam purchases. */
+    #[ORM\Column(length: 20, unique: true, nullable: true)]
+    public ?string $steamId = null;
+
     /** A supporter until this time (the shop's supporter pass): a star by their name, never any power. */
     #[ORM\Column(options: ['default' => 0])]
     public int $supporterUntil = 0;

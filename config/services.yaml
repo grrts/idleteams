@@ -19,4 +19,4 @@ when@test:
     services:
         logger:
             class: Psr\Log\NullLogger
-        App\Tests\StripeMock: ~
+        App\Tests\StoreMock: ~

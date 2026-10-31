@@ -7,34 +7,25 @@ use App\Entity\User;
 use App\Game\Dungeons;
 use App\Game\Seasons;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * The cosmetic shop. Offers are data (content/<pack>/shop/*.json): looks for the wardrobe, a 30-day supporter pass and
- * the season track's premium side. Nothing sold changes a hero's power.
+ * The cosmetic shop, the same on every platform. Offers are data (content/<pack>/shop/*.json): looks for the wardrobe,
+ * the supporter pass and the season track's premium side. Nothing sold changes a hero's power.
  *
- * Payment goes through Stripe Checkout: checkout() makes a pending Purchase and a Checkout Session and hands back its
- * page; Stripe calls webhook() when the payment is through (or refunded), and only then is anything given. With no
- * STRIPE_SECRET_KEY the shop shows its offers and says it is not open.
+ * The stores take the money: the App Store and Google Play through RevenueCat (src/Service/RevenueCat.php), Steam
+ * through its in-game purchases (src/Service/Steam.php). Each tells the server about a purchase, which lands here as a
+ * Purchase keyed by the store's transaction, so one account keeps what it bought on every platform.
  */
 class Shop
 {
-    public const STRIPE = 'https://api.stripe.com/v1/';
-
-    /** How old a webhook's signature may be. */
-    public const TOLERANCE = 300;
+    /** Stores whose purchases RevenueCat reports. */
+    public const RC_STORES = ['app_store', 'play_store', 'mac_app_store', 'amazon', 'promotional', 'test_store'];
 
     private static ?array $offers = null;
 
-    public function __construct(
-        private EntityManagerInterface $em,
-        private HttpClientInterface $http,
-        private Notifier $notifier,
-        #[Autowire('%env(STRIPE_SECRET_KEY)%')] private string $key,
-        #[Autowire('%env(STRIPE_WEBHOOK_SECRET)%')] private string $webhookSecret,
-        #[Autowire('%env(APP_URL)%')] private string $appUrl,
-    ) {
+    public function __construct(private EntityManagerInterface $em, private Notifier $notifier)
+    {
     }
 
     /** @return array<string, array> every offer by id */
@@ -46,21 +37,59 @@ class Shop
         $out = [];
         foreach (glob(($dir ?? Dungeons::dir()).'/*/shop/*.json') ?: [] as $file) {
             foreach (json_decode((string) file_get_contents($file), true, 64, JSON_THROW_ON_ERROR)['offers'] ?? [] as $id => $o) {
-                in_array($o['kind'] ?? null, ['look', 'supporter', 'track'], true) || throw new \RuntimeException(basename($file).": offer $id needs a kind: look, supporter or track");
-                is_int($o['price'] ?? null) && $o['price'] > 0 || throw new \RuntimeException(basename($file).": offer $id needs a price in cents");
-                $out[$id] = $o + ['id' => $id, 'looks' => [], 'text' => '', 'currency' => 'eur', 'days' => 0];
+                $bad = fn (string $why) => throw new \RuntimeException(basename($file).": offer $id $why");
+                in_array($o['kind'] ?? null, ['look', 'supporter', 'track'], true) || $bad('needs a kind: look, supporter or track');
+                is_int($o['price'] ?? null) && $o['price'] > 0 || $bad('needs a price in cents');
+                preg_match('/^[a-z0-9_.{}]{3,80}$/', $o['product'] ?? '') || $bad('needs a store product id (lower case, digits, _ and .)');
+                is_int($o['steamItem'] ?? null) || $bad('needs a steamItem number');
+                $out[$id] = $o + ['id' => $id, 'looks' => [], 'text' => '', 'currency' => 'eur', 'entitlement' => null];
             }
         }
 
         return $dir === null ? self::$offers = $out : $out;
     }
 
-    public function open(): bool
+    /** The store product id of an offer; the season track has one per season ("it_track_{season}"). */
+    public static function product(array $o, ?string $season = null): string
     {
-        return $this->key !== '';
+        return str_replace('{season}', (string) $season, $o['product']);
     }
 
-    /** Whether the account already has everything the offer gives (a supporter pass can always be bought again). */
+    /** The Steam item id: the season track adds the season's number. */
+    public static function steamItem(array $o, ?string $season = null): int
+    {
+        return $o['steamItem'] + ($o['kind'] === 'track' ? (int) (Seasons::get((string) $season)['number'] ?? 0) : 0);
+    }
+
+    /**
+     * The offer a store product id belongs to, and its season for the track.
+     *
+     * @return array{0: array, 1: ?string}|null
+     */
+    public static function byProduct(string $product): ?array
+    {
+        foreach (self::offers() as $o) {
+            if ($o['kind'] === 'track') {
+                foreach (Seasons::all() as $s) {
+                    if (self::product($o, $s['id']) === $product) {
+                        return [$o, $s['id']];
+                    }
+                }
+            } elseif ($o['product'] === $product) {
+                return [$o, null];
+            }
+        }
+
+        return null;
+    }
+
+    /** The account's id at the stores, made on first need. */
+    public function billingId(User $u): string
+    {
+        return $u->billingId ??= Uuid::v4()->toRfc4122();
+    }
+
+    /** Whether the account already has everything the offer gives (the supporter pass can always be bought again). */
     public function owns(User $u, array $o, ?array $wardrobe): bool
     {
         return match ($o['kind']) {
@@ -70,98 +99,79 @@ class Shop
         };
     }
 
-    /** Starts a payment: a pending purchase and a Stripe Checkout page to send the player to. */
-    public function checkout(User $u, string $offerId, bool $waive): string
+    /**
+     * Before the store's purchase sheet opens: checks the offer can be bought and records the player's consent to
+     * delivery at once (which ends the right of withdrawal). Returns what the app needs to start the purchase.
+     *
+     * @return array{purchase: int, product: string, appUserId: string, steamItem: int}
+     */
+    public function consent(User $u, string $offerId, bool $waive): array
     {
         $o = self::offers()[$offerId] ?? throw new GameError('No such offer.');
-        if (!$this->open()) {
-            throw new GameError('The shop is not open yet.');
-        }
         if (!$waive) {
             throw new GameError('Tick the box to have it delivered at once.');
         }
         $season = null;
         if ($o['kind'] === 'track') {
-            $season = Seasons::current() ?? throw new GameError('No season is running.');
+            $season = (Seasons::current() ?? throw new GameError('No season is running.'))['id'];
         }
-        $hero = (new Roster($this->em))->active($u);
-        if ($this->owns($u, $o, $hero?->wardrobe)) {
+        if ($this->owns($u, $o, (new Roster($this->em))->active($u)?->wardrobe)) {
             throw new GameError('You already have that.');
         }
         $p = new Purchase();
         $p->user = $u;
         $p->offer = $o['id'];
-        $p->season = $season['id'] ?? null;
+        $p->season = $season;
+        $p->product = self::product($o, $season);
         $p->amount = $o['price'];
         $p->currency = $o['currency'];
         $p->waivedWithdrawalAt = time();
         $p->createdAt = time();
         $this->em->persist($p);
         $this->em->flush();
-        $name = $o['name'].($season ? ': '.$season['name'] : '');
-        $form = [
-            'mode' => 'payment',
-            'line_items' => [['quantity' => 1, 'price_data' => ['currency' => $o['currency'], 'unit_amount' => $o['price'], 'product_data' => ['name' => $name, 'description' => $o['text'] ?: $name]]]],
-            'success_url' => $this->appUrl.'/#/shop?paid='.$p->id,
-            'cancel_url' => $this->appUrl.'/#/shop',
-            'client_reference_id' => (string) $p->id,
-            'metadata' => ['purchase' => (string) $p->id],
-            'payment_intent_data' => ['metadata' => ['purchase' => (string) $p->id]],
-        ];
-        if ($u->email && $u->emailVerified) {
-            $form['customer_email'] = $u->email;
-        }
-        $res = $this->http->request('POST', self::STRIPE.'checkout/sessions', ['auth_bearer' => $this->key, 'body' => http_build_query($form)]);
-        $data = $res->toArray(false);
-        if ($res->getStatusCode() >= 300 || empty($data['url'])) {
-            throw new GameError('The payment page could not be opened. Try again in a minute.');
-        }
-        $p->checkoutSession = $data['id'];
 
-        return $data['url'];
+        return ['purchase' => $p->id, 'product' => $p->product, 'appUserId' => $this->billingId($u), 'steamItem' => self::steamItem($o, $season)];
     }
 
     /**
-     * A call from Stripe: checks the signature, then pays or refunds the purchase it names. Safe to repeat.
+     * A purchase a store has confirmed: pays it once, whatever store or call reports it again.
      *
      * @return string what happened, for the log
      */
-    public function webhook(string $payload, string $signature, ?int $now = null): string
+    public function record(User $u, string $product, string $store, string $transactionId, bool $sandbox = false, ?int $amount = null, ?string $currency = null, ?Purchase $pending = null): string
     {
-        if ($this->webhookSecret === '' || !$this->signed($payload, $signature, $now ?? time())) {
-            throw new GameError('Bad signature.');
+        $known = $this->em->getRepository(Purchase::class)->findOneBy(['transactionId' => $transactionId]);
+        if ($known) {
+            return $known->state === 'paid' ? 'already paid' : 'already '.$known->state;
         }
-        $e = json_decode($payload, true, 64, JSON_THROW_ON_ERROR);
-        $obj = $e['data']['object'] ?? [];
-        switch ($e['type'] ?? '') {
-            case 'checkout.session.completed':
-            case 'checkout.session.async_payment_succeeded':
-                if (($obj['payment_status'] ?? '') !== 'paid') {
-                    return 'waiting for the payment';
-                }
-                $p = $this->em->find(Purchase::class, (int) ($obj['metadata']['purchase'] ?? 0));
-                if (!$p) {
-                    return 'unknown purchase';
-                }
-                $p->checkoutSession ??= $obj['id'] ?? null;
-                $p->paymentIntent = $obj['payment_intent'] ?? $p->paymentIntent;
-
-                return $this->pay($p);
-            case 'charge.refunded':
-                if (!($obj['refunded'] ?? false)) {
-                    return 'partly refunded, kept';
-                }
-                $p = $this->em->getRepository(Purchase::class)->findOneBy(['paymentIntent' => $obj['payment_intent'] ?? '']);
-
-                return $p ? $this->refund($p) : 'unknown payment';
+        [$o, $season] = self::byProduct($product) ?? [null, null];
+        if (!$o) {
+            return 'unknown product '.$product;
         }
+        // the consent recorded when the sheet opened, if this account has one waiting for this product
+        $p = $pending ?? $this->em->getRepository(Purchase::class)->findOneBy(['user' => $u, 'product' => $product, 'state' => 'pending', 'store' => null], ['id' => 'DESC']) ?? new Purchase();
+        if (!$p->id) {
+            $p->user = $u;
+            $p->createdAt = time();
+            $this->em->persist($p);
+        }
+        $p->offer = $o['id'];
+        $p->season = $season;
+        $p->product = $product;
+        $p->store = $store;
+        $p->transactionId = $transactionId;
+        $p->sandbox = $sandbox;
+        $p->amount = $amount ?? $o['price'];
+        $p->currency = strtolower($currency ?? $o['currency']);
+        $what = $this->pay($p);
+        $this->em->flush(); // so a second report of the same transaction in this request finds it
 
-        return 'ignored';
+        return $what;
     }
 
     public function pay(Purchase $p): string
     {
-        if ($p->state !== 'pending') {
+        if ($p->state === 'paid' || $p->state === 'refunded') {
             return 'already '.$p->state;
         }
         $p->state = 'paid';
@@ -173,8 +183,9 @@ class Shop
         }
         $roster = new Roster($this->em);
         $roster->grant($u, $o['looks']);
-        if ($o['kind'] === 'supporter') {
-            $u->supporterUntil = max(time(), $u->supporterUntil) + 86400 * $o['days'];
+        // on Steam the pass is 30 days a time; on the phone stores RevenueCat sets the end from the subscription
+        if ($o['kind'] === 'supporter' && $p->store === 'steam') {
+            $u->supporterUntil = max(time(), $u->supporterUntil) + 30 * 86400;
         }
         if ($o['kind'] === 'track' && ($s = Seasons::get((string) $p->season))) {
             $u->seasonPremium = array_values(array_unique([...($u->seasonPremium ?? []), $s['id']]));
@@ -201,7 +212,7 @@ class Shop
         $roster = new Roster($this->em);
         $roster->revoke($u, $o['looks']);
         if ($o['kind'] === 'supporter') {
-            $u->supporterUntil = max(0, $u->supporterUntil - 86400 * $o['days']);
+            $u->supporterUntil = $p->store === 'steam' ? max(0, $u->supporterUntil - 30 * 86400) : min($u->supporterUntil, time());
         }
         if ($o['kind'] === 'track' && ($s = Seasons::get((string) $p->season))) {
             $u->seasonPremium = array_values(array_diff($u->seasonPremium ?? [], [$s['id']]));
@@ -209,31 +220,5 @@ class Shop
         }
 
         return 'refunded';
-    }
-
-    /** Stripe's scheme: HMAC-SHA256 of "t.payload" in a v1 entry of the header, signed recently. */
-    private function signed(string $payload, string $header, int $now): bool
-    {
-        $t = null;
-        $sigs = [];
-        foreach (explode(',', $header) as $part) {
-            [$k, $v] = array_pad(explode('=', trim($part), 2), 2, '');
-            if ($k === 't') {
-                $t = (int) $v;
-            } elseif ($k === 'v1') {
-                $sigs[] = $v;
-            }
-        }
-        if ($t === null || abs($now - $t) > self::TOLERANCE) {
-            return false;
-        }
-        $want = hash_hmac('sha256', $t.'.'.$payload, $this->webhookSecret);
-        foreach ($sigs as $s) {
-            if (hash_equals($want, $s)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
