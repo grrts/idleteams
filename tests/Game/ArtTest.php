@@ -22,10 +22,10 @@ class ArtTest extends TestCase
             }
         }
         // the launch push: well past the built-in handful in every kind
-        $this->assertGreaterThanOrEqual(60, count($parts['weapon']));
-        $this->assertGreaterThanOrEqual(40, count($parts['hat']));
-        $this->assertGreaterThanOrEqual(16, count($parts['hair']));
-        $this->assertGreaterThanOrEqual(20, count($parts['top']));
+        $this->assertGreaterThanOrEqual(120, count($parts['weapon']), 'the launch target');
+        $this->assertGreaterThanOrEqual(60, count($parts['hat']), 'the launch target');
+        $this->assertGreaterThanOrEqual(40, count($parts['hair']), 'the launch target');
+        $this->assertGreaterThanOrEqual(60, count($parts['top']), 'the launch target');
         $this->assertGreaterThanOrEqual(10, count($parts['offhand']));
         foreach (array_keys(Rules::RACES) as $race) {
             $this->assertGreaterThanOrEqual(6, count(Art::creator()['features'][$race] ?? []), $race);
