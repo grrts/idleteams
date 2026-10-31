@@ -245,7 +245,7 @@ final class Simulator
         $this->shardsSpawned = false;
         $this->enraged = false;
         [$this->hpMod, $this->dmgMod] = $this->mods[$phase];
-        $this->affixAt = ['volcanic' => 9.0, 'quaking' => 15.0, 'sundering' => 12.0, 'frostbite' => 10.0];
+        $this->affixAt = ['volcanic' => 9.0, 'quaking' => 15.0, 'sundering' => 12.0, 'frostbite' => 10.0, 'undertow' => 12.0];
         $hitDmg = $ref['hps'] * 0.14 * 2 * $f / (1 - $ref['tankDr']);
         if ($phase === 'pack') {
             // A pack shares one health budget among its enemies; a brute hits harder and slower than an imp.
@@ -479,6 +479,16 @@ final class Simulator
             $this->emit('mech', -1, -1, 0, 0, ['name' => 'Frostbite']);
             foreach (array_filter([$tank, $low], fn ($i) => $i !== null) as $i) {
                 $this->damageHero($i, $ref['avgHp'] * 0.1 * $f, ['magic' => true, 'src' => -1, 'what' => 'Frostbite']);
+            }
+        }
+        if ($this->affix('undertow') && $t >= $this->affixAt['undertow']) {
+            // the tide drags at the two healthiest heroes who are not the tank, so topping everyone up is not enough
+            $this->affixAt['undertow'] += 12;
+            $alive = array_filter($this->h, fn ($h) => !$h['dead'] && $h['role'] !== 'tank');
+            uasort($alive, fn ($a, $b) => $b['hp'] / $b['s']['maxHp'] <=> $a['hp'] / $a['s']['maxHp']);
+            $this->emit('mech', -1, -1, 0, 0, ['name' => 'Undertow']);
+            foreach (array_slice(array_keys($alive), 0, 2) as $i) {
+                $this->damageHero($i, $ref['avgHp'] * 0.19 * $f, ['magic' => true, 'src' => -1, 'what' => 'Undertow']);
             }
         }
         if ($this->affix('quaking') && $t >= $this->affixAt['quaking']) {

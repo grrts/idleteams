@@ -1,0 +1,10 @@
+{"parts": {
+ "weapon": {
+  "tidecallerTrident": {"name": "Tidecaller Trident", "season": "s3", "grip": "spear", "layers": [["path", "M-1.1 12 L-1.1 -27 L1.1 -27 L1.1 12 Z", "darkwood"], ["path", "M-5 -27 L5 -27 L5 -25 L-5 -25 Z", "dye2"], ["path", "M-5 -27 L-5 -34 L-6.4 -31 Z", "dye2"], ["path", "M5 -27 L5 -34 L6.4 -31 Z", "dye2"], ["path", "M0 -40 L1.6 -27 L-1.6 -27 Z", "dye2"], ["ellipse", 0, -24, 1.6, 1.6, "dye1"], ["glow", 0, -31, 6, "dye2"]]},
+  "coralWand": {"name": "Coral Wand", "season": "s3", "grip": "wand", "layers": [["path", "M-1 3 L-0.8 -10 L0.8 -10 L1 3 Z", "dye2"], ["path", "M0 -10 L-4 -15 L-2.6 -15.6 L0 -12 L1 -17 L2.4 -16.6 L1 -11 L4 -13 L4.4 -11.6 Z", "dye2"], ["ellipse", 0, -10, 1.6, 1.6, "#f4ecd8"], ["glow", 0, -13, 5, "dye2"]]}
+ },
+ "hat": {
+  "pearlDiadem": {"name": "Pearl Diadem", "season": "s3", "layers": [["path", "M-11 -7 L-11 -10 L11 -10 L11 -7 Z", "metal"], ["path", "M-11 -10 Q-6 -16 0 -18 Q6 -16 11 -10 Z", "metal"], ["ellipse", 0, -14, 2.4, 2.4, "#f4ecd8"], ["ellipse", -5, -12, 1.4, 1.4, "#f4ecd8"], ["ellipse", 5, -12, 1.4, 1.4, "#f4ecd8"], ["ellipse", -9, -10, 1.1, 1.1, "#f4ecd8"], ["ellipse", 9, -10, 1.1, 1.1, "#f4ecd8"], ["glow", 0, -14, 5, "#f4ecd8"]]},
+  "tidecallerHood": {"name": "Tidecaller Hood", "season": "s3", "layers": [["path", "M-15 4 Q-17 -18 0 -19 Q15 -19 15 -6 L17 8 L13 6 Q13 -12 0 -12 Q-11 -12 -12 4 Z", "dye1"], ["path", "M-12 -12 Q0 -20 13 -12 L13 -10 Q0 -17 -12 -10 Z", "dye2"], ["ellipse", 0, -15, 1.6, 1.6, "#f4ecd8"]]}
+ }
+}}
