@@ -22,6 +22,9 @@
 
   // ---------- Rules
   const R = (E.Rules = {
+    signatureMastery: (xp) => Math.floor(Math.sqrt(Math.max(0, xp) / 120)),
+    signatureXpFor: (m) => 120 * m * m,
+    signatureTraits(m) { const out = { swift: 0, potent: 0, echo: 0 }; for (let k = 0; k < Math.floor(m / 10); k++) out[C.SIGNATURE_TRAITS[k % C.SIGNATURE_TRAITS.length]]++; return out; },
     xpForLevel(level) { let base = 160 * level ** 1.5; if (level >= 50) base = 160 * 50 ** 1.5 * 1.08 ** (level - 50); return Math.round(base); },
     role: (cls) => D.CLASSES[cls].role,
     classSkills(cls) {
@@ -438,7 +441,7 @@
   const rd2 = (x) => Math.round(x * 100) / 100;
   class Simulator {
     constructor() { Object.assign(this, { t: 0, h: [], e: {}, clear: 0, wing: 0, phaseStart: 0, phase: 'pack', ev: [], snap: [], report: [], enemySeq: 0, dungeonLevel: 1, mech: {}, enrageAt: 0, enraged: false, shardsSpawned: false, wipe: null, lastDeath: [], oomAt: {} }); }
-    newReport() { return { damage: 0, healing: 0, overheal: 0, taken: 0, absorbed: 0, deaths: 0, mechanics: {}, casts: 0 }; }
+    newReport() { return { damage: 0, healing: 0, overheal: 0, taken: 0, absorbed: 0, deaths: 0, mechanics: {}, casts: 0, sigXp: 0 }; }
     measureDps(heroes, seconds = 90) {
       this.r = new Rng(12345);
       this.ref = { dps: 1, hps: 0, tankHp: 1, tankDr: 0, avgHp: 1, avgDr: 0 };
@@ -492,6 +495,7 @@
         hp: s.maxHp, res: s.resource === 'rage' ? 0 : s.resMax, absorb: 0, cd: {}, gcd: 0, swing: 0, dead: false, knock: 0,
         walls: [], buffs: [], hots: [], pets: [], curse: null, nineLives: false, phoenix: false, lastRite: false, secondWind: false,
         stack: 0, stackTarget: null, forceCrit: false, firstHeal: true, firstBossHit: true, firstPackHit: true, oom: false,
+        sig: x.signature && x.signature.id && skills[x.signature.id] ? Object.assign({}, x.signature, { traits: R.signatureTraits(x.signature.mastery || 0) }) : null,
       };
     }
     ks(h, id) { return h.ks.includes(id); }
@@ -644,6 +648,8 @@
       const [id, target] = choice;
       this.cast(i, id, target);
       if (this.power(h, 'echo') && h.skills[id][2] !== 'taunt' && this.r.getFloat(0, 1) < 0.2) this.cast(i, id, target, true);
+      const sig = h.sig;
+      if (sig && sig.id === id && sig.traits.echo && this.r.getFloat(0, 1) < Math.min(0.5, 0.1 * sig.traits.echo)) this.cast(i, id, target, true);
     }
     ready(i, id) { const h = this.h[i]; if (!h.skills[id]) return false; if ((h.cd[id] || 0) > this.t) return false; return h.res >= this.cost(i, id) - 0.001; }
     rank(i, id) { return Math.max(1, Math.trunc(this.h[i].ranks[id] || 1)); }
@@ -725,6 +731,7 @@
         let cdm = (1 - h.s.cdr) * Math.max(0.5, 1 - 0.02 * Math.max(0, this.rank(i, id) - 5));
         if (h.role === 'healer' && this.ks(h, 'quickened') && ['heal', 'groupheal', 'hot', 'shield'].includes(type)) cdm *= 0.7;
         if (type === 'taunt' && h.origin === 'bell') cdm *= 0.8;
+        if (h.sig && h.sig.id === id) { cdm *= 0.92 ** h.sig.traits.swift; this.report[i].sigXp += Math.max(1, cd); }
         h.cd[id] = this.t + cd * cdm;
         h.gcd = this.t + 1.5 / h.s.haste;
         this.report[i].casts++;
@@ -733,7 +740,12 @@
       mult *= rankMult * (1 + ((h.s.typeMult || {})[type] || 0) + ((h.s.skillMult || {})[id] || 0));
       const school = opts.school || (['heal', 'groupheal', 'hot', 'shield'].includes(type) ? 'spirit' : h.school);
       const cmd = h.s.command, dur = (opts.dur ?? 8) + (h.origin === 'crown' ? 2 : 0);
-      if (sk[7] === 'ultimate' || type === 'taunt' || type === 'wall') this.emit('cast', i, Number.isInteger(target) ? target : -1, 0, sk[7] === 'ultimate' ? 1 : 0, { name });
+      const sig = h.sig && h.sig.id === id ? h.sig : null;
+      if (sig) {
+        // The Signature: stronger with every Mastery level, and named in the log as the hero's own.
+        mult *= (1 + 0.01 * sig.mastery) * 1.1 ** sig.traits.potent;
+        this.emit('cast', i, Number.isInteger(target) ? target : -1, 0, (sk[7] === 'ultimate' ? 1 : 0) | 2, { name: h.name + "'s " + (sig.name || name) });
+      } else if (sk[7] === 'ultimate' || type === 'taunt' || type === 'wall') this.emit('cast', i, Number.isInteger(target) ? target : -1, 0, sk[7] === 'ultimate' ? 1 : 0, { name });
       const liveIdx = () => this.h.filter((x) => !x.dead).map((x) => x.i);
       switch (type) {
         case 'strike': this.hit(i, target ?? this.focusTarget(i), mult, school, { threat: opts.threat ?? 1, fire: !!opts.fire, single: true }); break;

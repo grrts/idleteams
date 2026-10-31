@@ -43,6 +43,7 @@ class Present
             'rarities' => Rules::RARITIES, 'glyphs' => Rules::GLYPHS, 'powers' => Rules::LEGENDARY_POWERS, 'caps' => Stats::CAPS,
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
+            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
@@ -64,6 +65,22 @@ class Present
             'wings' => $d['wings'], 'enemies' => array_column(array_values($d['enemies']), null, 'name'),
             'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'lore' => $b['lore'] ?? null, 'art' => $b['art'], 'tint' => $b['tint'] ?? null, 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
             'mechanics' => array_map(fn ($m) => $m['name'], $d['mechanics']),
+        ];
+    }
+
+    public function signature(Hero $h): ?array
+    {
+        if (!$h->signature) {
+            return $h->level >= Rules::SIGNATURE_LEVEL ? ['open' => true] : null;
+        }
+        $m = Rules::signatureMastery($h->signatureXp);
+        $base = Rules::classSkills($h->cls)[$h->signature][0];
+
+        return [
+            'open' => false, 'skill' => $h->signature, 'skillName' => $base, 'name' => $h->signatureName ?: $base,
+            'mastery' => $m, 'xp' => $h->signatureXp, 'from' => Rules::signatureXpFor($m), 'next' => Rules::signatureXpFor($m + 1),
+            'traits' => Rules::signatureTraits($m), 'power' => round((1 + 0.01 * $m) * 1.1 ** Rules::signatureTraits($m)['potent'] - 1, 3),
+            'inLoadout' => in_array($h->signature, [...$this->game->loadout($h), Rules::CLASSES[$h->cls]['ultimate'][0]], true),
         ];
     }
 
@@ -129,6 +146,7 @@ class Present
             'attributes' => $attrs['total'], 'sources' => $attrs['sources'], 'effective' => Stats::effective($attrs['total']),
             'stats' => $stats, 'k' => Stats::k($L), 'curves' => $curves,
             'skills' => $skills, 'skillPoints' => $h->skillPoints(), 'loadout' => $this->game->loadout($h),
+            'signature' => $this->signature($h),
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
             'resonance' => Stats::resonance($build['items']), 'guildRank' => $h->guildRank,

@@ -74,7 +74,12 @@ class Game
 
     public function combatant(Hero $hero): array
     {
-        return Combatants::make($this->build($hero), $hero->id, $hero->name, $this->loadout($hero), $hero->skillRanks);
+        $c = Combatants::make($this->build($hero), $hero->id, $hero->name, $this->loadout($hero), $hero->skillRanks);
+        if ($hero->signature) {
+            $c['signature'] = ['id' => $hero->signature, 'name' => $hero->signatureName, 'mastery' => Rules::signatureMastery($hero->signatureXp)];
+        }
+
+        return $c;
     }
 
     // ------------------------------------------------------------------ the clock
@@ -250,6 +255,7 @@ class Game
             $rep['heroes'][$k]['gold'] = $gold;
             $rep['heroes'][$k]['materials'] = $mats;
             $this->addXp($h, $xp);
+            $this->addSignatureXp($h, (int) ($rep['heroes'][$k]['sigXp'] ?? 0));
             $this->earnMarks($h, $rep['heroes'][$k] ?? []);
             if ($h->guild) {
                 $h->guild->xp += (int) round($units);
@@ -316,6 +322,20 @@ class Game
         $h->xp = (string) $total;
         if ($h->level > $before) {
             $this->notifier->notify($h, 'level', sprintf('%s reached level %d', $h->name, $h->level), 'New points to spend.', '#/hero');
+        }
+    }
+
+    private function addSignatureXp(Hero $h, int $xp): void
+    {
+        if (!$h->signature || $xp <= 0) {
+            return;
+        }
+        $before = Rules::signatureMastery($h->signatureXp);
+        $h->signatureXp += $xp;
+        $now = Rules::signatureMastery($h->signatureXp);
+        if (intdiv($now, 10) > intdiv($before, 10)) {
+            $skill = $h->signatureName ?: Rules::classSkills($h->cls)[$h->signature][0];
+            $this->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf("%s's %s reached Mastery %d.", $h->name, $skill, $now), ['type' => 'hero', 'hero' => $h->id]);
         }
     }
 

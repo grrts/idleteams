@@ -31,6 +31,7 @@ class BrowserDataCommand extends Command
                 'POINTS_PER_LEVEL' => Rules::POINTS_PER_LEVEL, 'SOFT_CAP_SHARE' => Rules::SOFT_CAP_SHARE, 'OATH_LEVEL' => Rules::OATH_LEVEL,
                 'PATH_LEVEL' => Rules::PATH_LEVEL, 'KEYSTONE_LEVELS' => Rules::KEYSTONE_LEVELS, 'ULTIMATE_LEVEL' => Rules::ULTIMATE_LEVEL,
                 'REFORGE_LEVEL' => Rules::REFORGE_LEVEL, 'LOADOUT_SIZE' => Rules::LOADOUT_SIZE, 'ORIGIN_POINTS' => Rules::ORIGIN_POINTS,
+                'SIGNATURE_LEVEL' => Rules::SIGNATURE_LEVEL, 'SIGNATURE_TRAITS' => Rules::SIGNATURE_TRAITS,
             ],
             'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),

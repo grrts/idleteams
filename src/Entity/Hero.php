@@ -97,6 +97,16 @@ class Hero
     #[ORM\Column(type: 'json')]
     public array $marks = [];
 
+    /** Level 30: the one skill that becomes this hero's own (permanent), the name its owner gave it, and its Mastery XP. */
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $signature = null;
+
+    #[ORM\Column(length: 30, nullable: true)]
+    public ?string $signatureName = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $signatureXp = 0;
+
     /** Career counters: battles, dungeons (full clears), bossKills, deaths, legendaries. */
     #[ORM\Column(type: 'json')]
     public array $career = [];

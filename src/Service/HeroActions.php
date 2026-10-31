@@ -28,6 +28,7 @@ class HeroActions
         'scarred' => ['Scarred', 'Died three times in one battle and kept going'],
         'dentedShield' => ['Dented Shield', 'Blocked three Tank Busters in one battle'],
         'legendFound' => ['Legend Finder', 'Won a legendary from a group chest'],
+        'signature' => ['Signed', 'Made one skill their own at level 30'],
     ];
 
     /** Look keys the creator may set, with the values the pixel renderer knows. */
@@ -153,6 +154,31 @@ class HeroActions
         if (count($ks) === 1) {
             $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s chose the %s Keystone.', $h->name, Rules::KEYSTONES[$h->role()][$id][0]));
         }
+    }
+
+    /** Level 30: one skill becomes the hero's Signature, for good. It may carry a name of the owner's choosing. */
+    public function chooseSignature(Hero $h, string $skill, string $name): void
+    {
+        if ($h->level < Rules::SIGNATURE_LEVEL) {
+            throw new GameError(sprintf('The Signature skill opens at level %d.', Rules::SIGNATURE_LEVEL));
+        }
+        if ($h->signature) {
+            throw new GameError('Your Signature is chosen for good.');
+        }
+        $avail = Combatants::available($h->cls, $h->level, $h->path, $h->talents);
+        $ult = Rules::CLASSES[$h->cls]['ultimate'][0];
+        if (!isset($avail[$skill]) && $skill !== $ult) {
+            throw new GameError('Pick a skill you have.');
+        }
+        $name = trim(preg_replace('/\s+/', ' ', $name));
+        if ($name !== '' && !preg_match("/^[\p{L}][\p{L}' -]{2,29}$/u", $name)) {
+            throw new GameError('A Signature name is 3 to 30 letters, spaces or apostrophes.');
+        }
+        $h->signature = $skill;
+        $h->signatureName = $name ?: null;
+        $h->marks = array_values(array_unique([...$h->marks, 'signature']));
+        $label = $name ?: Rules::classSkills($h->cls)[$skill][0];
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf("%s made %s their Signature: %s's %s.", $h->name, Rules::classSkills($h->cls)[$skill][0], $h->name, $label), ['type' => 'hero', 'hero' => $h->id]);
     }
 
     public function rankUp(Hero $h, string $skill): void

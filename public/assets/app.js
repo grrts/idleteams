@@ -838,6 +838,25 @@
 
   // ------------------------------------------------------------------ skills
 
+  // Level 30: one skill becomes the hero's own and grows Mastery from every use, with no cap.
+  const SIG_TRAIT = { swift: ['Swift', 'shorter cooldown'], potent: ['Potent', '10% more power'], echo: ['Echo', 'a chance to cast it twice'] };
+  function signatureView(h) {
+    const sg = h.signature;
+    if (!sg) return '';
+    if (sg.open) {
+      const opts = h.skills.filter((s) => s.unlocked).map((s) => '<option value="' + s.id + '"' + (h.loadout[0] === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('');
+      return '<div class="panel sig open"><h2>' + ico('star') + ' Your Signature skill</h2><p class="small">Choose one skill to make your own, for good. It grows Mastery from every use with no cap: a little stronger each Mastery level and a trait every ten (' +
+        Object.values(SIG_TRAIT).map(([n, t]) => '<b>' + n + '</b>, ' + t).join('; ') + '). In battle the log names it as yours: <i>' + esc(h.name) + "'s …</i></p>" +
+        '<div class="row wrap"><select id="sigSkill" aria-label="Skill">' + opts + '</select><input id="sigName" maxlength="30" placeholder="Name it (optional)" aria-label="Signature name" style="flex:1;min-width:180px"><button class="primary" data-act="sigPick">Make it my Signature</button></div></div>';
+    }
+    const pct = Math.max(0, Math.min(100, (100 * (sg.xp - sg.from)) / Math.max(1, sg.next - sg.from)));
+    const traits = Object.entries(sg.traits).filter(([, n]) => n > 0).map(([k, n]) => '<span class="chip gold" title="' + esc(SIG_TRAIT[k][1]) + '">' + SIG_TRAIT[k][0] + (n > 1 ? ' ×' + n : '') + '</span>').join(' ');
+    const nextTrait = SIG_TRAIT[S.cfg.signatureTraits[Math.floor(sg.mastery / 10) % S.cfg.signatureTraits.length]][0];
+    return '<div class="panel sig"><div class="row between"><h2>' + ico('star') + ' ' + esc(h.name) + "'s " + esc(sg.name) + '</h2><span class="num gold" style="font-size:1.3rem">Mastery ' + sg.mastery + '</span></div>' +
+      '<p class="small muted">' + esc(sg.skillName) + ' · +' + Math.round(sg.power * 100) + '% power · ' + (traits || 'no traits yet') + '</p>' +
+      '<div class="row"><span class="bar" style="flex:1"><i style="width:' + pct + '%"></i></span><span class="small muted">' + (sg.next - sg.xp) + ' to Mastery ' + (sg.mastery + 1) + ' · ' + nextTrait + ' at ' + (Math.floor(sg.mastery / 10) + 1) * 10 + '</span></div>' +
+      (sg.inLoadout ? '' : '<p class="small bad">It is not in your loadout, so it is not growing. Add it below.</p>') + '</div>';
+  }
   function skillsView() {
     const h = S.st.hero, cfg = S.cfg;
     const inLoadout = new Set(h.loadout), byId = Object.fromEntries(h.skills.map((s) => [s.id, s]));
@@ -854,7 +873,7 @@
         '<div class="small">' + esc(skillText(s)) + ' Each rank adds strength.</div><div class="row"><span class="pips">' + Array.from({ length: cfg.maxSkillRank }, (_, k) => '<i class="' + (k < s.rank ? 'on' : '') + '"></i>').join('') + '</span><span class="tiny muted">Rank ' + s.rank + '/' + cfg.maxSkillRank + '</span></div></div>' +
         (locked ? '' : '<div class="row act">' + (isUlt ? '<span class="small muted">Always slotted</span>' : '<button class="small ' + (inLoadout.has(s.id) ? 'on' : '') + '" data-act="slot" data-id="' + s.id + '">' + (inLoadout.has(s.id) ? 'In loadout' : 'Add to loadout') + '</button>') + '<button class="small" data-act="rankUp" data-id="' + s.id + '" ' + (h.skillPoints > 0 && s.rank < cfg.maxSkillRank ? '' : 'disabled') + '>Rank up</button></div>') + '</div>';
     };
-    return '<div class="stack"><div class="panel"><div class="head"><h2>Loadout</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.skillPoints + '</span> <span class="muted small">skill points</span></span><button class="small" data-act="resetRanks">Reset ranks (' + 10 * h.level + 'g)</button></div></div>' +
+    return '<div class="stack">' + signatureView(h) + '<div class="panel"><div class="head"><h2>Loadout</h2><div class="row"><span class="num" style="font-size:1.2rem"><span class="gold">' + h.skillPoints + '</span> <span class="muted small">skill points</span></span><button class="small" data-act="resetRanks">Reset ranks (' + 10 * h.level + 'g)</button></div></div>' +
       '<p class="small muted" style="margin-bottom:12px">One skill point per level. Your loadout holds ' + cfg.loadoutSize + ' skills, and your ultimate joins it at level ' + cfg.ultimateLevel + '. Capstones in your talent tree teach more skills.</p><div class="actionbar">' + bar + '</div></div>' +
       '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">' + h.skills.map(card).join('') + '</div></div>';
   }
@@ -1575,6 +1594,10 @@
     attrOpen: (d) => { S.attrOpen = S.attrOpen === d.a ? null : d.a; render(); },
     lootPolicy: (d) => act(() => post('/hero/act', { action: 'lootPolicy', policy: d.v }), 'Saved.'),
     path: (d) => act(() => post('/hero/act', { action: 'path', path: d.id }), 'Path chosen. You can still change it until the Oath.'),
+    sigPick: () => {
+      const skill = $('#sigSkill').value, name = $('#sigName').value.trim(), s = S.st.hero.skills.find((x) => x.id === skill);
+      confirmBox('Make <b>' + esc(s ? s.name : skill) + '</b> your Signature' + (name ? ', named <b>' + esc(name) + '</b>' : '') + '? This is permanent.', () => act(() => post('/hero/act', { action: 'signature', skill, name }), 'Your Signature is chosen.'));
+    },
     keystone: (d) => confirmBox('Take <b>' + esc(S.cfg.keystones[S.st.hero.role][d.id][0]) + '</b> as your level ' + d.l + ' Keystone? This is permanent.', () => act(() => post('/hero/act', { action: 'keystone', level: +d.l, keystone: d.id }), 'Keystone chosen.')),
     rankUp: (d) => act(() => post('/hero/act', { action: 'rankUp', skill: d.id })),
     resetRanks: () => confirmBox('Reset all skill ranks for ' + 10 * S.st.hero.level + ' gold?', () => act(() => post('/hero/act', { action: 'resetRanks' }))),

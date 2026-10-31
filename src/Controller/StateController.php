@@ -11,6 +11,7 @@ use App\Service\Live;
 use App\Service\Moderation;
 use App\Service\Present;
 use App\Service\Social;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\Authorization;
@@ -20,7 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class StateController extends ApiController
 {
     #[Route('/api/state', methods: ['GET'])]
-    public function state(Request $request, Game $game, Present $present, Bots $bots, Social $social, Moderation $moderation, Live $live, Authorization $auth): JsonResponse
+    public function state(Request $request, Game $game, Present $present, Bots $bots, Social $social, Moderation $moderation, Live $live, Authorization $auth, LoggerInterface $logger): JsonResponse
     {
         $user = $this->me();
         $user->lastSeenAt = time();
@@ -62,17 +63,24 @@ class StateController extends ApiController
             'battle' => $battle ? ['id' => $battle->id, 'startedAt' => $battle->startedAt, 'endsAt' => $battle->endsAt, 'dungeon' => $battle->dungeon, 'dungeonLevel' => $battle->dungeonLevel] : null,
             'pendingRolls' => $pendingRolls,
             'channels' => $channels = $social->channels($hero),
-            'live' => $this->live($request, $live, $auth, $live->topicsFor($user, $hero, $channels)),
+            'live' => $this->live($request, $live, $auth, $logger, $live->topicsFor($user, $hero, $channels)),
         ]);
     }
 
     /** Where to listen for live pings, with a cookie that lets this player hear exactly these topics. */
-    private function live(Request $request, Live $live, Authorization $auth, array $topics): ?array
+    private function live(Request $request, Live $live, Authorization $auth, LoggerInterface $logger, array $topics): ?array
     {
         if (!$live->enabled()) {
             return null;
         }
-        $auth->setCookie($request, $topics);
+        try {
+            $auth->setCookie($request, $topics);
+        } catch (\Throwable $e) {
+            // For example a hub on another domain than the game: the cookie cannot reach it, so the menus keep polling.
+            $logger->warning('Live updates are off for this request: '.$e->getMessage());
+
+            return null;
+        }
 
         return ['url' => $live->subscribeUrl($topics)];
     }

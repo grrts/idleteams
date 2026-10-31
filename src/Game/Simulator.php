@@ -60,7 +60,7 @@ final class Simulator
         $this->ref = ['dps' => 1, 'hps' => 0, 'tankHp' => 1, 'tankDr' => 0, 'avgHp' => 1, 'avgDr' => 0];
         foreach ($heroes as $i => $x) {
             $this->h[$i] = $this->initHero($i, $x);
-            $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0];
+            $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0, 'sigXp' => 0];
         }
         $this->applyKin();
         $this->phase = 'boss';
@@ -87,7 +87,7 @@ final class Simulator
         $this->ref = Reference::forLevel($this->dungeonLevel);
         foreach ($heroes as $i => $x) {
             $this->h[$i] = $this->initHero($i, $x);
-            $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0];
+            $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0, 'sigXp' => 0];
         }
         $this->applyKin();
         $done = 0;
@@ -161,6 +161,7 @@ final class Simulator
             'nineLives' => false, 'phoenix' => false, 'lastRite' => false, 'secondWind' => false,
             'stack' => 0, 'stackTarget' => null, 'forceCrit' => false, 'firstHeal' => true, 'firstBossHit' => true,
             'firstPackHit' => true, 'oom' => false,
+            'sig' => isset($x['signature']['id'], $skills[$x['signature']['id']]) ? $x['signature'] + ['traits' => Rules::signatureTraits((int) ($x['signature']['mastery'] ?? 0))] : null,
         ];
     }
 
@@ -527,6 +528,10 @@ final class Simulator
         if ($this->power($this->h[$i], 'echo') && $this->h[$i]['skills'][$id][2] !== 'taunt' && $this->r->getFloat(0, 1) < 0.2) {
             $this->cast($i, $id, $target, true);
         }
+        $sig = $this->h[$i]['sig'];
+        if ($sig && $sig['id'] === $id && $sig['traits']['echo'] && $this->r->getFloat(0, 1) < min(0.5, 0.1 * $sig['traits']['echo'])) {
+            $this->cast($i, $id, $target, true);
+        }
     }
 
     private function ready(int $i, string $id): bool
@@ -754,6 +759,10 @@ final class Simulator
             if ($type === 'taunt' && $h['origin'] === 'bell') {
                 $cdm *= 0.8;
             }
+            if ($h['sig'] && $h['sig']['id'] === $id) {
+                $cdm *= 0.92 ** $h['sig']['traits']['swift'];
+                $this->report[$i]['sigXp'] += max(1, $cd);
+            }
             $h['cd'][$id] = $this->t + $cd * $cdm;
             $h['gcd'] = $this->t + 1.5 / $h['s']['haste'];
             $this->report[$i]['casts']++;
@@ -766,7 +775,12 @@ final class Simulator
         $cmd = $hh['s']['command'];
         $dur = ($opts['dur'] ?? 8) + ($hh['origin'] === 'crown' ? 2 : 0);
         $big = $sk[7] === 'ultimate' || $type === 'taunt' || $type === 'wall';
-        if ($big) {
+        $sig = $hh['sig'] && $hh['sig']['id'] === $id ? $hh['sig'] : null;
+        if ($sig) {
+            // The Signature: stronger with every Mastery level, and named in the log as the hero's own.
+            $mult *= (1 + 0.01 * $sig['mastery']) * 1.1 ** $sig['traits']['potent'];
+            $this->emit('cast', $i, is_int($target) ? $target : -1, 0, ($sk[7] === 'ultimate' ? 1 : 0) | 2, ['name' => $hh['name']."'s ".($sig['name'] ?: $name)]);
+        } elseif ($big) {
             $this->emit('cast', $i, is_int($target) ? $target : -1, 0, $sk[7] === 'ultimate' ? 1 : 0, ['name' => $name]);
         }
 

@@ -381,6 +381,37 @@ final class Rules
         'starfall' => ['Starfall', 'MEGA crits hit every enemy'],
     ];
 
+    public const SIGNATURE_LEVEL = 30;
+
+    /** Every tenth Mastery level adds a trait, in this order and then round again. */
+    public const SIGNATURE_TRAITS = ['swift', 'potent', 'echo', 'potent'];
+
+    /**
+     * Signature Mastery grows from every use, with no cap; each level takes a little longer than the last. A use is
+     * worth the skill's cooldown in seconds, so quick and slow skills grow alike: about 10 Mastery after a week of
+     * runs, 25 after two months, 70 after a year.
+     */
+    public static function signatureMastery(int $xp): int
+    {
+        return (int) floor(sqrt(max(0, $xp) / 120));
+    }
+
+    public static function signatureXpFor(int $mastery): int
+    {
+        return 120 * $mastery * $mastery;
+    }
+
+    /** @return array{swift: int, potent: int, echo: int} how many of each trait a Mastery level has earned */
+    public static function signatureTraits(int $mastery): array
+    {
+        $out = ['swift' => 0, 'potent' => 0, 'echo' => 0];
+        for ($k = 0; $k < intdiv($mastery, 10); ++$k) {
+            ++$out[self::SIGNATURE_TRAITS[$k % count(self::SIGNATURE_TRAITS)]];
+        }
+
+        return $out;
+    }
+
     /** XP for one run: grows with the dungeon level and how far the group got, plus small bonuses. */
     public static function battleXp(int $dungeonLevel, float $units, string $race, int $battlesTogether, float $xpBonus): int
     {

@@ -68,7 +68,11 @@
     const ids = h.loadout.filter((id) => avail[id]);
     return ids.length ? ids : Cb.defaultLoadout(h.cls, h.level, h.path, h.talents);
   }
-  const combatant = (h) => Cb.make(build(h), h.id, h.name, loadout(h), h.skillRanks);
+  const combatant = (h) => {
+    const c = Cb.make(build(h), h.id, h.name, loadout(h), h.skillRanks);
+    if (h.signature) c.signature = { id: h.signature, name: h.signatureName || null, mastery: R.signatureMastery(h.signatureXp || 0) };
+    return c;
+  };
 
   function progress(p, now = time()) {
     for (let n = 0; n < MAX_CATCH_UP; ++n) {
@@ -159,6 +163,12 @@
       h.career = c;
       Object.assign(row, { xp, gold, materials: mats });
       addXp(h, xp);
+      if (h.signature && row.sigXp > 0) {
+        const before = R.signatureMastery(h.signatureXp || 0);
+        h.signatureXp = (h.signatureXp || 0) + row.sigXp;
+        const now = R.signatureMastery(h.signatureXp);
+        if (Math.floor(now / 10) > Math.floor(before / 10)) post(heroChannel(h), h.name + "'s " + (h.signatureName || R.classSkills(h.cls)[h.signature][0]) + ' reached Mastery ' + now + '.', { type: 'hero', hero: h.id });
+      }
       earnMarks(h, row);
       const g = guildOf(h); if (g) g.xp += Math.round(units);
     });
@@ -264,7 +274,7 @@
     return {
       attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
-      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
+      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
@@ -301,7 +311,7 @@
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
       attributes: attrs.total, sources: attrs.sources, effective: S.effective(attrs.total), stats, k: S.k(L), curves,
-      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined),
+      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
@@ -404,6 +414,24 @@
     if (h.oathTaken) fail('Your Oath sealed your Path.');
     if (!D.CLASSES[h.cls].paths[path]) fail('Unknown Path.');
     h.path = path; h.loadout = Cb.defaultLoadout(h.cls, h.level, path, h.talents);
+  }
+  function signatureView(h) {
+    if (!h.signature) return h.level >= C.SIGNATURE_LEVEL ? { open: true } : null;
+    const m = R.signatureMastery(h.signatureXp || 0), base = R.classSkills(h.cls)[h.signature][0], tr = R.signatureTraits(m);
+    return { open: false, skill: h.signature, skillName: base, name: h.signatureName || base, mastery: m, xp: h.signatureXp || 0, from: R.signatureXpFor(m), next: R.signatureXpFor(m + 1),
+      traits: tr, power: Math.round(((1 + 0.01 * m) * 1.1 ** tr.potent - 1) * 1000) / 1000, inLoadout: [...loadout(h), D.CLASSES[h.cls].ultimate[0]].includes(h.signature) };
+  }
+  function chooseSignature(h, skill, name) {
+    if (h.level < C.SIGNATURE_LEVEL) fail('The Signature skill opens at level ' + C.SIGNATURE_LEVEL + '.');
+    if (h.signature) fail('Your Signature is chosen for good.');
+    const avail = Cb.available(h.cls, h.level, h.path, h.talents), ult = D.CLASSES[h.cls].ultimate[0];
+    if (!avail[skill] && skill !== ult) fail('Pick a skill you have.');
+    name = String(name || '').replace(/\s+/g, ' ').trim();
+    if (name && !/^\p{L}[\p{L}' -]{2,29}$/u.test(name)) fail('A Signature name is 3 to 30 letters, spaces or apostrophes.');
+    h.signature = skill; h.signatureName = name || null; h.signatureXp = 0;
+    h.marks = uniq([...h.marks, 'signature']);
+    const base = R.classSkills(h.cls)[skill][0];
+    post(heroChannel(h), h.name + ' made ' + base + " their Signature: " + h.name + "'s " + (name || base) + '.', { type: 'hero', hero: h.id });
   }
   function chooseKeystone(h, level, id) {
     if (!keystoneLevels(h.level).includes(level)) fail('That Keystone level is not open yet.');
@@ -864,7 +892,7 @@
     const acts = {
       spend: () => spend(h, Object.fromEntries(Object.entries(input.points || {}).map(([k, v]) => [k, int(v)]))),
       autoSpend: () => autoSpend(h), path: () => choosePath(h, String(input.path || '')),
-      keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')),
+      keystone: () => chooseKeystone(h, int(input.level), String(input.keystone || '')), rankUp: () => rankUp(h, String(input.skill || '')), signature: () => chooseSignature(h, String(input.skill || ''), input.name),
       resetRanks: () => resetRanks(h), loadout: () => setLoadout(h, [].concat(input.skills || [])), lootPolicy: () => setLootPolicy(h, String(input.policy || '')),
       talent: () => learnTalent(h, [].concat(input.nodes || input.node || []).map(String)), resetTalents: () => resetTalents(h),
       culture: () => chooseCulture(h, String(input.culture || '')), story: () => writeStory(h, input.story), heritage: () => learnHeritage(h, [].concat(input.nodes || input.node || []).map(String)),
