@@ -22,8 +22,8 @@ class ArtTest extends TestCase
             }
         }
         // the launch push: well past the built-in handful in every kind
-        $this->assertGreaterThanOrEqual(60, count($parts['weapon']));
-        $this->assertGreaterThanOrEqual(40, count($parts['hat']));
+        $this->assertGreaterThanOrEqual(120, count($parts['weapon']), 'the launch target');
+        $this->assertGreaterThanOrEqual(60, count($parts['hat']), 'the launch target');
         $this->assertGreaterThanOrEqual(40, count($parts['hair']), 'the launch target');
         $this->assertGreaterThanOrEqual(60, count($parts['top']), 'the launch target');
         $this->assertGreaterThanOrEqual(10, count($parts['offhand']));
