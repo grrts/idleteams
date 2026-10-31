@@ -24,12 +24,15 @@ class StoreMock
     /** What Steam's GetReport lists. */
     public static array $report = [];
 
+    /** Firebase device tokens of apps that were uninstalled. */
+    public static array $fcmGone = [];
+
     /** @var list<array{method: string, url: string, body: string}> */
     public static array $calls = [];
 
     public static function reset(): void
     {
-        self::$subscribers = self::$tickets = self::$declined = self::$report = self::$calls = [];
+        self::$subscribers = self::$tickets = self::$declined = self::$report = self::$calls = self::$fcmGone = [];
         self::$steamCurrency = 'EUR';
     }
 
@@ -64,6 +67,17 @@ class StoreMock
         }
         if (str_contains($url, '/GetReport/')) {
             return self::ok(['response' => ['result' => 'OK', 'params' => ['count' => count(self::$report), 'orders' => ($in['type'] ?? '') === 'GAMESALES' ? self::$report : []]]]);
+        }
+
+        if (str_contains($url, 'oauth2.googleapis.com/token')) {
+            return self::ok(['access_token' => 'ya29.test', 'expires_in' => 3599, 'token_type' => 'Bearer']);
+        }
+        if (str_contains($url, 'fcm.googleapis.com/v1/')) {
+            $token = json_decode($body, true)['message']['token'] ?? '';
+
+            return in_array($token, self::$fcmGone, true)
+                ? new MockResponse(json_encode(['error' => ['code' => 404, 'status' => 'NOT_FOUND', 'details' => [['errorCode' => 'UNREGISTERED']]]]), ['http_code' => 404])
+                : self::ok(['name' => 'projects/idleteams-test/messages/1']);
         }
 
         return new MockResponse('{"error":"not mocked"}', ['http_code' => 404]);
