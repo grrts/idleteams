@@ -34,6 +34,7 @@ class Game
         #[Autowire('%game.battle_seconds%')] private int $battleSeconds,
         #[Autowire('%game.chest_seconds%')] private int $chestSeconds,
         #[Autowire('%game.offline_cap_seconds%')] private int $offlineCapSeconds,
+        private Notifier $notifier,
     ) {
     }
 
@@ -277,6 +278,11 @@ class Game
         }
         $this->post('party:'.$b->party->id, $line, ['type' => 'report', 'battle' => $b->id]);
         foreach ($heroes as $h) {
+            if ($rep['wiped']) {
+                $this->notifier->notify($h, 'wipe', 'Your group fell', sprintf('After %d of 3 bosses. Change what you need and send it back in.', $rep['bossesKilled']));
+            } elseif ($chest) {
+                $this->notifier->notify($h, 'chest', 'Loot in the group chest', sprintf('%d item%s to roll on before the chest closes.', count($chest), count($chest) === 1 ? '' : 's'));
+            }
             if ($h->user->demo) {
                 foreach ($chest as $idx => $_) {
                     $this->autoRoll($b, $h, $idx);
@@ -288,6 +294,7 @@ class Game
     public function addXp(Hero $h, int $xp): void
     {
         $total = (int) $h->xp + $xp;
+        $before = $h->level;
         while ($total >= Rules::xpForLevel($h->level)) {
             $total -= Rules::xpForLevel($h->level);
             ++$h->level;
@@ -299,6 +306,9 @@ class Game
             }
         }
         $h->xp = (string) $total;
+        if ($h->level > $before) {
+            $this->notifier->notify($h, 'level', sprintf('%s reached level %d', $h->name, $h->level), 'New points to spend.', '#/hero');
+        }
     }
 
     /** Level 20: the Path and every point spent so far are carved in. */

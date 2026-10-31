@@ -190,6 +190,7 @@
       else { try { await post('/account/verify', { token: q.get('t') || '' }); await refresh(); toast('Your email is confirmed.', true); } catch (e) { toast(e.message); } }
     }
     loadView();
+    pushInit();
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) refresh(); }, 5000);
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) pollChat(); }, 4000);
     setInterval(() => { if (S.st && S.st.hero && S.st.party && !document.hidden) loadBattle(); }, 15000);
@@ -1300,7 +1301,7 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + pushView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
   }
@@ -1313,6 +1314,48 @@
   async function loadReports() {
     try { S.reports = await get('/admin/reports'); } catch (e) { S.reports = []; toast(e.message); }
     if (S.view === 'settings') render();
+  }
+
+  // ------------------------------------------------------------------ notifications (Web Push)
+
+  // S.push: null while unknown, else { ok: can this browser do it, on: subscribed here, busy }
+  function pushSupported() { return !window.IT_SERVER && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  async function pushInit() {
+    if (!pushSupported()) { S.push = { ok: false, on: false }; return; }
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const sub = await reg.pushManager.getSubscription();
+      S.push = { ok: !!S.cfg.pushKey, on: !!sub };
+      // Keep the server's copy fresh: a browser may rotate the address.
+      if (sub && S.st) post('/push/subscribe', { endpoint: sub.endpoint }).catch(() => null);
+    } catch (e) { S.push = { ok: false, on: false }; }
+    if (S.view === 'settings') render();
+  }
+  function b64ToBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
+  async function pushOn() {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast(perm === 'denied' ? 'Notifications are blocked for this site in your browser settings.' : 'No notifications then.'); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(S.cfg.pushKey) });
+    await post('/push/subscribe', { endpoint: sub.endpoint });
+    S.push.on = true; toast('Notifications are on for this device.', true);
+  }
+  async function pushOff() {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) { await post('/push/unsubscribe', { endpoint: sub.endpoint }).catch(() => null); await sub.unsubscribe(); }
+    if (S.push) S.push.on = false;
+  }
+  function pushView() {
+    const p = S.push;
+    let body;
+    if (window.IT_SERVER) body = '<p class="small muted">Notifications need the real server; this playable build only runs while the page is open.</p>';
+    else if (!p) body = '<p class="small muted">Checking this browser…</p>';
+    else if (!pushSupported()) body = '<p class="small muted">This browser cannot show notifications. On iPhone, add Idle Teams to your home screen first.</p>';
+    else if (!p.ok) body = '<p class="small muted">Notifications are not set up on this server yet.</p>';
+    else body = '<p class="small">' + (p.on ? '✓ On for this device. ' : '') + 'We tell you when your group falls, when there is loot to roll on, when you level up and when someone invites you. Only while you are away from the game.</p>' +
+      '<div class="row"><button data-act="push" data-on="' + (p.on ? 0 : 1) + '"' + (p.busy ? ' disabled' : '') + '>' + (p.on ? 'Turn off' : 'Turn on notifications') + '</button></div>';
+    return '<div class="panel"><h3>Notifications</h3>' + body + '</div>';
   }
 
   async function pollChat() {
@@ -1452,9 +1495,15 @@
     logout: async () => {
       if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }
       S.sureNew = false;
+      if (S.push && S.push.on) await pushOff().catch(() => null);
       await post('/logout').catch(() => null);
       if (window.IT_SERVER) { location.hash = ''; location.reload(); return; }
       S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render();
+    },
+    push: async (d) => {
+      S.push.busy = true; render();
+      try { if (d.on === '1') await pushOn(); else { await pushOff(); toast('Notifications are off for this device.', true); } } catch (e) { toast('Could not change notifications: ' + e.message); }
+      S.push.busy = false; render();
     },
     chatWho: (d) => chatWho(d.id),
     report: async (d) => { try { await post('/chat/' + d.id + '/report', { reason: d.r }); closeModal(); toast('Thanks. A moderator will look at it.', true); } catch (e) { toast(e.message); } },

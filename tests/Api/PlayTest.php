@@ -3,6 +3,8 @@
 namespace App\Tests\Api;
 
 use App\Entity\Battle;
+use App\Entity\Notice;
+use App\Entity\User;
 use App\Game\LifeStory;
 use App\Service\Game;
 use Doctrine\ORM\EntityManagerInterface;
@@ -92,6 +94,10 @@ class PlayTest extends WebTestCase
         $this->assertTrue($next->report['wiped']);
         $this->assertFalse($party->running, 'a wipe stops the chain');
         $this->assertNull($em->getRepository(Battle::class)->findOneBy(['party' => $party, 'state' => 'running']));
+        $em->flush();
+        $kinds = array_map(fn (Notice $n) => $n->kind, $em->getRepository(Notice::class)->findBy(['user' => $em->getRepository(User::class)->findOneBy(['username' => 'tester'])]));
+        $this->assertContains('wipe', $kinds, 'the player is told the group fell');
+        $this->assertSame(0, $em->createQuery('SELECT COUNT(n) FROM App\Entity\Notice n JOIN n.user u WHERE u.demo = true')->getSingleScalarResult(), 'demo heroes get no notices');
 
         $this->api('POST', '/party/resume');
         $em->clear();

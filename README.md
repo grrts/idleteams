@@ -64,6 +64,10 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   within a day mute them for an hour until a moderator looks. Moderators (`php bin/console app:admin <username>`; the
   account logs in again after) get a queue in Settings: dismiss, remove the line, or remove and mute. Login attempts,
   sign-ups, mails, chat lines and API calls are rate limited (`config/packages/rate_limiter.yaml`).
+- Notifications: the game installs as an app (PWA) and, once turned on in Settings, tells a player who is away when the
+  group falls, when there is loot to roll on, when they level up and when someone invites them or asks to join. Pushes
+  carry no data (no encryption library needed); the service worker `public/sw.js` fetches what to show. They need HTTPS
+  and the `VAPID_*` settings below; without them the Settings panel says notifications are not set up.
 
 ## Run it locally
 
@@ -112,6 +116,8 @@ a database and cron.
    MAILER_DSN=smtp://user:pass@smtp.example.com:587   # for verification and password reset mails
    MAILER_FROM="Idle Teams <noreply@your-domain>"
    APP_URL=https://your-domain                         # links in mails point here
+   VAPID_PRIVATE_KEY=...          # web push; make one with: php bin/console app:push:keys
+   VAPID_SUBJECT=mailto:you@your-domain
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
@@ -156,7 +162,7 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes

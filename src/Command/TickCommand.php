@@ -6,6 +6,7 @@ use App\Entity\Battle;
 use App\Entity\Party;
 use App\Service\Bots;
 use App\Service\Game;
+use App\Service\Notifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,7 +22,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand('app:tick', 'Advance every group: settle battles and chests, start the next battle')]
 final class TickCommand extends Command
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots, private Notifier $notifier)
     {
         parent::__construct();
     }
@@ -48,7 +49,9 @@ final class TickCommand extends Command
         }
         $this->bots->chatter();
         $this->em->flush();
-        $output->writeln(sprintf('Advanced %d group(s).', $done));
+        $pushed = $this->notifier->deliver($now);
+        $this->notifier->prune($now);
+        $output->writeln(sprintf('Advanced %d group(s), sent %d push(es).', $done, $pushed));
 
         return Command::SUCCESS;
     }

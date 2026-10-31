@@ -9,6 +9,7 @@ use App\Entity\Hero;
 use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
+use App\Game\Rules;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -17,7 +18,7 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class Social
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Notifier $notifier)
     {
     }
 
@@ -137,6 +138,8 @@ class Social
         $r = $this->request($p, $h, 'application', $message);
         if ($p->leader?->user->demo) {
             $this->accept($p->leader, $r);
+        } elseif ($p->leader) {
+            $this->notifier->notify($p->leader, 'invite', $h->name.' wants to join', sprintf('Level %d %s. Open the group to answer.', $h->level, Rules::CLASSES[$h->cls]['name'] ?? $h->cls), '#/group');
         }
 
         return $r;
@@ -154,6 +157,8 @@ class Social
         $r = $this->request($p, $target, 'invite', $message);
         if ($target->user->demo) {
             $this->accept($target, $r);
+        } else {
+            $this->notifier->notify($target, 'invite', $leader->name.' invited you', 'Open the tavern to answer.', '#/group');
         }
 
         return $r;
