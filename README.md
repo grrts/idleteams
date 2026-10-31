@@ -121,6 +121,7 @@ a database and cron.
    MERCURE_URL=http://127.0.0.1:3000/.well-known/mercure          # live updates; leave empty to poll
    MERCURE_PUBLIC_URL=https://your-domain/.well-known/mercure
    MERCURE_JWT_SECRET=<32+ random characters, the same as the hub's>
+   ERROR_WEBHOOK_URL=https://hooks.slack.com/services/...  # optional: server errors are posted here
    ```
    Then `composer dump-env prod` and `php bin/console cache:clear`.
 3. **Database**: `php bin/console doctrine:migrations:migrate -n` on every deploy. It creates the schema the first
@@ -162,7 +163,22 @@ a database and cron.
    reads the API as before. Each player's cookie, refreshed with every `/api/state`, lets them hear only their own
    topics. Without a hub, or while it is down, the client polls every few seconds as before; with it, polling slows
    to a safety net every 30 seconds or so.
-7. Skip `app:demo:seed` in production unless you want the demo heroes there.
+7. **Backups**: `php bin/console app:backup` writes a gzipped copy of the database to `var/backups/` (or `--dir`) and
+   removes copies older than `--keep` days (14). SQLite is copied with `VACUUM INTO`; MySQL and Postgres need
+   `mysqldump` or `pg_dump` on the machine. Run it nightly and copy the folder somewhere else:
+   ```
+   30 3 * * * cd /var/www/idleteams && php bin/console app:backup && rclone copy var/backups remote:idleteams-backups
+   ```
+   To restore: stop cron, then `gunzip -c file.sqlite.gz > var/data.db`, or `gunzip -c file.sql.gz | mysql idleteams`,
+   or `pg_restore --clean -d idleteams file.pgdump`.
+8. **Errors and uptime**: server errors (never a player's mistake) are logged, and posted to `ERROR_WEBHOOK_URL` if set,
+   at most once per 10 minutes for the same error, with a count. Point an uptime monitor at `/api/health`: it answers
+   200 while the database answers and the cron tick ran in the last five minutes, and 503 otherwise.
+9. **Updates**: `bin/deploy` (or `bin/deploy <tag>`) fetches, installs, backs up, migrates and clears the cache, then
+   prints how to go back. `RELOAD_CMD="sudo systemctl reload php8.3-fpm"` and `HEALTH_URL=https://your-domain/api/health`
+   make it reload PHP and check health at the end. A step back to an older version does not undo migrations; restore
+   the backup it took if a migration has to be undone.
+10. Skip `app:demo:seed` in production unless you want the demo heroes there.
 
 ## How the code is laid out
 
@@ -181,7 +197,7 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes

@@ -6,7 +6,10 @@ use App\Entity\Battle;
 use App\Entity\Party;
 use App\Service\Bots;
 use App\Service\Game;
+use App\Controller\HealthController;
 use App\Service\Notifier;
+use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -22,7 +25,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand('app:tick', 'Advance every group: settle battles and chests, start the next battle')]
 final class TickCommand extends Command
 {
-    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots, private Notifier $notifier)
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Bots $bots, private Notifier $notifier, #[Autowire(service: 'cache.app')] private CacheItemPoolInterface $cache)
     {
         parent::__construct();
     }
@@ -51,6 +54,7 @@ final class TickCommand extends Command
         $this->em->flush();
         $pushed = $this->notifier->deliver($now);
         $this->notifier->prune($now);
+        $this->cache->save($this->cache->getItem(HealthController::TICK_KEY)->set($now));
         $output->writeln(sprintf('Advanced %d group(s), sent %d push(es).', $done, $pushed));
 
         return Command::SUCCESS;
