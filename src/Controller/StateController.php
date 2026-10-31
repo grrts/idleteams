@@ -59,7 +59,7 @@ class StateController extends ApiController
             'inventory' => $present->inventory($hero),
             'party' => $present->party($hero->party, $hero),
             'invites' => $invites,
-            'battle' => $battle ? ['id' => $battle->id, 'startedAt' => $battle->startedAt, 'endsAt' => $battle->endsAt, 'dungeonLevel' => $battle->dungeonLevel] : null,
+            'battle' => $battle ? ['id' => $battle->id, 'startedAt' => $battle->startedAt, 'endsAt' => $battle->endsAt, 'dungeon' => $battle->dungeon, 'dungeonLevel' => $battle->dungeonLevel] : null,
             'pendingRolls' => $pendingRolls,
             'channels' => $channels = $social->channels($hero),
             'live' => $this->live($request, $live, $auth, $live->topicsFor($user, $hero, $channels)),

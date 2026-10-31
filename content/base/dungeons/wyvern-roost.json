@@ -1,0 +1,252 @@
+{
+  "id": "wyvern-roost",
+  "name": "The Wyvern Roost",
+  "summary": "The cliffs of Kaldera where the old dragon nests stood empty, until the wyverns moved in. The draka want them gone.",
+  "levels": [
+    44,
+    0
+  ],
+  "order": 60,
+  "lore": "hollow:wyvern-roost",
+  "wings": [
+    {
+      "name": "The Cliff Path",
+      "scene": {
+        "sky": [
+          "#120a10",
+          "#22121c"
+        ],
+        "rock": "#3a1e28",
+        "rock2": "#4c2834",
+        "floor": "#341c24",
+        "floor2": "#44262e",
+        "glow": "#ff6a3a",
+        "accent": "#ffd25a",
+        "prop": "lava"
+      }
+    },
+    {
+      "name": "Bone Ledges",
+      "scene": {
+        "sky": [
+          "#140c0a",
+          "#241612"
+        ],
+        "rock": "#3e261e",
+        "rock2": "#503228",
+        "floor": "#38221c",
+        "floor2": "#482c24",
+        "glow": "#ffa040",
+        "accent": "#f0e0c0",
+        "prop": "forge"
+      }
+    },
+    {
+      "name": "The Old Nest",
+      "scene": {
+        "sky": [
+          "#18080a",
+          "#2c0e12"
+        ],
+        "rock": "#4a1a1e",
+        "rock2": "#5e2228",
+        "floor": "#401a1c",
+        "floor2": "#522226",
+        "glow": "#ff4a2a",
+        "accent": "#ffb340",
+        "prop": "lava"
+      }
+    }
+  ],
+  "enemies": {
+    "hatchling": {
+      "name": "Wyvern Hatchling",
+      "kind": "add",
+      "art": "imp",
+      "tint": [
+        330,
+        0.9,
+        0.95
+      ]
+    },
+    "guard": {
+      "name": "Roost Guard",
+      "kind": "brute",
+      "art": "brute",
+      "tint": [
+        320,
+        0.8,
+        0.9
+      ]
+    },
+    "egg": {
+      "name": "Cinder Egg",
+      "kind": "shard",
+      "art": "shard",
+      "tint": [
+        350,
+        1,
+        1
+      ]
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Hatchling flight",
+      "spawn": [
+        {
+          "enemy": "hatchling",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Roost guard",
+      "spawn": [
+        {
+          "enemy": "hatchling",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "guard",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "Old Scar",
+      "art": "hound",
+      "tint": [
+        330,
+        0.8,
+        0.9
+      ],
+      "health": 0.6,
+      "damage": 0.95,
+      "enrage": 70,
+      "hit": "Talon",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock"
+      ],
+      "lore": "beast:old-scar"
+    },
+    "b2": {
+      "name": "The Brood Mother",
+      "art": "matron",
+      "tint": [
+        130,
+        0.9,
+        0.95
+      ],
+      "health": 0.8,
+      "damage": 0.9,
+      "enrage": 80,
+      "hit": "Tail Lash",
+      "mechanics": [
+        "rain",
+        "curse",
+        "adds",
+        "buster"
+      ],
+      "lore": "beast:brood-mother"
+    },
+    "b3": {
+      "name": "Kaldrax the Ashen",
+      "art": "golem",
+      "tint": [
+        330,
+        0.7,
+        0.85
+      ],
+      "scale": 4.2,
+      "health": 1.0,
+      "damage": 1.0,
+      "enrage": 85,
+      "hit": "Wing Buffet",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock",
+        "curse",
+        "adds"
+      ],
+      "lore": "beast:kaldrax"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Rending Bite"
+    },
+    "rain": {
+      "name": "Fire Breath",
+      "fire": true
+    },
+    "shock": {
+      "name": "Wingbeat"
+    },
+    "curse": {
+      "name": "Searing Venom"
+    },
+    "adds": {
+      "name": "Cinder Eggs",
+      "enemy": "egg",
+      "count": 2
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      1
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

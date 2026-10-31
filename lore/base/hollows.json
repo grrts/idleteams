@@ -1,0 +1,443 @@
+{
+  "entries": {
+    "hollow:rattling-deep": {
+      "title": "The Rattling Deep",
+      "kicker": "Levels 9 to 19",
+      "summary": "A Hollow that broke open inside a goblin warren off the [[place:long-road|Long Road]]. The goblins did not run from the fire. They put it to work.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "When the Underflame broke into the warren, the [[beast:goblins|goblins]] living there learned to forge with it within a season. Dwarf patrols on the Long Road started meeting goblins with hot iron instead of stolen knives, and the holds asked the Pact for help."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Snare Tunnels are the warren's outer ring, strung with traps. The Scrap Market is where the goblins trade what they steal, ruled by [[beast:tinker-queen|the Tinker Queen]]. The Throne of Rust at the bottom belongs to [[beast:old-rustjaw|Old Rustjaw]], who was a goblin once."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "Under the [[place:greyteeth|Greyteeth]], off the Long Road"
+        ],
+        [
+          "Bosses",
+          "Snagtooth, the Tinker Queen, Old Rustjaw"
+        ]
+      ],
+      "see": [
+        "beast:goblins",
+        "place:long-road",
+        "race:dwarf"
+      ]
+    },
+    "beast:snagtooth": {
+      "title": "Snagtooth",
+      "kicker": "Guardian of the Snare Tunnels",
+      "summary": "The warren's watchdog: a huge tunnel rat the fire got into, wearing a collar of stolen dwarf rings.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The goblins say they raised Snagtooth from a pup. The dwarves say nobody raises a thing like that; it just keeps eating. Both agree it bites through armour."
+        },
+        {
+          "title": "In battle",
+          "text": "It goes for the tank's arms and leaves a rusty wound that keeps bleeding. Healers learn to watch the whole group, not just the front."
+        }
+      ],
+      "see": [
+        "hollow:rattling-deep",
+        "beast:goblins"
+      ]
+    },
+    "beast:tinker-queen": {
+      "title": "The Tinker Queen",
+      "kicker": "Ruler of the Scrap Market",
+      "summary": "The cleverest goblin in the Rattling Deep, who builds bombs out of the Underflame and sells them to anyone who pays in metal.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Nobody knows her real name. She was the first goblin to put a spark of the Underflame in a jar, and the rest of the warren has been afraid of her since."
+        },
+        {
+          "title": "In battle",
+          "text": "She throws bombs at everyone and sends spark bombs rolling at the back line. Kill the bombs before they reach the healer."
+        }
+      ],
+      "see": [
+        "hollow:rattling-deep",
+        "beast:goblins"
+      ]
+    },
+    "beast:old-rustjaw": {
+      "title": "Old Rustjaw",
+      "kicker": "King of the Rattling Deep",
+      "summary": "A goblin king who sat too close to the Underflame for too long, and grew into a giant of scrap and rust.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Rustjaw crowned himself king of the warren the year the Hollow opened, and built his throne on top of the crack. Each year he is bigger and less goblin."
+        },
+        {
+          "title": "In battle",
+          "text": "He uses everything the warren knows: crushing blows on the tank, bomb barrages, blasting charges and more spark bombs at half health."
+        }
+      ],
+      "see": [
+        "hollow:rattling-deep",
+        "beast:goblins"
+      ]
+    },
+    "hollow:ashen-grove": {
+      "title": "The Ashen Grove",
+      "kicker": "Levels 18 to 28",
+      "summary": "A Hollow in what is left of an Elderwood glade the [[era:great-burn|Great Burn]] reached. The trees are grey, the ash is warm, and [[beast:shadow-beasts|shadow-beasts]] hunt in the smoke.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "The glade burned in the Great Burn and never cooled. Years later the elves of the forest edge found out why: the Underflame had broken through under the roots, and the smoke that came up was full of hungry shapes."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Grey Glade is where the [[beast:charred-stag|Charred Stag]] still walks its old paths. The Smoke Ring is the nest of [[beast:smoke-mother|Smoke Mother]]. In the Heart of the Burn waits [[beast:long-shadow|the Long Shadow]]."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "The edge of the [[place:ashlands|Ashlands]]"
+        ],
+        [
+          "Bosses",
+          "the Charred Stag, Smoke Mother, the Long Shadow"
+        ]
+      ],
+      "see": [
+        "place:ashlands",
+        "beast:shadow-beasts",
+        "race:elf",
+        "era:great-burn"
+      ]
+    },
+    "beast:charred-stag": {
+      "title": "The Charred Stag",
+      "kicker": "Guardian of the Grey Glade",
+      "summary": "The great stag of the glade, burned black and still standing, still guarding the forest that is gone.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Elven songs remember a white stag that led lost travellers out of the Elderwood. The Charred Stag walks the same paths. It no longer leads anyone out."
+        },
+        {
+          "title": "In battle",
+          "text": "It rakes the tank with burning antlers and shakes ash storms out of the trees over the whole group."
+        }
+      ],
+      "see": [
+        "hollow:ashen-grove",
+        "place:ashlands"
+      ]
+    },
+    "beast:smoke-mother": {
+      "title": "Smoke Mother",
+      "kicker": "Ruler of the Smoke Ring",
+      "summary": "A shadow-beast grown so large it is more weather than animal, and the mother of every wisp in the grove.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Where the smoke is thickest the shadow-beasts gather, and where they gather long enough, they become one thing. The elves call it Smoke Mother and do not go near."
+        },
+        {
+          "title": "In battle",
+          "text": "She chokes one hero at a time and seeds the ground with embers that grow into fire. Healers have to cleanse fast and the damage has to kill the seeds."
+        }
+      ],
+      "see": [
+        "hollow:ashen-grove",
+        "beast:shadow-beasts"
+      ]
+    },
+    "beast:long-shadow": {
+      "title": "The Long Shadow",
+      "kicker": "Heart of the Ashen Grove",
+      "summary": "The shadow at the bottom of the burn: tall as the old trees, and as old as the fire under them.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Some elves say it is the shadow of the Elderwood itself, left behind when the trees burned. Others say it was here before the forest, waiting under the roots."
+        },
+        {
+          "title": "In battle",
+          "text": "It uses everything the grove has: smothering blows, ash storms, a wave of dusk that throws heroes back, choking smoke and ember seeds."
+        }
+      ],
+      "see": [
+        "hollow:ashen-grove",
+        "beast:shadow-beasts"
+      ]
+    },
+    "hollow:frostgate-pass": {
+      "title": "Frostgate Pass",
+      "kicker": "Levels 27 to 37",
+      "summary": "The high pass where the [[beast:trolls|trolls]] come down every winter. This winter a Hollow opened under the gate, the trolls took the watchtowers, and they did not leave.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "The pass guards have fought trolls at Frostgate for as long as there has been a pass. When the ice under the gate began to steam, the trolls stopped going home in spring. Something warm under the snow was feeding them."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Lower Switchbacks belong to [[beast:grumm|Grumm the Gatebreaker]]. [[beast:mother-hrimm|Old Mother Hrimm]] holds the Fallen Watchtower. At the Gate of Ice sits [[beast:winter-king|the Winter King]]."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "The high passes of the [[place:greyteeth|Greyteeth]]"
+        ],
+        [
+          "Bosses",
+          "Grumm the Gatebreaker, Old Mother Hrimm, the Winter King"
+        ]
+      ],
+      "see": [
+        "beast:trolls",
+        "place:greyteeth",
+        "race:human"
+      ]
+    },
+    "beast:grumm": {
+      "title": "Grumm the Gatebreaker",
+      "kicker": "Guardian of the Switchbacks",
+      "summary": "The troll who broke Frostgate's outer gate with a tree trunk, and has carried the trunk ever since.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Grumm is not clever even for a troll, but he is very large and very patient. He sat outside the gate for nine days before he decided to knock."
+        },
+        {
+          "title": "In battle",
+          "text": "He swings his club at the tank hard enough to crack shields, and stamps the ground until the whole group stumbles."
+        }
+      ],
+      "see": [
+        "hollow:frostgate-pass",
+        "beast:trolls"
+      ]
+    },
+    "beast:mother-hrimm": {
+      "title": "Old Mother Hrimm",
+      "kicker": "Ruler of the Fallen Watchtower",
+      "summary": "The oldest troll in the mountains, a frost-witch who calls hail and makes ice grow out of the floor.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The pass guards' grandmothers told stories about Mother Hrimm. Nobody believed them until she sat down in the watchtower and started singing."
+        },
+        {
+          "title": "In battle",
+          "text": "She calls hail on the group, freezes one hero at a time and grows ice spikes that must be broken quickly."
+        }
+      ],
+      "see": [
+        "hollow:frostgate-pass",
+        "beast:trolls"
+      ]
+    },
+    "beast:winter-king": {
+      "title": "The Winter King",
+      "kicker": "Master of Frostgate",
+      "summary": "A troll the Underflame has warmed into something enormous, crowned in ice that never melts.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Trolls have no kings. This one decided otherwise. Every troll that comes down from the snows now kneels at the Gate of Ice before it goes raiding."
+        },
+        {
+          "title": "In battle",
+          "text": "He uses everything the pass has: avalanche blows, hail, quakes that throw heroes down, frostbite and ice spikes."
+        }
+      ],
+      "see": [
+        "hollow:frostgate-pass",
+        "beast:trolls"
+      ]
+    },
+    "hollow:sunken-caravan": {
+      "title": "The Sunken Caravan",
+      "kicker": "Levels 36 to 45",
+      "summary": "A [[race:felkin|felkin]] spice caravan that the [[place:endless-dunes|dunes]] swallowed whole. The [[beast:sand-wyrm|sand-wyrms]] nest in its wagons now, and something still guards the cargo.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "Forty wagons left [[place:saffra|Saffra]] and never reached the springs. Years later the sand slid away from the first wagon roof, and the heat that came out of it was not the sun's."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Buried Wagons are guarded by [[beast:glass-scorpion|the Glass Scorpion]]. In the Spice Vault, [[beast:caravan-master|Caravan Master Ossek]] still counts his cargo. The Wyrm Nest belongs to [[beast:dune-wyrm|the Dune Wyrm]]."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "Under the [[place:endless-dunes|Endless Dunes]]"
+        ],
+        [
+          "Bosses",
+          "the Glass Scorpion, Caravan Master Ossek, the Dune Wyrm"
+        ]
+      ],
+      "see": [
+        "place:endless-dunes",
+        "place:saffra",
+        "beast:sand-wyrm",
+        "race:felkin"
+      ]
+    },
+    "beast:glass-scorpion": {
+      "title": "The Glass Scorpion",
+      "kicker": "Guardian of the Buried Wagons",
+      "summary": "A desert scorpion the Underflame turned to living glass, as big as a wagon and as sharp as broken windows.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Lightning makes glass in the dunes. So, it turns out, does the Underflame, and once it made a scorpion."
+        },
+        {
+          "title": "In battle",
+          "text": "It stings the tank, poisons the group's damage dealers and blasts sand over everyone."
+        }
+      ],
+      "see": [
+        "hollow:sunken-caravan",
+        "place:endless-dunes"
+      ]
+    },
+    "beast:caravan-master": {
+      "title": "Caravan Master Ossek",
+      "kicker": "Keeper of the Spice Vault",
+      "summary": "The felkin who led the lost caravan, still guarding its cargo long after he should have died.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Ossek swore to the Saffra spice guild that his caravan would arrive. It never did, and he never stopped keeping the promise."
+        },
+        {
+          "title": "In battle",
+          "text": "He cracks his whip to knock heroes back, blasts sand and hatches wyrm eggs from the cargo."
+        }
+      ],
+      "see": [
+        "hollow:sunken-caravan",
+        "race:felkin",
+        "place:saffra"
+      ]
+    },
+    "beast:dune-wyrm": {
+      "title": "The Dune Wyrm",
+      "kicker": "Mother of the Nest",
+      "summary": "The sand-wyrm that ate the caravan: the largest ever seen, and still growing on the Underflame's heat.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Felkin guides say the wyrms always gathered under that stretch of the dunes. Now they know why."
+        },
+        {
+          "title": "In battle",
+          "text": "It uses everything the caravan holds: tail slams, sandblasts, strikes from below, venom and hatching eggs."
+        }
+      ],
+      "see": [
+        "hollow:sunken-caravan",
+        "beast:sand-wyrm"
+      ]
+    },
+    "hollow:wyvern-roost": {
+      "title": "The Wyvern Roost",
+      "kicker": "Level 44 and up",
+      "summary": "The cliffs of [[place:kaldera|Kaldera]], where the old dragon nests stood empty until the [[beast:wyvern|wyverns]] moved in. The [[race:draka|draka]] want them gone.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "The draka never let anyone near the old nests. When the Underflame broke through under them and the wyverns came to feed on the heat, the draka were too few to stop them, and for the first time they asked the Pact for help."
+        },
+        {
+          "title": "The three wings",
+          "text": "On the Cliff Path waits [[beast:old-scar|Old Scar]]. The Bone Ledges are held by [[beast:brood-mother|the Brood Mother]]. In the Old Nest sleeps [[beast:kaldrax|Kaldrax the Ashen]]."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "The cliffs of [[place:kaldera|Kaldera]]"
+        ],
+        [
+          "Bosses",
+          "Old Scar, the Brood Mother, Kaldrax the Ashen"
+        ]
+      ],
+      "see": [
+        "place:kaldera",
+        "beast:wyvern",
+        "race:draka"
+      ]
+    },
+    "beast:old-scar": {
+      "title": "Old Scar",
+      "kicker": "Guardian of the Cliff Path",
+      "summary": "A one-eyed wyvern bull who has fought every draka hunter for thirty years and kept every scar.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The draka of Kaldera have a saying for something that will not die: as stubborn as Old Scar."
+        },
+        {
+          "title": "In battle",
+          "text": "It tears at the tank, breathes fire over everyone and beats the air hard enough to throw heroes off their feet."
+        }
+      ],
+      "see": [
+        "hollow:wyvern-roost",
+        "beast:wyvern"
+      ]
+    },
+    "beast:brood-mother": {
+      "title": "The Brood Mother",
+      "kicker": "Ruler of the Bone Ledges",
+      "summary": "The wyvern queen who lays her cinder eggs in the Underflame's heat, so that every hatchling comes out burning.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Wyverns lay a few eggs a year. Near the Underflame the Brood Mother lays dozens."
+        },
+        {
+          "title": "In battle",
+          "text": "She bites, breathes fire, poisons one hero at a time and lays cinder eggs that hatch if nobody breaks them."
+        }
+      ],
+      "see": [
+        "hollow:wyvern-roost",
+        "beast:wyvern"
+      ]
+    },
+    "beast:kaldrax": {
+      "title": "Kaldrax the Ashen",
+      "kicker": "Lord of the Old Nest",
+      "summary": "The largest wyvern alive, grey with ash, sleeping in the nest of a dragon. Some draka whisper that he wants to become one.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Wyverns are the stupid cousins of dragons. Kaldrax is not stupid. He chose the oldest nest, the one over the hottest crack, and he has not left it in years."
+        },
+        {
+          "title": "In battle",
+          "text": "He uses everything the roost has: rending bites, fire breath, wingbeats, searing venom and cinder eggs."
+        }
+      ],
+      "see": [
+        "hollow:wyvern-roost",
+        "beast:wyvern",
+        "race:draka"
+      ]
+    }
+  }
+}

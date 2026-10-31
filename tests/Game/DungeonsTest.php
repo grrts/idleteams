@@ -4,6 +4,7 @@ namespace App\Tests\Game;
 
 use App\Game\Combatants;
 use App\Game\Dungeons;
+use App\Game\Lore;
 use App\Game\Reference;
 use App\Game\Rules;
 use App\Game\Simulator;
@@ -19,6 +20,10 @@ class DungeonsTest extends TestCase
         foreach ($all as $id => $d) {
             $this->assertGreaterThan(0, Dungeons::bossCount($d), $id);
             $this->assertSame('boss', end($d['plan'])[0], "$id ends on a boss");
+            $this->assertNotNull(Lore::entry($d['lore']), "$id has a lore entry");
+            foreach ($d['bosses'] as $b) {
+                $this->assertNotNull(Lore::entry($b['lore'] ?? ''), "$id: {$b['name']} has a lore entry");
+            }
             $level = max(1, $d['levels'][0]);
             $party = [];
             foreach (Reference::COMP as $n => $cls) {
@@ -30,6 +35,19 @@ class DungeonsTest extends TestCase
             $this->assertSame($d['name'], $rep['dungeon']);
             $this->assertSame(Dungeons::plan($d), $rep['plan']);
         }
+    }
+
+    public function testBandsCoverLevelsOneToFiftyAndGroupsMoveOn(): void
+    {
+        for ($level = 1; $level <= 50; ++$level) {
+            $d = Dungeons::newest($level);
+            $this->assertGreaterThanOrEqual($d['levels'][0], $level);
+            $this->assertSame($level, Dungeons::clamp($d, $level), "level $level fits the band of {$d['name']}");
+        }
+        $this->assertSame('ember-hollow', Dungeons::newest(1)['id']);
+        $this->assertSame('wyvern-roost', Dungeons::newest(50)['id']);
+        $this->assertSame(10, Dungeons::clamp(Dungeons::get('ember-hollow'), 30), 'an old dungeon stays at its top level');
+        $this->assertArrayNotHasKey('ashen-grove', Dungeons::unlocked(17));
     }
 
     public function testABrokenFileFailsLoudly(): void

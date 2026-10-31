@@ -62,6 +62,28 @@ final class Dungeons
         return $all[$id ?? self::DEFAULT] ?? $all[self::DEFAULT] ?? throw new \RuntimeException('No dungeon '.$id);
     }
 
+    /** Dungeons a group whose median level is $level may enter: every one whose band starts at or below it. */
+    public static function unlocked(int $level): array
+    {
+        return array_filter(self::all(), fn ($d) => $d['levels'][0] <= max(1, $level));
+    }
+
+    /** The newest dungeon a group of this level has reached. */
+    public static function newest(int $level): array
+    {
+        $open = self::unlocked($level);
+
+        return $open ? end($open) : self::get();
+    }
+
+    /** A level inside the dungeon's band: groups above it fight it at its top level (and are scaled down to that). */
+    public static function clamp(array $d, int $level): int
+    {
+        [$from, $to] = $d['levels'];
+
+        return max($from, $to > 0 ? min($to, $level) : $level);
+    }
+
     /** The display name of encounter $c: a pack's or a boss's name. */
     public static function label(array $d, int $c): string
     {
@@ -98,7 +120,7 @@ final class Dungeons
         foreach (['name', 'wings', 'enemies', 'packs', 'bosses', 'mechanics', 'plan'] as $k) {
             isset($d[$k]) || $fail("missing $k");
         }
-        $d += ['summary' => '', 'levels' => [1, 0], 'order' => 0];
+        $d += ['summary' => '', 'levels' => [1, 0], 'order' => 0, 'lore' => 'hollow:'.$d['id']];
         foreach ($d['enemies'] as $id => $e) {
             in_array($e['kind'] ?? '', ['add', 'brute', 'shard'], true) || $fail("enemy $id: kind must be add, brute or shard");
             $d['enemies'][$id] += ['art' => $id, 'name' => $id];

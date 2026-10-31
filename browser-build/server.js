@@ -90,13 +90,22 @@
     for (const m of members(p)) { const u = userOf(m); last = Math.max(last, u.demo ? 0 : u.lastSeenAt); }
     return at < last + OFFLINE_CAP;
   }
-  function dungeonLevel(p) {
+  function medianLevel(p) {
     const levels = members(p).map((h) => h.level).sort((a, b) => a - b);
-    const median = levels.length ? levels[Math.floor(levels.length / 2)] : 1;
-    return Math.max(1, median + p.dungeonOffset);
+    return levels.length ? levels[Math.floor(levels.length / 2)] : 1;
+  }
+  // Level bands: a group may run every dungeon whose band starts at or below its median level.
+  const unlocked = (level) => Object.values(D.DUNGEONS).filter((d) => d.levels[0] <= Math.max(1, level));
+  function dungeonFor(p) {
+    const open = unlocked(medianLevel(p));
+    return open.find((d) => d.id === p.dungeon) || open[open.length - 1] || Dg.get(null);
+  }
+  const clampLevel = (d, level) => Math.max(d.levels[0], d.levels[1] > 0 ? Math.min(d.levels[1], level) : level);
+  function dungeonLevel(p) {
+    return clampLevel(dungeonFor(p), Math.max(1, medianLevel(p) + p.dungeonOffset));
   }
   function start(p, at) {
-    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), dungeon: D.DEFAULT_DUNGEON, startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
+    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), dungeon: dungeonFor(p).id, startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
     const order = ['tank', 'healer', 'dps'];
     const heroes = members(p).sort((a, c) => order.indexOf(role(a)) - order.indexOf(role(c)) || a.id - c.id);
     const combatants = heroes.map(combatant);
@@ -316,6 +325,7 @@
     const requests = db.requests.filter((r) => r.party === p.id).map(presentRequest);
     return {
       id: p.id, name: p.name, leader: p.leader, dungeonOffset: p.dungeonOffset, running: p.running, battlesTogether: p.battlesTogether, dungeonLevel: dungeonLevel(p),
+      dungeon: dungeonFor(p).id, dungeonPick: p.dungeon || null, unlocked: unlocked(medianLevel(p)).map((d) => d.id),
       members: members(p).map(heroCard), requests: p.leader === viewer.id ? requests : requests.filter((r) => r.hero.id === viewer.id),
     };
   }
@@ -343,7 +353,7 @@
       upgrade: viewer ? isUpgrade(viewer, c.spec) : false, rolls: c.rolls, numbers: c.numbers || {}, winner: c.winner,
     }));
     return {
-      id: b.id, state: b.state, dungeonLevel: b.dungeonLevel, startedAt: b.startedAt, endsAt: b.endsAt, chestClosesAt: b.chestClosesAt, roster: b.roster,
+      id: b.id, state: b.state, dungeon: b.dungeon || D.DEFAULT_DUNGEON, dungeonLevel: b.dungeonLevel, startedAt: b.startedAt, endsAt: b.endsAt, chestClosesAt: b.chestClosesAt, roster: b.roster,
       report: b.state === 'running' ? null : b.report, timeline: withTimeline && b.state === 'running' ? b.timeline : null, chest: b.state === 'running' ? [] : chest,
     };
   }
@@ -636,6 +646,11 @@
   function settings(leader, input) {
     const p = leading(leader);
     if (input.dungeonOffset !== undefined) p.dungeonOffset = Math.max(-3, Math.min(5, Math.trunc(+input.dungeonOffset) || 0));
+    if (input.dungeon !== undefined) {
+      const pick = input.dungeon || null;
+      if (pick && !unlocked(medianLevel(p)).some((d) => d.id === pick)) fail('Your group has not reached that dungeon yet.');
+      p.dungeon = pick;
+    }
     if (input.running !== undefined) p.running = !!input.running;
     if (input.name !== undefined && String(input.name).trim() !== '') p.name = String(input.name).trim().slice(0, 40);
   }
@@ -831,7 +846,7 @@
     return {
       serverTime: time(), user: userCard(u), hero: presentHero(h), inventory: inventory(h), party: presentParty(p, h),
       invites: db.requests.filter((r) => r.hero === h.id).map(presentRequest),
-      battle: battle ? { id: battle.id, startedAt: battle.startedAt, endsAt: battle.endsAt, dungeonLevel: battle.dungeonLevel } : null,
+      battle: battle ? { id: battle.id, startedAt: battle.startedAt, endsAt: battle.endsAt, dungeon: battle.dungeon || D.DEFAULT_DUNGEON, dungeonLevel: battle.dungeonLevel } : null,
       pendingRolls, channels: channels(h),
     };
   }

@@ -1,0 +1,256 @@
+{
+  "id": "sunken-caravan",
+  "name": "The Sunken Caravan",
+  "summary": "A felkin spice caravan the dunes swallowed whole. The sand-wyrms nest in its wagons now, and something guards the cargo.",
+  "levels": [
+    36,
+    45
+  ],
+  "order": 50,
+  "lore": "hollow:sunken-caravan",
+  "wings": [
+    {
+      "name": "Buried Wagons",
+      "scene": {
+        "sky": [
+          "#1a140a",
+          "#2c2212"
+        ],
+        "rock": "#4a3a1e",
+        "rock2": "#5c4a28",
+        "floor": "#463620",
+        "floor2": "#56442a",
+        "glow": "#ffd060",
+        "accent": "#ff9a3a",
+        "prop": "forge"
+      }
+    },
+    {
+      "name": "The Spice Vault",
+      "scene": {
+        "sky": [
+          "#180e0e",
+          "#2a1616"
+        ],
+        "rock": "#44261e",
+        "rock2": "#563224",
+        "floor": "#3e241c",
+        "floor2": "#4e3022",
+        "glow": "#ff7a3a",
+        "accent": "#ffd080",
+        "prop": "lava"
+      }
+    },
+    {
+      "name": "Wyrm Nest",
+      "scene": {
+        "sky": [
+          "#16120a",
+          "#262010"
+        ],
+        "rock": "#40341c",
+        "rock2": "#524426",
+        "floor": "#3a301a",
+        "floor2": "#4a3e22",
+        "glow": "#ffe080",
+        "accent": "#c08040",
+        "prop": "crystal"
+      }
+    }
+  ],
+  "enemies": {
+    "scuttler": {
+      "name": "Dune Scuttler",
+      "kind": "add",
+      "art": "imp",
+      "tint": [
+        35,
+        0.8,
+        1.1
+      ]
+    },
+    "wyrmling": {
+      "name": "Sand Wyrmling",
+      "kind": "brute",
+      "art": "brute",
+      "tint": [
+        30,
+        0.7,
+        1.1
+      ]
+    },
+    "egg": {
+      "name": "Wyrm Egg",
+      "kind": "shard",
+      "art": "shard",
+      "tint": [
+        20,
+        0.6,
+        1.1
+      ]
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Scuttler nest",
+      "spawn": [
+        {
+          "enemy": "scuttler",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Wyrmling brood",
+      "spawn": [
+        {
+          "enemy": "scuttler",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "wyrmling",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "The Glass Scorpion",
+      "art": "hound",
+      "tint": [
+        40,
+        0.9,
+        1.15
+      ],
+      "health": 0.6,
+      "damage": 0.9,
+      "enrage": 72,
+      "hit": "Stinger",
+      "mechanics": [
+        "buster",
+        "curse",
+        "rain"
+      ],
+      "lore": "beast:glass-scorpion"
+    },
+    "b2": {
+      "name": "Caravan Master Ossek",
+      "art": "matron",
+      "tint": [
+        180,
+        0.8,
+        1.2
+      ],
+      "health": 0.75,
+      "damage": 0.9,
+      "enrage": 80,
+      "hit": "Whip Crack",
+      "mechanics": [
+        "adds",
+        "shock",
+        "rain"
+      ],
+      "lore": "beast:caravan-master"
+    },
+    "b3": {
+      "name": "The Dune Wyrm",
+      "art": "golem",
+      "tint": [
+        30,
+        0.7,
+        1.1
+      ],
+      "scale": 4,
+      "health": 1.0,
+      "damage": 1.0,
+      "enrage": 85,
+      "hit": "Crushing Coil",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock",
+        "curse",
+        "adds"
+      ],
+      "lore": "beast:dune-wyrm"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Tail Slam"
+    },
+    "rain": {
+      "name": "Sandblast",
+      "every": 8
+    },
+    "shock": {
+      "name": "Burrow Strike"
+    },
+    "curse": {
+      "name": "Venom"
+    },
+    "adds": {
+      "name": "Hatching Eggs",
+      "enemy": "egg",
+      "count": 3
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "small",
+      2
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

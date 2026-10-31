@@ -595,7 +595,9 @@
     const isWin = S.view !== 'battle' && views[S.view];
     // top: who you are, where the run is, what you carry
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
-    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(cfg.dungeon.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + cfg.dungeon.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
+    const dg = cur ? dun(cur.dungeon) : null;
+    if (dg) ITA.setDungeon(dg);
+    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + dg.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
       : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
     const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
     // left: the group's unit frames, live during a run
@@ -622,10 +624,22 @@
 
   // ------------------------------------------------------------------ battle
 
+  // Which dungeon the group runs: the newest it has reached, or one the leader picks from those it has reached.
+  function dungeonRow(p, lead) {
+    const band = (d) => 'levels ' + d.levels[0] + (d.levels[1] ? '–' + d.levels[1] : '+'), cur = dun(p.dungeon), newest = dun(p.unlocked[p.unlocked.length - 1]);
+    const pick = lead
+      ? '<select id="dungeonPick" data-act-change="dungeon"><option value="">Newest reached: ' + esc(newest.name) + '</option>' + p.unlocked.map((id) => '<option value="' + id + '"' + (id === p.dungeonPick ? ' selected' : '') + '>' + esc(dun(id).name) + ' (' + band(dun(id)) + ')</option>').join('') + '</select>'
+      : '<b>' + esc(cur.name) + '</b>';
+    const next = Object.values(S.cfg.dungeons || {}).find((d) => !p.unlocked.includes(d.id));
+    return '<div class="stack tight"><div class="row"><label style="margin:0" for="dungeonPick">Dungeon</label>' + pick + '<span class="small muted">' + band(cur) + '</span>' + (cur.lore ? '<button class="small" data-act="loreBook" data-k="' + cur.lore + '">Lore</button>' : '') + '</div>' +
+      '<p class="small muted" style="margin:0">' + esc(cur.summary) + (next ? ' Next: ' + esc(next.name) + ' at level ' + next.levels[0] + '.' : '') + '</p></div>';
+  }
+  /** A dungeon's names, plan and scenery by id; the default one when the id is unknown. */
+  function dun(id) { return (S.cfg.dungeons && S.cfg.dungeons[id]) || S.cfg.dungeon; }
   function battleView() {
     const st = S.st, p = st.party;
     if (!p) {
-      return '<div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>No group yet</h1><p class="muted" style="max-width:52ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
+      return '<div class="camp"><div class="eyebrow">' + esc(dun(null).name) + '</div><h1>No group yet</h1><p class="muted" style="max-width:52ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
         '<div style="margin-top:16px"><a href="#/group"><button class="primary big">Go to the tavern</button></a></div></div>';
     }
     const cur = S.battle && S.battle.current;
@@ -634,12 +648,12 @@
     const wiped = !p.running && p.members.length === S.cfg.partySize && last && last.report.wiped;
     if (wiped) {
       const r = last.report;
-      return '<div class="camp wipe"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + ' · level ' + last.dungeonLevel + '</div><h1>' + ico('skull', 'ico lg') + ' The group fell</h1>' +
+      return '<div class="camp wipe"><div class="eyebrow">' + esc(dun(last.dungeon).name) + ' · level ' + last.dungeonLevel + '</div><h1>' + ico('skull', 'ico lg') + ' The group fell</h1>' +
         '<p style="margin-top:6px">' + esc(r.cause || 'The group wiped.') + '</p><p class="muted small">Battles stop after a wipe. Change gear, skills or attributes, ask in group chat, and send everyone back in when you are ready.</p>' +
         '<div class="row" style="margin-top:16px;justify-content:center"><button class="primary big" data-act="resume">Back into the dungeon</button><a href="#/gear"><button>Gear</button></a><a href="#/skills"><button>Skills</button></a><a href="#/hero"><button>Attributes</button></a>' + (p.leader === st.hero.id ? '<a href="#/group"><button>Change difficulty</button></a>' : '') + '</div></div>';
     }
     const why = p.members.length < S.cfg.partySize ? 'The group needs ' + (S.cfg.partySize - p.members.length) + ' more hero' + (S.cfg.partySize - p.members.length === 1 ? '' : 'es') + '. The next run starts as soon as it is full.' : !p.running ? 'The group is resting. The leader can send it back in from the Group window.' : 'The next run is about to start…';
-    return '<div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
+    return '<div class="camp"><div class="eyebrow">' + esc(dun(p.dungeon).name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
       (p.members.length < S.cfg.partySize ? '<div style="margin-top:14px"><a href="#/group"><button class="primary big">Find heroes</button></a></div>' : '') + '</div>';
   }
   function runsView() {
@@ -1224,6 +1238,7 @@
         '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b><span class="row" style="gap:4px;justify-content:center">' + role(m.role) + (m.id === p.leader ? '<span class="chip gold">Leader</span>' : '') + '</span>' + kinChip(m) + (lead && m.id !== h.id ? '<button class="small danger" data-act="kick" data-id="' + m.id + '">Remove</button>' : '') + '</div>').join('') +
         Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div></div>' +
         '<div class="panel stack tight">' + (reqs ? '<div>' + reqs + '</div>' : '') +
+        dungeonRow(p, lead) +
         (lead ? '<div class="row"><label style="margin:0" for="offset">Dungeon level</label><select id="offset" data-act-change="offset">' + [-3, -2, -1, 0, 1, 2, 3, 4, 5].map((o) => '<option value="' + o + '"' + (o === p.dungeonOffset ? ' selected' : '') + '>' + (o > 0 ? '+' : '') + o + (o === 0 ? ' (median level)' : '') + '</option>').join('') + '</select><span class="small muted">Now level ' + p.dungeonLevel + '. Higher is harder, with more XP and better item levels.</span></div>' +
           '<div class="row"><button data-act="running">' + (p.running ? 'Rest after this run' : 'Send the group back in') + '</button>' + (p.members.length < S.cfg.partySize ? '<input id="inviteName" placeholder="Invite hero by name" style="width:180px" aria-label="Hero name"><button data-act="invite">Invite</button><button data-act="postLfm">Post on the tavern board</button>' : '') + '</div>' : '<p class="small muted">The leader picks the dungeon level and when to rest.</p>') +
         '<div><button class="danger small" data-act="leaveParty">Leave group</button></div></div>';
@@ -1639,6 +1654,7 @@
   document.addEventListener('change', (e) => {
     const el = e.target;
     const a = el.dataset.actChange;
+    if (a === 'dungeon') act(() => post('/party/settings', { dungeon: el.value || null }), 'The next run goes there.');
     if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next run uses the new level.');
     if (a === 'mSlot') { S.marketFilter.slot = el.value; loadMarket(); }
     if (a === 'mRarity') { S.marketFilter.rarity = el.value; loadMarket(); }

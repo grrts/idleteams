@@ -66,7 +66,7 @@
             break;
           }
           case 'walk': this.enemies = {}; this.walkFrom = e.t; this.at = e.src; this.label = 'On to the ' + (e.x.to || 'next fight'); break;
-          case 'spawn': this.enemies[e.src] = { id: e.src, kind: 'shard', name: 'Ember Shard', max: e.amt, hp: 1000, slot: Object.keys(this.enemies).length, born: t, dead: 0 }; if (fresh) this.burst(660, 300, '#ffb340', 18, 220); break;
+          case 'spawn': this.enemies[e.src] = { id: e.src, kind: (e.x && e.x.enemy && e.x.enemy[1]) || 'shard', name: (e.x && e.x.enemy && e.x.enemy[2]) || 'Ember Shard', max: e.amt, hp: 1000, slot: Object.keys(this.enemies).length, born: t, dead: 0 }; if (fresh) this.burst(660, 300, '#ffb340', 18, 220); break;
           case 'hit': {
             if (e.src >= 0) this.act[e.src] = t;
             if (e.amt > 0) { this.dmgLog.push([e.t, e.amt]); if (t - this.comboAt < 2.5) this.combo++; else this.combo = 1; this.comboAt = t; }
@@ -103,14 +103,15 @@
             log(e.t, '<b class="bad">' + esc(n) + '</b>' + (e.dst >= 0 ? ' on ' + esc(names[e.dst]) : ''), e.flags & 1 ? 'good' : '');
             if (!fresh) break;
             this.mechText = n; this.mechUntil = t + 2;
-            sfx(e.flags & 1 ? 'revive' : { 'Magma Rain': 'magma', 'Tank Buster': 'buster', Shockwave: 'shockwave', Enrage: 'enrage', 'Smouldering Curse': 'curse', 'Ember Shards': 'shards' }[n] || 'cast');
+            const mt = ART.mechType(n);
+            sfx(e.flags & 1 ? 'revive' : { rain: 'magma', buster: 'buster', shock: 'shockwave', enrage: 'enrage', curse: 'curse', adds: 'shards' }[mt] || 'cast');
             if (e.flags & 1) { const p = this.heroPos(e.dst); this.beams.push({ x: p[0], y: p[1], col: '#fff2a0', t, life: 0.9, w: 40, pillar: true }); this.callout(e.dst, n, '#fff2a0'); break; }
-            if (n === 'Magma Rain') { for (let k = 0; k < 9; k++) this.meteors.push({ x: rand(40, 440), t: t + k * 0.12, life: 0.55 }); this.flash = { col: '#ff5a1a', t, life: 0.25 }; }
-            else if (n === 'Tank Buster') { const p = this.heroPos(e.dst); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff2a2a', t, life: 1.2, r: 70, w: 5, target: true }); this.banner('Tank Buster', 'on ' + names[e.dst], '#ff5a5a', 1.2); }
-            else if (n === 'Shockwave') { this.rings.push({ x: 710, y: FLOOR + 20, col: '#ffb340', t, life: 0.8, r: 760, w: 10, flat: true }); this.shake = Math.max(this.shake, 18); }
-            else if (n === 'Enrage') { this.enraged = true; this.banner('Enrage!', 'The boss hits three times as hard', '#ff3a3a', 2); this.flash = { col: '#ff0000', t, life: 0.5 }; }
-            else if (n === 'Smouldering Curse') { const p = this.heroPos(e.dst); this.callout(e.dst, 'Cursed', '#c084ff'); this.burst(p[0], p[1] - 120, '#a060ff', 14, 90, -30); }
-            else if (n === 'Ember Shards') this.banner('Ember Shards', 'Kill them before they reach the healer', '#ffb340', 1.4);
+            if (mt === 'rain') { for (let k = 0; k < 9; k++) this.meteors.push({ x: rand(40, 440), t: t + k * 0.12, life: 0.55 }); this.flash = { col: '#ff5a1a', t, life: 0.25 }; }
+            else if (mt === 'buster') { const p = this.heroPos(e.dst); this.rings.push({ x: p[0], y: p[1] - 70, col: '#ff2a2a', t, life: 1.2, r: 70, w: 5, target: true }); this.banner(n, 'on ' + names[e.dst], '#ff5a5a', 1.2); }
+            else if (mt === 'shock') { this.rings.push({ x: 710, y: FLOOR + 20, col: '#ffb340', t, life: 0.8, r: 760, w: 10, flat: true }); this.shake = Math.max(this.shake, 18); }
+            else if (mt === 'enrage') { this.enraged = true; this.banner('Enrage!', 'The boss hits three times as hard', '#ff3a3a', 2); this.flash = { col: '#ff0000', t, life: 0.5 }; }
+            else if (mt === 'curse') { const p = this.heroPos(e.dst); this.callout(e.dst, 'Cursed', '#c084ff'); this.burst(p[0], p[1] - 120, '#a060ff', 14, 90, -30); }
+            else if (mt === 'adds') this.banner(n, 'Kill them before they reach the healer', '#ffb340', 1.4);
             break;
           }
           case 'death': { log(e.t, '<b>' + esc(names[e.dst]) + '</b> fell to ' + esc(e.x.what) + '.', 'bad'); if (fresh) { sfx('death'); const p = this.heroPos(e.dst); this.burst(p[0], p[1] - 70, '#e2d7c6', 18, 120, -60); this.callout(e.dst, 'Down!', '#ff6464'); } break; }

@@ -26,6 +26,10 @@ class Party
     #[ORM\Column]
     public int $dungeonOffset = 0;
 
+    /** The dungeon the leader picked, or null for the newest one the group has reached. */
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $dungeon = null;
+
     /** Battles chain automatically while this is true. */
     #[ORM\Column]
     public bool $running = true;

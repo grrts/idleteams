@@ -19,10 +19,11 @@ fails at load with the file name and what is wrong.
 | Field | What it is |
 | --- | --- |
 | `id`, `name`, `summary` | The id is what battles store; keep it once players have run the dungeon |
-| `levels` | `[from, to]` the level band; `0` means no upper end |
+| `levels` | `[from, to]` the level band. A group may enter every dungeon whose band starts at or below its median level, runs the newest by default, and fights an older one at the top of its band. `0` means no upper end |
+| `lore` | The lore entry for the dungeon (default `hollow:<id>`); every boss also names its `lore` entry. The tests check they exist |
 | `order` | Sorts dungeons with the same starting level |
 | `wings` | `name` and `scene`, the scenery palette (`sky`, `rock`, `rock2`, `floor`, `floor2`, `glow`, `accent`, `prop`: `lava`, `crystal` or `forge`) |
-| `enemies` | `id: { name, kind, art }`. `kind` is `add`, `brute` (the tank must hold it) or `shard` (boss adds); `art` is a sprite key in `public/assets/art.js` (`imp`, `brute`, `shard`, `hound`, `matron`, `golem`) |
+| `enemies` | `id: { name, kind, art, tint }`. `tint` is `[hue shift, saturation, lightness]` to recolour shared art until a dungeon has its own. `kind` is `add`, `brute` (the tank must hold it) or `shard` (boss adds); `art` is a sprite key in `public/assets/art.js` (`imp`, `brute`, `shard`, `hound`, `matron`, `golem`) |
 | `packs` | `id: { name, spawn: [{ enemy, count, health, damage, swing }] }`. A pack shares one health budget: `health` is each enemy's share, as a number or a fraction such as `"1/3"`. `damage` multiplies a normal hit (default 1), `swing` is seconds between hits (default 2) |
 | `bosses` | `id: { name, art, scale, health, damage, enrage, hit, mechanics }`. `health` and `damage` are shares of a full boss (1.0 is the hardest), `enrage` is the second the boss enrages, `hit` names its melee attack, `mechanics` lists the mechanics it uses |
 | `mechanics` | Names the mechanics of this dungeon: `buster` (hits the tank hard), `rain` (hits everyone; `fire: true` makes it fire), `shock` (knocks back), `curse` (burns a random non-tank), `adds` (spawns `count` of `enemy` at half health). Each may set `at` (first use, seconds into the fight) and `every` (repeat) |

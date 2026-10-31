@@ -123,13 +123,26 @@ class Game
         return $at < $last + $this->offlineCapSeconds;
     }
 
-    public function dungeonLevel(Party $party): int
+    public function medianLevel(Party $party): int
     {
         $levels = array_map(fn (Hero $h) => $h->level, $party->members->toArray());
         sort($levels);
-        $median = $levels ? $levels[intdiv(count($levels), 2)] : 1;
 
-        return max(1, $median + $party->dungeonOffset);
+        return $levels ? $levels[intdiv(count($levels), 2)] : 1;
+    }
+
+    /** The dungeon the group runs next: the leader's pick while the group still qualifies, else the newest reached. */
+    public function dungeonFor(Party $party): array
+    {
+        $median = $this->medianLevel($party);
+        $open = Dungeons::unlocked($median);
+
+        return $party->dungeon && isset($open[$party->dungeon]) ? $open[$party->dungeon] : Dungeons::newest($median);
+    }
+
+    public function dungeonLevel(Party $party): int
+    {
+        return Dungeons::clamp($this->dungeonFor($party), max(1, $this->medianLevel($party) + $party->dungeonOffset));
     }
 
     public function start(Party $party, int $at): Battle
@@ -138,7 +151,7 @@ class Game
         $b->party = $party;
         $b->seed = random_int(1, 2_000_000_000);
         $b->dungeonLevel = $this->dungeonLevel($party);
-        $b->dungeon = Dungeons::get()['id'];
+        $b->dungeon = $this->dungeonFor($party)['id'];
         $b->startedAt = $at;
         $b->endsAt = $at + $this->battleSeconds;
         $heroes = $party->members->toArray();

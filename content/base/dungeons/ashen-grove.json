@@ -1,0 +1,256 @@
+{
+  "id": "ashen-grove",
+  "name": "The Ashen Grove",
+  "summary": "What is left of an Elderwood glade the Great Burn reached: grey trees, warm ash and shadow-beasts that hunt inside the smoke.",
+  "levels": [
+    18,
+    28
+  ],
+  "order": 30,
+  "lore": "hollow:ashen-grove",
+  "wings": [
+    {
+      "name": "Grey Glade",
+      "scene": {
+        "sky": [
+          "#121216",
+          "#1e1e26"
+        ],
+        "rock": "#2c2c34",
+        "rock2": "#3a3a44",
+        "floor": "#2a2a30",
+        "floor2": "#36363e",
+        "glow": "#c0c8ff",
+        "accent": "#ff9a5a",
+        "prop": "crystal"
+      }
+    },
+    {
+      "name": "The Smoke Ring",
+      "scene": {
+        "sky": [
+          "#0e0c14",
+          "#1a1624"
+        ],
+        "rock": "#28223a",
+        "rock2": "#352c4c",
+        "floor": "#241e32",
+        "floor2": "#30283f",
+        "glow": "#a080ff",
+        "accent": "#ffb070",
+        "prop": "crystal"
+      }
+    },
+    {
+      "name": "Heart of the Burn",
+      "scene": {
+        "sky": [
+          "#160c0c",
+          "#261210"
+        ],
+        "rock": "#3a1e1a",
+        "rock2": "#4c2822",
+        "floor": "#33201c",
+        "floor2": "#422a24",
+        "glow": "#ff6a3a",
+        "accent": "#c0a0ff",
+        "prop": "lava"
+      }
+    }
+  ],
+  "enemies": {
+    "wisp": {
+      "name": "Ash Wisp",
+      "kind": "add",
+      "art": "imp",
+      "tint": [
+        250,
+        0.35,
+        0.8
+      ]
+    },
+    "stalker": {
+      "name": "Shadow Stalker",
+      "kind": "brute",
+      "art": "brute",
+      "tint": [
+        260,
+        0.4,
+        0.7
+      ]
+    },
+    "seed": {
+      "name": "Ember Seed",
+      "kind": "shard",
+      "art": "shard",
+      "tint": [
+        0,
+        1,
+        1
+      ]
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Wisp swarm",
+      "spawn": [
+        {
+          "enemy": "wisp",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Stalker hunt",
+      "spawn": [
+        {
+          "enemy": "wisp",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "stalker",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "The Charred Stag",
+      "art": "hound",
+      "tint": [
+        20,
+        0.5,
+        0.9
+      ],
+      "health": 0.6,
+      "damage": 0.85,
+      "enrage": 72,
+      "hit": "Antler Rake",
+      "mechanics": [
+        "rain",
+        "buster"
+      ],
+      "lore": "beast:charred-stag"
+    },
+    "b2": {
+      "name": "Smoke Mother",
+      "art": "matron",
+      "tint": [
+        40,
+        0.4,
+        0.85
+      ],
+      "health": 0.75,
+      "damage": 0.85,
+      "enrage": 78,
+      "hit": "Choking Grasp",
+      "mechanics": [
+        "curse",
+        "adds",
+        "rain"
+      ],
+      "lore": "beast:smoke-mother"
+    },
+    "b3": {
+      "name": "The Long Shadow",
+      "art": "golem",
+      "tint": [
+        260,
+        0.35,
+        0.75
+      ],
+      "scale": 4,
+      "health": 1.0,
+      "damage": 1.0,
+      "enrage": 85,
+      "hit": "Shadow Claw",
+      "mechanics": [
+        "buster",
+        "rain",
+        "curse",
+        "adds",
+        "shock"
+      ],
+      "lore": "beast:long-shadow"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Smother"
+    },
+    "rain": {
+      "name": "Ash Storm",
+      "fire": true
+    },
+    "shock": {
+      "name": "Dusk Wave"
+    },
+    "curse": {
+      "name": "Smoke in the Lungs",
+      "every": 24
+    },
+    "adds": {
+      "name": "Ember Seeds",
+      "enemy": "seed",
+      "count": 3
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "small",
+      2
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

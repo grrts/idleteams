@@ -9,6 +9,7 @@ use App\Entity\Hero;
 use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
+use App\Game\Dungeons;
 use App\Game\Rules;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -100,6 +101,14 @@ class Social
         $p = $this->leading($leader);
         if (isset($in['dungeonOffset'])) {
             $p->dungeonOffset = max(-3, min(5, (int) $in['dungeonOffset']));
+        }
+        if (array_key_exists('dungeon', $in)) {
+            $open = Dungeons::unlocked($this->game->medianLevel($p));
+            $pick = $in['dungeon'] ?: null;
+            if ($pick !== null && !isset($open[$pick])) {
+                throw new GameError('Your group has not reached that dungeon yet.');
+            }
+            $p->dungeon = $pick;
         }
         if (isset($in['running'])) {
             $p->running = (bool) $in['running'];

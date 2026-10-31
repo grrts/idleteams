@@ -60,9 +60,9 @@ class Present
     public static function dungeon(array $d): array
     {
         return [
-            'id' => $d['id'], 'name' => $d['name'], 'summary' => $d['summary'], 'levels' => $d['levels'], 'plan' => Dungeons::plan($d),
+            'id' => $d['id'], 'name' => $d['name'], 'summary' => $d['summary'], 'levels' => $d['levels'], 'lore' => $d['lore'], 'plan' => Dungeons::plan($d),
             'wings' => $d['wings'], 'enemies' => array_column(array_values($d['enemies']), null, 'name'),
-            'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'art' => $b['art'], 'tint' => $b['tint'] ?? null, 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
+            'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'lore' => $b['lore'] ?? null, 'art' => $b['art'], 'tint' => $b['tint'] ?? null, 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
             'mechanics' => array_map(fn ($m) => $m['name'], $d['mechanics']),
         ];
     }
@@ -188,6 +188,7 @@ class Present
         return [
             'id' => $p->id, 'name' => $p->name, 'leader' => $p->leader?->id, 'dungeonOffset' => $p->dungeonOffset,
             'running' => $p->running, 'battlesTogether' => $p->battlesTogether, 'dungeonLevel' => $this->game->dungeonLevel($p),
+            'dungeon' => $this->game->dungeonFor($p)['id'], 'dungeonPick' => $p->dungeon, 'unlocked' => array_keys(Dungeons::unlocked($this->game->medianLevel($p))),
             'members' => array_map(fn (Hero $m) => $this->heroCard($m), $p->members->toArray()),
             'requests' => $p->leader === $viewer ? $requests : array_values(array_filter($requests, fn ($r) => $r['hero']['id'] === $viewer->id)),
         ];
@@ -261,7 +262,7 @@ class Present
         }
 
         return [
-            'id' => $b->id, 'state' => $b->state, 'dungeonLevel' => $b->dungeonLevel, 'startedAt' => $b->startedAt, 'endsAt' => $b->endsAt,
+            'id' => $b->id, 'state' => $b->state, 'dungeon' => $b->dungeon, 'dungeonLevel' => $b->dungeonLevel, 'startedAt' => $b->startedAt, 'endsAt' => $b->endsAt,
             'chestClosesAt' => $b->chestClosesAt, 'roster' => $b->roster,
             'report' => $b->state === 'running' ? null : $b->report,
             'timeline' => $withTimeline && $b->state === 'running' ? $b->timeline : null,

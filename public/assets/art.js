@@ -471,12 +471,17 @@
     { name: 'Golem Forge', sky: ['#170d0a', '#2a1610'], rock: '#3a2618', rock2: '#4e3420', floor: '#3a2a20', floor2: '#4c382a', glow: '#ffb340', accent: '#ffd25a', prop: 'forge' },
   ];
   A.WINGS = WINGS;
+  // Mechanic display names -> types (rain, buster, shock, curse, adds), so effects and sounds follow the type.
+  let mechs = { 'Magma Rain': 'rain', 'Tank Buster': 'buster', Shockwave: 'shock', 'Smouldering Curse': 'curse', 'Ember Shards': 'adds', Enrage: 'enrage' };
+  A.mechType = (name) => mechs[name] || null;
   // The dungeon's wings (names and scenery palettes) and its enemies' art come from its data file.
   A.setDungeon = (d) => {
     if (!d || A.dungeon === d.id) return;
     A.dungeon = d.id;
     WINGS = A.WINGS = d.wings.map((w) => Object.assign({ name: w.name }, w.scene));
     cast = {};
+    mechs = { Enrage: 'enrage' };
+    for (const [type, name] of Object.entries(d.mechanics || {})) mechs[name] = type;
     for (const e of Object.values(d.enemies || {})) cast[e.name] = { art: e.art, tint: e.tint };
     for (const b of Object.values(d.bosses || {})) cast[b.name] = { art: b.art, tint: b.tint, scale: b.scale };
     for (const k of [...cache.keys()]) if (/^(L:|m:|u:m:)/.test(k)) cache.delete(k);
