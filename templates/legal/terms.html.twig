@@ -1,0 +1,25 @@
+{% extends 'legal/base.html.twig' %}
+{% block body %}
+<p>These terms are an agreement between you and {{ operator ?? '[operator]' }}{% if address %}, {{ address }}{% endif %} ("we"), who runs Idle Teams. By making an account you accept them. Contact: {% if contact %}<a href="mailto:{{ contact }}">{{ contact }}</a>{% else %}[contact address]{% endif %}.</p>
+
+<h2>Your account</h2>
+<p>You must be 16 or older, or have a parent's or guardian's permission. One person may hold several accounts, but not to gain an edge over others (for example filling your own group or feeding the market). Keep your password to yourself; you are responsible for what happens on your account. You can delete it at any time in Settings.</p>
+
+<h2>Playing together</h2>
+<p>Idle Teams is a game you play with other people. Do not harass, threaten or impersonate anyone, post hateful, sexual or illegal content, share other people's personal details, spam, or use bots, scripts or bugs to play or to gain an edge. Report a bug you find instead of using it. We may remove messages, mute chat, reset what was gained unfairly, or suspend or close accounts that break these rules. Tell us at the contact address if you think we got it wrong.</p>
+
+<h2>Names and what you write</h2>
+<p>Hero and guild names, life stories, notices and chat stay yours, but you let us show them in the game for as long as they are part of it. Names that break the rules above may be changed.</p>
+
+<h2>Game items and gold</h2>
+<p>Gold, materials, items and other things in the game are part of the game. They are not property, have no money value, and cannot be exchanged for money. Selling or buying accounts, gold or items for real money is not allowed. We change the game over time, which can change what items do; we do not owe compensation for that.</p>
+
+<h2>Purchases</h2>
+<p>If the shop is open, it sells only cosmetics and a supporter tier: things that change how heroes look, never how strong they are. Prices include VAT. Payment is handled by Stripe. Because purchases are digital content delivered right away, you ask us to deliver at once and accept that the 14-day right of withdrawal ends when we do; the checkout asks you to confirm this. This does not affect your rights if something you bought does not work. If we close the game, we will say so at least 60 days ahead and stop selling at once.</p>
+
+<h2>The service</h2>
+<p>We work to keep the game running and your progress safe, but it is offered as it is, and it may be down for maintenance or change over time. We are liable for damage we cause on purpose or through gross negligence, and as the law requires; beyond that, our liability is limited to what you paid us in the twelve months before. Nothing in these terms limits rights you have as a consumer under the law of your country.</p>
+
+<h2>Changes and law</h2>
+<p>We may change these terms. Players are told in the game at least 30 days before a change that matters takes effect; if you do not agree, you can delete your account. Dutch law applies, without taking away the protection of the law of the country where you live. Disputes go to the competent court in the Netherlands, or in your own country if you are a consumer and the law gives you that right. You can also use the EU's online dispute resolution platform.</p>
+{% endblock %}

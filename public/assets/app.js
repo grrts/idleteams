@@ -176,6 +176,8 @@
   // ------------------------------------------------------------------ boot and polling
 
   async function boot() {
+    // the installable app: the service worker keeps the files and shows an offline note (public/sw.js)
+    if (!window.IT_SERVER && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => null);
     [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
     ITA.setDungeon(S.cfg.dungeon);
@@ -326,6 +328,12 @@
     if (S.st && S.st.hero) setupScene();
   }
 
+  // One cookie keeps a player logged in and nothing tracks them, so a line under the form is the whole cookie notice.
+  function legalLine(reg) {
+    if (window.IT_SERVER) return '';
+    return '<p class="small muted center legal">' + (reg ? 'By creating an account you accept the <a href="/terms" target="_blank">terms</a> and have read the <a href="/privacy" target="_blank">privacy policy</a>. ' : '<a href="/terms" target="_blank">Terms</a> · <a href="/privacy" target="_blank">Privacy</a> · ') +
+      'One cookie keeps you logged in. Nothing tracks you.</p>';
+  }
   function authView() {
     const logo = '<div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div>';
     if (S.reset) return '<div class="auth panel stack">' + logo + '<p class="center">Choose a new password for <b>' + esc(S.reset.u) + '</b>.</p><form data-form="reset"><label for="pw">New password</label><input id="pw" name="password" type="password" minlength="8" autocomplete="new-password" required style="width:100%"><div style="margin-top:14px"><button class="primary" type="submit">Save and log in</button></div></form></div>';
@@ -334,7 +342,7 @@
     return '<div class="auth panel stack"><div class="logo center" style="font-size:2.4rem">Idle <span>Teams</span></div><p class="muted center">Five heroes, one long dungeon run, loot for the group.</p>' +
       '<div class="tabs"><button class="' + (!reg ? 'on' : '') + '" data-act="authMode" data-mode="login">Log in</button><button class="' + (reg ? 'on' : '') + '" data-act="authMode" data-mode="register">Create account</button></div>' +
       '<form data-form="' + (reg ? 'register' : 'login') + '"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required style="width:100%"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required style="width:100%">' +
-      '<div class="row between" style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button>' + (reg || window.IT_SERVER ? '' : '<button type="button" class="ghost small" data-act="authMode" data-mode="forgot">Forgot your password?</button>') + '</div></form></div>';
+      '<div class="row between" style="margin-top:14px"><button class="primary" type="submit">' + (reg ? 'Create account' : 'Log in') + '</button>' + (reg || window.IT_SERVER ? '' : '<button type="button" class="ghost small" data-act="authMode" data-mode="forgot">Forgot your password?</button>') + '</div></form>' + legalLine(reg) + '</div>';
   }
 
   // ------------------------------------------------------------------ lore
@@ -1562,7 +1570,7 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + rosterView() + pushView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
@@ -1577,6 +1585,12 @@
       (S.st.catchUp > 1 ? '<p class="small good">Catch-up: ' + esc(S.st.hero.name) + ' earns ×' + S.st.catchUp + ' XP until they near your best hero.</p>' : '') +
       '<p class="small muted">Up to ' + S.st.maxHeroes + ' heroes. They share the wardrobe and the Codex; each keeps its own group, gear, gold and story. Heroes far behind your best earn more XP.</p>' +
       (all.length < S.st.maxHeroes ? '<button class="small" data-act="newHero">New hero</button>' : '') + '</div>';
+  }
+  function dataView() {
+    if (window.IT_SERVER) return '';
+    return '<div class="panel"><h3>Your data</h3><p class="small muted">Download everything the game keeps about you, or delete your account and every hero on it for good. Read the <a href="/privacy" target="_blank">privacy policy</a> and the <a href="/terms" target="_blank">terms</a>.</p>' +
+      '<div class="row wrap"><a class="btn small" href="/api/account/export" download>Download my data</a></div>' +
+      '<form data-form="closeAccount" class="row wrap" style="margin-top:10px"><input name="password" type="password" required placeholder="Your password" autocomplete="current-password" style="flex:1;min-width:180px"><button type="submit" class="small danger">Delete my account</button></form></div>';
   }
   function modView() {
     if (!S.reports) { loadReports(); return '<p class="small muted">Loading reports…</p>'; }
@@ -1966,6 +1980,12 @@
     }
     if (f.dataset.form === 'reset') {
       try { await post('/password/reset', { username: S.reset.u, token: S.reset.t, password: data.password }); S.reset = null; location.hash = '#/battle'; await refresh(); render(); toast('Password changed. Welcome back!', true); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (f.dataset.form === 'closeAccount') {
+      confirmBox('Delete your account and all ' + (S.st.heroes ? S.st.heroes.length : 1) + ' of your heroes for good? Your gear, gold and chat lines go with them. This cannot be undone.', async () => {
+        try { await post('/account/delete', data); location.hash = ''; location.reload(); } catch (err) { toast(err.message); }
+      });
       return;
     }
     if (f.dataset.form === 'email') {

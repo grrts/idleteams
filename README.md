@@ -71,6 +71,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   wardrobe and the Codex; each keeps its own group, guild, gear, gold and story. A hero more than five levels behind the
   account's best earns half again as much XP, and double below half its level. Rules in `src/Service/Roster.php` and
   `Rules::catchUp`. The playable build keeps one hero.
+- Your data: Settings has Download my data (`GET /api/account/export`, every row kept about the account as JSON) and
+  Delete my account (password confirms; heroes leave their group and guild the way leaving does, and everything the
+  account wrote goes). Terms and privacy policy at `/terms` and `/privacy`; set `LEGAL_OPERATOR`, `LEGAL_ADDRESS` and
+  `LEGAL_CONTACT` before launch and have a lawyer read both. Fonts are served from `public/assets/fonts/`, so no
+  request leaves for Google; one session cookie is the only cookie. The service worker keeps the game's files and shows
+  an offline note.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is
