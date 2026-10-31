@@ -1850,7 +1850,18 @@
     tipEl.style.left = Math.min(window.innerWidth - r.width - 8, x + pad) + 'px';
     tipEl.style.top = Math.max(8, Math.min(window.innerHeight - r.height - 8, y + pad)) + 'px';
   }
-  document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); else tipEl.hidden = true; });
+  // Android's back button (mobile/src/native.js): close the top-most thing; false when nothing is open.
+  window.IT_BACK = () => {
+    if (!$('#modal').hidden) { closeModal(); return true; }
+    if (celebrate.el) { celebrate.close(); return true; }
+    if (S.chatOpen && window.innerWidth <= 900) { S.chatOpen = false; render(); return true; }
+    if (S.st && S.st.hero && S.view !== 'battle') { location.hash = '#/battle'; return true; }
+    return false;
+  };
+  // On a touch screen a tap is also a hover: a tile that opens its own details on tap shows no card over it.
+  let touched = false;
+  document.addEventListener('pointerdown', (e) => { touched = e.pointerType === 'touch'; }, true);
+  document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el && !(touched && el.dataset.act)) showTip(el, e.clientX, e.clientY); else tipEl.hidden = true; });
   document.addEventListener('mousemove', (e) => { if (!tipEl.hidden) { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); } });
   window.addEventListener('hashchange', () => { tipEl.hidden = true; });
 
