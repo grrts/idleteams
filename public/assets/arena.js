@@ -178,6 +178,7 @@
       if (snap) snap[3].forEach(([id, hp]) => { if (this.enemies[id] && !this.enemies[id].dead) this.enemies[id].hp = hp; });
       g.save();
       g.imageSmoothingEnabled = false;
+      if (window.IT_CALM && window.IT_CALM()) { this.shake = 0; this.flash = null; }
       this.shake *= Math.pow(0.02, dt);
       if (this.shake > 0.5) g.translate(rand(-this.shake, this.shake), rand(-this.shake, this.shake) * 0.6);
       const walking = this.walkFrom != null;

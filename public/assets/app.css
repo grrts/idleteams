@@ -13,7 +13,7 @@
   --r: 10px;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--f-body); }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: calc(15px * var(--ts, 1))/1.5 var(--f-body); }
 body { min-height: 100%; background: radial-gradient(1200px 600px at 60% -10%, #352414 0%, transparent 60%), var(--bg); background-attachment: fixed; }
 a { color: var(--info); }
 h1, h2, h3, h4 { font-family: var(--f-display); font-weight: 400; margin: 0; letter-spacing: .01em; line-height: 1.15; text-wrap: balance; }
@@ -1001,3 +1001,8 @@ table.funnel th:first-child, table.funnel td:first-child { text-align: left; }
 /* in the game on a phone the floating buttons would sit on the page: sound lives in Settings there */
 @media (max-width: 900px) { body:has(.hud) .sfx-toggle, body:has(.hud) .sfx-toggle { display: none; } }
 @media (max-width: 720px) { body:has(.creator) .sfx-toggle { top: calc(10px + env(safe-area-inset-top, 0px)); bottom: auto; } }
+
+/* Comfort settings (Settings > Comfort) */
+.tile .rmark { display: none; position: absolute; left: 2px; bottom: 1px; font: 900 .72rem/1 var(--f-display); color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; pointer-events: none; }
+.marks .tile .rmark { display: block; }
+.calm *, .calm *::before, .calm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

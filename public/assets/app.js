@@ -16,6 +16,21 @@
   const clock = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
   const ico = (k, cls) => ITA.img(k, cls || 'ico');
 
+  // Comfort settings, kept on this device: text size, calmer motion (follows the system's "reduce motion" until the
+  // player picks) and rarity letters on item tiles for players who cannot tell the rarity colours apart.
+  const COMFORT = (() => { try { return Object.assign({ text: 1, calm: null, marks: false }, JSON.parse(localStorage.getItem('it_comfort') || '{}')); } catch (e) { return { text: 1, calm: null, marks: false }; } })();
+  const sysCalm = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const calm = () => (COMFORT.calm == null ? sysCalm() : COMFORT.calm);
+  function applyComfort() {
+    const r = document.documentElement;
+    r.style.setProperty('--ts', String(COMFORT.text));
+    r.classList.toggle('calm', calm());
+    r.classList.toggle('marks', !!COMFORT.marks);
+    try { localStorage.setItem('it_comfort', JSON.stringify(COMFORT)); } catch (e) { /* private mode */ }
+  }
+  window.IT_CALM = calm;
+  applyComfort();
+
   const S = {
     cfg: null, st: null, view: 'battle', sel: null, timelines: {}, battle: null, chat: { channel: 'tavern', msgs: {}, last: {} },
     creator: null, creatorStep: 'race', skew: 0, tavern: null, guilds: null, market: null, marketFilter: { slot: '', rarity: '' }, attrOpen: null, chatOpen: false,
@@ -149,7 +164,7 @@
   const TIPS = [];
   function tile(it, opts = {}) {
     if (!it) return '<div class="tile empty"><span>' + esc(opts.label || '') + '</span></div>';
-    return '<div class="tile ' + it.rarity + (opts.sel ? ' sel' : '') + (opts.big ? ' big' : '') + '"' + (opts.act === false ? '' : ' data-act="sel" data-id="' + it.id + '"') + ' data-tip="' + (TIPS.push(it) - 1) + '" aria-label="' + esc(itemName(it)) + '"><img alt="" src="' + ITA.icon(it) + '">' + (opts.up ? '<span class="up">▲</span>' : '') + (opts.tag ? '<span class="tag">' + opts.tag + '</span>' : '') + '</div>';
+    return '<div class="tile ' + it.rarity + (opts.sel ? ' sel' : '') + (opts.big ? ' big' : '') + '"' + (opts.act === false ? '' : ' data-act="sel" data-id="' + it.id + '"') + ' data-tip="' + (TIPS.push(it) - 1) + '" aria-label="' + esc(itemName(it)) + '"><img alt="" src="' + ITA.icon(it) + '">' + (it.rarity && it.rarity !== 'common' ? '<span class="rmark" aria-hidden="true">' + it.rarity[0].toUpperCase() + '</span>' : '') + (opts.up ? '<span class="up">▲</span>' : '') + (opts.tag ? '<span class="tag">' + opts.tag + '</span>' : '') + '</div>';
   }
   function itemCard(it, extra = '', attrs = '') {
     return '<div class="item ' + it.rarity + '" ' + attrs + '>' + tile(it, { act: false }) + '<div><div class="nm r-' + it.rarity + '">' + esc(itemName(it)) + '</div><div class="sub">' + rarityName(it.rarity) + ' ' + slotName(it) + ' · item level ' + it.ilvl + '</div>' +
@@ -1619,7 +1634,7 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div><div class="panel"><h3>First days</h3>' + funnelView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + soundView() + steamView() + rosterView() + pushView() + dataView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + soundView() + comfortView() + steamView() + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
@@ -1629,6 +1644,17 @@
     if (!X || !X.muted) return '';
     return '<div class="panel"><h3>Sound</h3><div class="row wrap"><button class="small" data-act="sound" data-k="sfx" aria-pressed="' + !X.muted() + '">' + (X.muted() ? '🔇 Effects off' : '🔊 Effects on') + '</button>' +
       '<button class="small" data-act="sound" data-k="music" aria-pressed="' + X.musicOn() + '">' + (X.musicOn() ? '♪ Music on' : '♪ Music off') + '</button></div></div>';
+  }
+  function comfortView() {
+    const sizes = [[1, 'Normal'], [1.15, 'Large'], [1.3, 'Larger']];
+    const motion = COMFORT.calm == null ? 'auto' : COMFORT.calm ? 'calm' : 'full';
+    const pick = (k, v, label, on) => '<button class="small' + (on ? ' primary' : '') + '" data-act="comfort" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + on + '">' + label + '</button>';
+    return '<div class="panel"><h3>Comfort</h3>' +
+      '<div class="small">Text size</div><div class="row wrap">' + sizes.map(([v, l]) => pick('text', v, l, COMFORT.text === v)).join('') + '</div>' +
+      '<div class="small">Motion</div><div class="row wrap">' + pick('calm', 'auto', 'Like my device', motion === 'auto') + pick('calm', 'calm', 'Calm', motion === 'calm') + pick('calm', 'full', 'Full', motion === 'full') + '</div>' +
+      '<p class="tiny muted">Calm stops screen shake, flashes and moving menus; battles still play.</p>' +
+      '<div class="small">Rarity letters</div><div class="row wrap">' + pick('marks', '1', 'On', !!COMFORT.marks) + pick('marks', '0', 'Off', !COMFORT.marks) + '</div>' +
+      '<p class="tiny muted">Shows R, E or L on rare, epic and legendary items, for when the colours are hard to tell apart.</p></div>';
   }
   function steamView() {
     if (!NATIVE || NATIVE.platform !== 'steam') return '';
@@ -1976,6 +2002,12 @@
       modal('<h3>' + esc(o.name) + ' · ' + ((S.shop.prices && S.shop.prices[o.product]) || money(o.price, o.currency)) + '</h3><p class="small">' + esc(o.text) + '</p><form data-form="shopBuy" data-o="' + o.id + '" class="stack tight"><label class="row small" style="gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0"><input type="checkbox" name="waive" value="1" style="width:auto"> <span>Deliver it at once. I understand that I lose my 14-day right of withdrawal once it is delivered.</span></label>' +
         (o.subscription && NATIVE.platform !== 'steam' ? '<p class="small muted">Renews every month until you cancel it in your ' + STORE + ' account.</p>' : '') +
         '<div class="row"><button class="primary" type="submit">Buy with ' + STORE + '</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
+    },
+    comfort: (d) => {
+      if (d.k === 'text') COMFORT.text = Number(d.v) || 1;
+      if (d.k === 'calm') COMFORT.calm = d.v === 'auto' ? null : d.v === 'calm';
+      if (d.k === 'marks') COMFORT.marks = d.v === '1';
+      applyComfort(); render();
     },
     sound: (d) => { const X = window.ITS; if (d.k === 'music') X.setMusic(!X.musicOn()); else X.setMuted(!X.muted()); render(); },
     steamLogin: async (d, quiet) => {
