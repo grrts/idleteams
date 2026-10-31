@@ -1619,10 +1619,16 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div><div class="panel"><h3>First days</h3>' + funnelView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + steamView() + rosterView() + pushView() + dataView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + soundView() + steamView() + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+  }
+  function soundView() {
+    const X = window.ITS;
+    if (!X || !X.muted) return '';
+    return '<div class="panel"><h3>Sound</h3><div class="row wrap"><button class="small" data-act="sound" data-k="sfx" aria-pressed="' + !X.muted() + '">' + (X.muted() ? '🔇 Effects off' : '🔊 Effects on') + '</button>' +
+      '<button class="small" data-act="sound" data-k="music" aria-pressed="' + X.musicOn() + '">' + (X.musicOn() ? '♪ Music on' : '♪ Music off') + '</button></div></div>';
   }
   function steamView() {
     if (!NATIVE || NATIVE.platform !== 'steam') return '';
@@ -1971,6 +1977,7 @@
         (o.subscription && NATIVE.platform !== 'steam' ? '<p class="small muted">Renews every month until you cancel it in your ' + STORE + ' account.</p>' : '') +
         '<div class="row"><button class="primary" type="submit">Buy with ' + STORE + '</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
     },
+    sound: (d) => { const X = window.ITS; if (d.k === 'music') X.setMusic(!X.musicOn()); else X.setMuted(!X.muted()); render(); },
     steamLogin: async (d, quiet) => {
       try {
         const r = await post('/token/steam', { ticket: await NATIVE.steamTicket() });
@@ -2194,11 +2201,11 @@
         await NATIVE.setToken(r.token);
         // the Steam build links the Steam account the first time, so next time it logs in by itself
         if (NATIVE.platform === 'steam' && S.steamLink) { await post('/account/steam', { ticket: await NATIVE.steamTicket() }).catch(() => null); S.steamLink = false; }
-        await refresh(); loadView(); nativeReady();
+        await refresh(); loadView(); nativeReady(); window.scrollTo(0, 0);
       } catch (err) { toast(err.message); }
       return;
     }
-    try { await post('/' + f.dataset.form, data); await refresh(); loadView(); } catch (err) { toast(err.message); }
+    try { await post('/' + f.dataset.form, data); await refresh(); loadView(); if (f.dataset.form === 'login' || f.dataset.form === 'register') window.scrollTo(0, 0); } catch (err) { toast(err.message); }
   });
 
   boot().catch((e) => { $('#app').innerHTML = '<div class="boot">Could not reach the server: ' + esc(e.message) + '</div>'; });

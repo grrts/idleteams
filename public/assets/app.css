@@ -997,3 +997,7 @@ table.funnel th:first-child, table.funnel td:first-child { text-align: left; }
   .heritage-top { gap: 12px; } .heritage-top .hbadge { width: 64px !important; height: 76px !important; }
   .hbadge .eyebrow { display: none; } .hbadge .big { font-size: 1.8rem; }
 }
+
+/* in the game on a phone the floating buttons would sit on the page: sound lives in Settings there */
+@media (max-width: 900px) { body:has(.hud) .sfx-toggle, body:has(.hud) .sfx-toggle { display: none; } }
+@media (max-width: 720px) { body:has(.creator) .sfx-toggle { top: calc(10px + env(safe-area-inset-top, 0px)); bottom: auto; } }
