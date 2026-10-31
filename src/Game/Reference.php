@@ -17,6 +17,7 @@ final class Reference
     private static array $cache = [];
 
     public const COMP = ['guardian', 'cleric', 'ranger', 'mage', 'rogue'];
+    public const SEEDS = [12345, 1, 2, 3];
 
     /**
      * What a group at this level is expected to wear. Level 1 is exactly the starter kit; drops (about one item per
@@ -73,7 +74,12 @@ final class Reference
             $b['path'] = $level >= Rules::PATH_LEVEL ? array_key_first(Rules::CLASSES[$cls]['paths']) : null;
             $party[] = Combatants::make($b, $n + 1, $cls);
         }
-        $dps = (new Simulator())->measureDps($party);
+        // One dummy fight swings about 10% with its crits; the mean of a few keeps the server and the browser
+        // build (which roll different random numbers) tuned the same.
+        $dps = 0.0;
+        foreach (self::SEEDS as $seed) {
+            $dps += (new Simulator())->measureDps($party, 90, $seed) / count(self::SEEDS);
+        }
         $tank = $s['guardian'];
         // Healing is the average of both healer classes, so neither one is the only healer that keeps up.
         $druid = Stats::derive(self::build('druid', $level, null, false));

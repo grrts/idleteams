@@ -442,7 +442,7 @@
   const refCache = {};
   const Ref = (E.Reference = {
     COMP: ['guardian', 'cleric', 'ranger', 'mage', 'rogue'],
-    build(cls, level, quality = null) {
+    build(cls, level, quality = null, talents = true) {
       const c = D.CLASSES[cls], points = (level - 1) * C.POINTS_PER_LEVEL, w = c.suggest, sumW = sum(Object.values(w)), spent = {};
       for (const [a, n] of Object.entries(w)) spent[a] = Math.floor((points * n) / sumW);
       quality = quality || (level < 15 ? 'common' : 'rare');
@@ -455,14 +455,14 @@
         const k = items.length % 3, shift = [...prefer.slice(k), ...prefer.slice(0, k)];
         items.push(I.generate(r, ilvl, base !== null && level === 1 ? 'common' : quality, slot, base, shift));
       }
-      return { race: 'human', cls, origin: 'anvil', level, spent, path: null, keystones: {}, items, talents: T.auto(cls, T.points(level)) };
+      return { race: 'human', cls, origin: 'anvil', level, spent, path: null, keystones: {}, items, talents: talents ? T.auto(cls, T.points(level)) : {} };
     },
     forLevel(level) {
       if (refCache[level]) return refCache[level];
-      const s = {}; for (const cls of Ref.COMP) s[cls] = S.derive(Ref.build(cls, level));
+      const s = {}; for (const cls of Ref.COMP) s[cls] = S.derive(Ref.build(cls, level, null, false));
       const party = Ref.COMP.map((cls, n) => { const b = Ref.build(cls, level); b.path = level >= C.PATH_LEVEL ? keys(D.CLASSES[cls].paths)[0] : null; return Cb.make(b, n + 1, cls); });
-      const dps = new Simulator().measureDps(party);
-      const druid = S.derive(Ref.build('druid', level));
+      const SEEDS = [12345, 1, 2, 3], dps = sum(SEEDS.map((seed) => new Simulator().measureDps(party, 90, seed) / SEEDS.length));
+      const druid = S.derive(Ref.build('druid', level, null, false));
       const hps = ((s.cleric.spirit * s.cleric.haste + druid.spirit * druid.haste) / 2) * 1.3;
       const all = Object.values(s);
       return (refCache[level] = { dps, hps, tankHp: s.guardian.maxHp, tankDr: s.guardian.dr, avgHp: sum(all.map((x) => x.maxHp)) / 5, avgDr: sum(all.map((x) => x.dr)) / 5 });
@@ -484,8 +484,8 @@
   class Simulator {
     constructor() { Object.assign(this, { t: 0, h: [], e: {}, clear: 0, wing: 0, phaseStart: 0, phase: 'pack', ev: [], snap: [], report: [], enemySeq: 0, dungeonLevel: 1, mech: {}, enrageAt: 0, enraged: false, shardsSpawned: false, wipe: null, lastDeath: [], oomAt: {} }); }
     newReport() { return { damage: 0, healing: 0, overheal: 0, taken: 0, absorbed: 0, deaths: 0, mechanics: {}, casts: 0, sigXp: 0 }; }
-    measureDps(heroes, seconds = 90) {
-      this.r = new Rng(12345);
+    measureDps(heroes, seconds = 90, seed = 12345) {
+      this.r = new Rng(seed);
       this.ref = { dps: 1, hps: 0, tankHp: 1, tankDr: 0, avgHp: 1, avgDr: 0 };
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
       this.applyKin();

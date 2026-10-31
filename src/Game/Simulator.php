@@ -54,9 +54,9 @@ final class Simulator
      * @param array $heroes [['id', 'name', 'cls', 'race', 'origin', 'level', 'path', 'keystones', 'loadout', 'ranks', 'stats' => Stats::derive()]]
      */
     /** Damage per second a party deals to a target dummy that never hits back. Used to tune enemies. */
-    public function measureDps(array $heroes, int $seconds = 90): float
+    public function measureDps(array $heroes, int $seconds = 90, int $seed = 12345): float
     {
-        $this->r = new Randomizer(new Mt19937(12345));
+        $this->r = new Randomizer(new Mt19937($seed));
         $this->ref = ['dps' => 1, 'hps' => 0, 'tankHp' => 1, 'tankDr' => 0, 'avgHp' => 1, 'avgDr' => 0];
         foreach ($heroes as $i => $x) {
             $this->h[$i] = $this->initHero($i, $x);
