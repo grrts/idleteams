@@ -291,7 +291,11 @@ class Game
         $newcomers = count(array_filter($heroes, fn (Hero $h) => $h->isNewcomer($b->endsAt)));
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
-            $xp = Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']);
+            $catchUp = Rules::catchUp($h->level, (new Roster($this->em))->best($h->user));
+            $xp = (int) round(Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']) * $catchUp);
+            if ($catchUp > 1) {
+                $rep['heroes'][$k]['catchUp'] = $catchUp;
+            }
             // Heritage: Renown for running with your own race, twice for your own culture.
             $others = [];
             foreach ($heroes as $o) {

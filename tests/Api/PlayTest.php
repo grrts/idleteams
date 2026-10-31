@@ -45,7 +45,6 @@ class PlayTest extends WebTestCase
         $this->assertTrue($this->api('POST', '/register', ['username' => 'tester', 'password' => 'secret123'])['ok']);
         $hero = $this->api('POST', '/hero', ['name' => 'Tess', 'race' => 'dwarf', 'cls' => 'warden', 'origin' => 'oak', 'story' => LifeStory::example('dwarf', 'cook'), 'look' => ['hair' => 'bob']]);
         $this->assertSame(1, $hero['level']);
-        $this->assertArrayHasKey('error', $this->api('POST', '/hero', ['name' => 'Again', 'race' => 'elf', 'cls' => 'mage', 'origin' => 'oak', 'story' => LifeStory::example('elf', 'acolyte')]), 'one hero per account');
 
         $tavern = $this->api('GET', '/tavern');
         $lfm = array_values(array_filter($tavern['posts'], fn ($p) => $p['kind'] === 'lfm'))[0];

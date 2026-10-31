@@ -313,7 +313,7 @@
     TIPS.length = 0;
     keepInputs(app, () => {
       if (!S.st) app.innerHTML = authView();
-      else if (!S.st.hero) app.innerHTML = creatorView();
+      else if (!S.st.hero || S.newHero) app.innerHTML = creatorView();
       else app.innerHTML = shell();
     });
     hydrate(app);
@@ -630,7 +630,7 @@
       (step === 'look' ? '<button class="primary" data-act="cstep" data-s="name">Continue →</button>' : step === 'name' ? '<button class="primary big" data-act="create">Begin their tale</button>' : '') + '</div>';
     const doneN = STEPS.filter(([s]) => stepDone(c, s)).length, anim = S.creatorAnim ? ' enter ' + S.creatorAnim : '';
     S.creatorAnim = null;
-    return '<div class="creator tale"' + taleBackdrop(c, step) + '><div class="logo">Idle <span>Teams</span></div><div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
+    return '<div class="creator tale"' + taleBackdrop(c, step) + '><div class="logo">Idle <span>Teams</span></div>' + (S.newHero ? '<p class="center"><a href="#" data-act="cancelNewHero" class="small">← Back to ' + esc(S.st.hero.name) + '</a></p>' : '') + '<div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
       '<div class="cbody' + anim + '">' + body + '</div>' + (step === 'story' ? (prev ? '<div class="row between cnav"><button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button><span></span></div>' : '') : nav) + '</div></div>';
   }
 
@@ -1562,10 +1562,21 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + pushView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + rosterView() + pushView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+  }
+  // Alternate heroes: the account's heroes, one played at a time; they share the wardrobe and the Codex.
+  function rosterView() {
+    const all = S.st.heroes;
+    if (!all) return '';
+    const row = (x) => '<div class="row between"><span class="row">' + por(x.look, 'pframe sm') + '<span><b>' + esc(x.name) + '</b> <span class="small muted">level ' + x.level + ' ' + esc(className(x.cls)) + (x.guild ? ' · ' + esc(x.guild.name) : '') + '</span></span></span>' +
+      (x.active ? '<span class="small gold">Playing</span>' : '<button class="small" data-act="switchHero" data-hid="' + x.id + '">Play</button>') + '</div>';
+    return '<div class="panel"><h3>Your heroes</h3>' + all.map(row).join('') +
+      (S.st.catchUp > 1 ? '<p class="small good">Catch-up: ' + esc(S.st.hero.name) + ' earns ×' + S.st.catchUp + ' XP until they near your best hero.</p>' : '') +
+      '<p class="small muted">Up to ' + S.st.maxHeroes + ' heroes. They share the wardrobe and the Codex; each keeps its own group, gear, gold and story. Heroes far behind your best earn more XP.</p>' +
+      (all.length < S.st.maxHeroes ? '<button class="small" data-act="newHero">New hero</button>' : '') + '</div>';
   }
   function modView() {
     if (!S.reports) { loadReports(); return '<p class="small muted">Loading reports…</p>'; }
@@ -1781,7 +1792,13 @@
       const c = creatorState(); keepName(); c.name = c.name.trim();
       if (!storyDone(c.race, c.story)) { toast('Finish their life story first.'); S.creatorStep = 'story'; render(); return; }
       if (c.name.length < 3) { toast('Give your hero a name of 3 to 20 letters.'); S.creatorStep = 'name'; render(); const n = $('#cname'); if (n) n.focus(); return; }
-      try { await post('/hero', c); S.creator = null; S.storyAt = {}; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); }
+      try { await post('/hero', c); if (S.newHero) { location.hash = '#/hero'; location.reload(); return; } S.creator = null; S.storyAt = {}; location.hash = '#/hero'; await refresh(); toast('Welcome, ' + c.name + '! Head to the Group page to find your party.', true); } catch (e) { toast(e.message); }
+    },
+    newHero: () => { S.newHero = true; S.creator = null; S.creatorStep = 'race'; render(); window.scrollTo(0, 0); },
+    cancelNewHero: () => { S.newHero = false; S.creator = null; render(); },
+    switchHero: async (d) => {
+      // a fresh page, so nothing of the last hero's group, guild or run lingers
+      try { await post('/heroes/switch', { hero: +d.hid }); location.hash = '#/hero'; location.reload(); } catch (e) { toast(e.message); }
     },
     logout: async () => {
       if (window.IT_SERVER && !S.sureNew) { confirmBox('Start over with a new hero? This clears your saved game in this browser.', () => { S.sureNew = true; handlers.logout(); }); return; }

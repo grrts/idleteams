@@ -67,6 +67,10 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   three fronts taken, the squads that held theirs face the Sundered King. One raid a week per guild; every raider is
   paid, and may find an item straight in their bags. Rules in `src/Game/Raids.php`, raids in `content/*/raids/`.
   The playable build has no raids (it holds one group, not forty heroes).
+- Alternate heroes: an account keeps up to six heroes and plays one at a time (Settings, Your heroes). They share the
+  wardrobe and the Codex; each keeps its own group, guild, gear, gold and story. A hero more than five levels behind the
+  account's best earns half again as much XP, and double below half its level. Rules in `src/Service/Roster.php` and
+  `Rules::catchUp`. The playable build keeps one hero.
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

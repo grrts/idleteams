@@ -444,6 +444,19 @@ final class Rules
         return (int) round(10.5 * $dungeonLevel ** 1.5 * $units * ($race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $battlesTogether)) * (1 + $xpBonus));
     }
 
+    /**
+     * Catch-up for alternate heroes: double XP below half the account's best level, half again more within reach of
+     * it, nothing within five levels.
+     */
+    public static function catchUp(int $level, int $accountBest): float
+    {
+        return match (true) {
+            $level * 2 < $accountBest => 2.0,
+            $level < $accountBest - 5 => 1.5,
+            default => 1.0,
+        };
+    }
+
     public static function xpForLevel(int $level): int
     {
         $base = 160 * $level ** 1.5;

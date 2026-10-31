@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Hero;
 use App\Service\HeroActions;
+use App\Service\Roster;
 use App\Service\Present;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,15 @@ class HeroController extends ApiController
         $this->em->flush();
 
         return $this->json($present->hero($h));
+    }
+
+    #[Route('/api/heroes/switch', methods: ['POST'])]
+    public function switchHero(Request $r, Roster $roster): JsonResponse
+    {
+        $roster->switchTo($this->me(), (int) ($this->body($r)['hero'] ?? 0));
+        $this->em->flush();
+
+        return $this->json(['ok' => true]);
     }
 
     #[Route('/api/hero/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]

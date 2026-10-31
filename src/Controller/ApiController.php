@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Hero;
 use App\Entity\User;
 use App\Service\GameError;
+use App\Service\Roster;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,8 +29,7 @@ abstract class ApiController extends AbstractController
 
     protected function hero(): Hero
     {
-        return $this->em->getRepository(Hero::class)->findOneBy(['user' => $this->me()])
-            ?? throw new GameError('Create a hero first.');
+        return (new Roster($this->em))->active($this->me()) ?? throw new GameError('Create a hero first.');
     }
 
     protected function body(Request $r): array

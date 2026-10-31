@@ -29,6 +29,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     public int $lastSeenAt = 0;
 
+    /** The hero this account is playing (src/Service/Roster.php); null means its first. */
+    #[ORM\Column(nullable: true)]
+    public ?int $activeHero = null;
+
     /** Optional until the player adds one; needed for password reset. Stored lower case. */
     #[ORM\Column(length: 180, unique: true, nullable: true)]
     public ?string $email = null;

@@ -13,7 +13,7 @@ class Hero
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;
 
-    #[ORM\OneToOne(targetEntity: User::class)]
+    #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     public User $user;
 

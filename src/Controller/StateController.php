@@ -10,6 +10,7 @@ use App\Service\Game;
 use App\Service\Live;
 use App\Service\Moderation;
 use App\Service\Present;
+use App\Service\Roster;
 use App\Service\Social;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,7 +26,9 @@ class StateController extends ApiController
     {
         $user = $this->me();
         $user->lastSeenAt = time();
-        $hero = $this->em->getRepository(Hero::class)->findOneBy(['user' => $user]);
+        $roster = new Roster($this->em);
+        $hero = $roster->active($user);
+        $roster->share($user);
         if (!$hero) {
             $this->em->flush();
 
@@ -57,6 +60,7 @@ class StateController extends ApiController
             'serverTime' => time(),
             'user' => ['username' => $user->username, 'email' => $user->email, 'emailVerified' => $user->emailVerified, 'admin' => $user->admin, 'mutedUntil' => $user->isMuted() ? $user->mutedUntil : 0, 'blocked' => $present->blocked($user), 'reports' => $user->admin ? $moderation->openCount() : 0],
             'hero' => $present->hero($hero),
+            'heroes' => array_map(fn (Hero $x) => $present->heroCard($x) + ['active' => $x === $hero], $roster->heroes($user)), 'maxHeroes' => Roster::MAX, 'catchUp' => \App\Game\Rules::catchUp($hero->level, $roster->best($user)),
             'inventory' => $present->inventory($hero),
             'party' => $present->party($hero->party, $hero),
             'invites' => $invites,

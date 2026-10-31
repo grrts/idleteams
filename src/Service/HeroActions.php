@@ -34,8 +34,8 @@ class HeroActions
 
     public function create(User $user, array $in): Hero
     {
-        if ($this->em->getRepository(Hero::class)->findOneBy(['user' => $user])) {
-            throw new GameError('You already have a hero.');
+        if (count($this->em->getRepository(Hero::class)->findBy(['user' => $user])) >= Roster::MAX) {
+            throw new GameError(sprintf('An account holds %d heroes.', Roster::MAX));
         }
         $name = trim((string) ($in['name'] ?? ''));
         if (!preg_match('/^[\p{L}][\p{L}\' -]{2,19}$/u', $name)) {
@@ -90,6 +90,10 @@ class HeroActions
             $this->em->persist($item);
         }
         $this->game->post('tavern', sprintf('%s the %s %s arrived at the tavern.', $name, Rules::RACES[$h->race]['name'], $c['name']));
+        // An alternate hero starts with the account's wardrobe and Codex, and is the one played from now on.
+        $this->em->flush();
+        $user->activeHero = $h->id;
+        (new Roster($this->em))->share($user);
 
         return $h;
     }
