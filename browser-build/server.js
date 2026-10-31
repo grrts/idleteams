@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const D = window.IT_DATA, C = D.C, E = window.IT_ENGINE;
-  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng } = E;
+  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng, Dungeons: Dg } = E;
   const BATTLE_SECONDS = 150, CHEST_SECONDS = 90, OFFLINE_CAP = 43200, MAX_CATCH_UP = 12, PARTY_SIZE = 5, GUILD_MAX = 100, MAX_TEMPER = 15;
   const BOSS_DROP = [0.35, 0.45, 0.6];
   const KEY = 'idleteams-play-v1';
@@ -96,7 +96,7 @@
     return Math.max(1, median + p.dungeonOffset);
   }
   function start(p, at) {
-    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
+    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), dungeon: D.DEFAULT_DUNGEON, startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
     const order = ['tank', 'healer', 'dps'];
     const heroes = members(p).sort((a, c) => order.indexOf(role(a)) - order.indexOf(role(c)) || a.id - c.id);
     const combatants = heroes.map(combatant);
@@ -104,7 +104,7 @@
     combatants.forEach((c, k) => {
       if (c.level > b.dungeonLevel + 5) c.stats = Cb.make(Object.assign(build(heroes[k]), { level: b.dungeonLevel + 5 }), c.id, c.name, c.loadout, c.ranks).stats;
     });
-    const result = new Simulator().run(combatants, b.dungeonLevel, b.seed);
+    const result = new Simulator().run(combatants, b.dungeonLevel, b.seed, Dg.get(b.dungeon));
     b.timeline = result.timeline;
     b.report = result.report;
     b.roster = heroes.map((h, k) => ({ id: h.id, name: h.name, cls: h.cls, race: h.race, level: h.level, role: role(h), look: look(h), resource: combatants[k].stats.resource, maxHp: Math.trunc(combatants[k].stats.maxHp) }));
@@ -126,7 +126,7 @@
     const rep = b.report, dl = b.dungeonLevel, r = new Rng(b.seed ^ 0x5bd1e995), p = find('parties', b.party);
     const heroes = b.roster.map((row) => find('heroes', row.id)).filter(Boolean);
     // Rewards follow how far the group got: packs count 1, bosses 2, 3 and 4. A full run is 15.
-    const plan = D.DUNGEON, done = rep.encountersDone;
+    const dungeon = Dg.get(b.dungeon), plan = dungeon.plan, done = rep.encountersDone, bossCount = Dg.bossCount(dungeon);
     let units = 0;
     plan.forEach(([kind], n) => {
       const w = kind === 'boss' ? 1 + plan.slice(0, n + 1).filter((x) => x[0] === 'boss').length : 1;
@@ -157,13 +157,14 @@
 
     // The group chest: each boss may drop an item, the later ones more often. Never guaranteed.
     const chest = [];
-    plan.filter((x) => x[0] === 'boss').slice(0, rep.bossesKilled).forEach(([, boss], n) => {
-      if (r.getFloat(0, 1) < BOSS_DROP[n]) chest.push({ spec: I.generate(r, 2 * dl, I.rollRarity(r, keenEye ? 0.08 : 0)), rolls: {}, winner: null, from: boss });
+    plan.filter((x) => x[0] === 'boss').slice(0, rep.bossesKilled).forEach(([, bossId], n) => {
+      const boss = dungeon.bosses[bossId].name;
+      if (r.getFloat(0, 1) < BOSS_DROP[n === bossCount - 1 ? 2 : Math.min(n, 1)]) chest.push({ spec: I.generate(r, 2 * dl, I.rollRarity(r, keenEye ? 0.08 : 0)), rolls: {}, winner: null, from: boss });
       if (dl >= 15 && r.getFloat(0, 1) < 0.2) chest.push({ spec: I.glyph(r, 2 * dl), rolls: {}, winner: null, from: boss });
     });
     b.chest = chest; b.report = rep; b.state = 'chest'; b.chestClosesAt = b.endsAt + CHEST_SECONDS; b.timeline = null;
     const loot = chest.length ? ' The chest holds ' + chest.length + ' item' + (chest.length === 1 ? '' : 's') + '.' : ' No loot this time, only materials.';
-    let line = rep.wiped ? D.DUNGEON_NAME + ': the group fell after ' + rep.bossesKilled + ' of 3 bosses. ' + rep.cause + loot : D.DUNGEON_NAME + ' cleared!' + loot;
+    let line = rep.wiped ? dungeon.name + ': the group fell after ' + rep.bossesKilled + ' of ' + bossCount + ' bosses. ' + rep.cause + loot : dungeon.name + ' cleared!' + loot;
     // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
     if (rep.wiped) { p.running = false; line += ' The group rests until someone sends it back in.'; }
     post('party:' + p.id, line, { type: 'report', battle: b.id });
@@ -255,7 +256,7 @@
       attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
-      dungeon: { name: D.DUNGEON_NAME, plan: D.DUNGEON }, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
+      dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
       cultureInfo: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, [x[0], x[1]]]))])),

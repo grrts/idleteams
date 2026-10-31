@@ -6,7 +6,9 @@ use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Lore;
 use App\Game\Rules;
+use App\Game\Dungeons;
 use App\Game\Simulator;
+use App\Service\Present;
 use App\Game\Stats;
 use App\Game\Talents;
 use App\Service\HeroActions;
@@ -30,7 +32,8 @@ class BrowserDataCommand extends Command
                 'PATH_LEVEL' => Rules::PATH_LEVEL, 'KEYSTONE_LEVELS' => Rules::KEYSTONE_LEVELS, 'ULTIMATE_LEVEL' => Rules::ULTIMATE_LEVEL,
                 'REFORGE_LEVEL' => Rules::REFORGE_LEVEL, 'LOADOUT_SIZE' => Rules::LOADOUT_SIZE, 'ORIGIN_POINTS' => Rules::ORIGIN_POINTS,
             ],
-            'CAPS' => Stats::CAPS, 'DUNGEON' => Simulator::DUNGEON, 'DUNGEON_NAME' => Simulator::DUNGEON_NAME, 'BOSSES' => Simulator::BOSSES,
+            'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
+            'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),
             'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,
             'TWISTS' => Rules::TWISTS, 'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'HERITAGE_TREES' => Heritage::trees(),
             'TALENT' => ['POINTS_PER_LEVEL' => Talents::POINTS_PER_LEVEL, 'SHAPE' => Talents::SHAPE, 'SKILL_AT' => Talents::SKILL_AT, 'VERSION' => Talents::VERSION, 'BRANCHES' => array_map(fn ($t) => array_keys($t['branches']), Talents::TREES)],

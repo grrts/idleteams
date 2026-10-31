@@ -17,7 +17,7 @@ use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Items;
 use App\Game\Rules;
-use App\Game\Simulator;
+use App\Game\Dungeons;
 use App\Game\Stats;
 use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,7 +44,7 @@ class Present
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
-            'dungeon' => ['name' => Simulator::DUNGEON_NAME, 'plan' => Simulator::DUNGEON], 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
+            'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
@@ -53,6 +53,17 @@ class Present
             'lifeStory' => ['chapters' => LifeStory::CHAPTERS, 'questions' => LifeStory::QUESTIONS, 'scenes' => LifeStory::SCENES, 'tale' => LifeStory::TALE, 'notesMax' => LifeStory::NOTES_MAX, 'lean' => [LifeStory::LEAN_ATTRS, LifeStory::LEAN_POINTS]],
             'pushKey' => $this->push->enabled() ? $this->push->publicKey() : null,
             'renown' => ['alone' => Heritage::RENOWN_ALONE, 'perKin' => Heritage::RENOWN_PER_KIN, 'swapGold' => Heritage::CULTURE_SWAP_GOLD],
+        ];
+    }
+
+    /** What the client needs of a dungeon: names, plan, wings and scenery, enemy art. */
+    public static function dungeon(array $d): array
+    {
+        return [
+            'id' => $d['id'], 'name' => $d['name'], 'summary' => $d['summary'], 'levels' => $d['levels'], 'plan' => Dungeons::plan($d),
+            'wings' => $d['wings'], 'enemies' => array_column(array_values($d['enemies']), null, 'name'),
+            'bosses' => array_column(array_map(fn ($b) => ['name' => $b['name'], 'art' => $b['art'], 'scale' => $b['scale'], 'hit' => $b['hit']], array_values($d['bosses'])), null, 'name'),
+            'mechanics' => array_map(fn ($m) => $m['name'], $d['mechanics']),
         ];
     }
 

@@ -178,6 +178,7 @@
   async function boot() {
     [S.cfg, S.lore] = await Promise.all([get('/config'), get('/lore').catch(() => null)]);
     window.IT_GLYPH_COLORS = Object.fromEntries(Object.entries(S.cfg.glyphs).map(([k, g]) => [k, g[2]]));
+    ITA.setDungeon(S.cfg.dungeon);
     // Links from mails: #/verify?t=… and #/reset?u=…&t=…
     const link = location.hash.match(/^#\/(verify|reset)\?(.*)$/), q = link ? new URLSearchParams(link[2]) : null;
     if (link) history.replaceState(null, '', location.pathname + '#/battle');

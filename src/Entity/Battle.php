@@ -29,6 +29,10 @@ class Battle
     #[ORM\Column]
     public int $dungeonLevel = 1;
 
+    /** Which dungeon (content/<pack>/dungeons/<id>.json) the group ran. */
+    #[ORM\Column(length: 40, options: ['default' => 'ember-hollow'])]
+    public string $dungeon = 'ember-hollow';
+
     #[ORM\Column]
     public int $startedAt = 0;
 

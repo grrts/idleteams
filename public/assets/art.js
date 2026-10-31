@@ -418,30 +418,45 @@
     b.glow(10, 12 + up, 9, '#ff8a2a');
     return b.toCanvas();
   }
-  // Enemy art by kind and name. Bosses each have their own sprite; the golem is the original boss art.
+  // Sprites by art key. A dungeon file names the key for each enemy and boss (content/<pack>/dungeons/*.json).
+  const SPRITES = {
+    hound: (frame) => hound(frame),
+    matron: (frame) => matron(frame),
+    golem: (frame) => P.golem(frame === 'atk' ? 'slam' : frame === 'idle1' ? 'raise' : 'idle'),
+    imp: (frame) => imp(frame, '#c8462a', '#ffb070', false),
+    brute: (frame) => imp(frame, '#9a3a2a', '#d88a5a', true),
+    shard: (frame) => shard(frame),
+  };
+  A.SPRITES = SPRITES;
+  // name -> { art, scale } for the dungeon being shown; set by A.setDungeon from the server's config.
+  let cast = {};
   A.monster = (kind, name, frame) => memo(['m', kind, name, frame].join(':'), () => {
-    if (kind === 'boss') {
-      if (name === 'Cinder Hound') return hound(frame);
-      if (name === 'Slag Matron') return matron(frame);
-      return P.golem(frame === 'atk' ? 'slam' : frame === 'idle1' ? 'raise' : 'idle');
-    }
-    if (kind === 'brute') return imp(frame, '#9a3a2a', '#d88a5a', true);
-    if (kind === 'shard') return shard(frame);
-    return imp(frame, '#c8462a', '#ffb070', false);
+    const key = (cast[name] && cast[name].art) || (kind === 'boss' ? 'golem' : kind === 'brute' || kind === 'shard' ? kind : 'imp');
+    return (SPRITES[key] || SPRITES.imp)(frame);
   });
   // Scale each piece of art is drawn at in the arena.
-  A.monsterScale = (kind, name) => (kind === 'boss' ? (name === 'Ember Golem' ? 4 : 3.4) : kind === 'brute' ? 2.6 : kind === 'shard' ? 2.6 : 2.6);
+  A.monsterScale = (kind, name) => (cast[name] && cast[name].scale) || (kind === 'boss' ? 3.4 : 2.6);
 
   // ------------------------------------------------------------------ dungeon scenery
 
   // Each wing of Ember Hollow has its own palette and props. Layers are tall strips drawn once at 1/3 scale
   // and scrolled at different speeds while the group walks.
-  const WINGS = [
+  let WINGS = [
     { name: 'Cinder Halls', sky: ['#1a0d14', '#2c1218'], rock: '#3a1e22', rock2: '#4c2826', floor: '#3b2224', floor2: '#4a2c2a', glow: '#ff6a1a', accent: '#ff9a3a', prop: 'lava' },
     { name: 'Slag Pools', sky: ['#0f1220', '#1a2032'], rock: '#232a40', rock2: '#2f3852', floor: '#262a3a', floor2: '#323850', glow: '#ff8a2a', accent: '#5fd0ff', prop: 'crystal' },
     { name: 'Golem Forge', sky: ['#170d0a', '#2a1610'], rock: '#3a2618', rock2: '#4e3420', floor: '#3a2a20', floor2: '#4c382a', glow: '#ffb340', accent: '#ffd25a', prop: 'forge' },
   ];
   A.WINGS = WINGS;
+  // The dungeon's wings (names and scenery palettes) and its enemies' art come from its data file.
+  A.setDungeon = (d) => {
+    if (!d || A.dungeon === d.id) return;
+    A.dungeon = d.id;
+    WINGS = A.WINGS = d.wings.map((w) => Object.assign({ name: w.name }, w.scene));
+    cast = {};
+    for (const e of Object.values(d.enemies || {})) cast[e.name] = { art: e.art };
+    for (const b of Object.values(d.bosses || {})) cast[b.name] = { art: b.art, scale: b.scale };
+    for (const k of [...cache.keys()]) if (/^(L:|m:|u:m:)/.test(k)) cache.delete(k);
+  };
   const rnd = (seed) => { let s = seed >>> 0 || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
 
   // Three parallax strips per wing, 640 x 180 pixels, shown at 3x. They tile sideways, so anything that

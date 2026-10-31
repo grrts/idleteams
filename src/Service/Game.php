@@ -8,6 +8,7 @@ use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
 use App\Game\Combatants;
+use App\Game\Dungeons;
 use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Rules;
@@ -25,7 +26,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 class Game
 {
-    /** Chance that each boss (first, second, last) drops an item. */
+    /** Chance that a boss drops an item: the first, any in the middle, the last. */
     private const BOSS_DROP = [0.35, 0.45, 0.6];
     private const MAX_CATCH_UP = 12;
 
@@ -137,6 +138,7 @@ class Game
         $b->party = $party;
         $b->seed = random_int(1, 2_000_000_000);
         $b->dungeonLevel = $this->dungeonLevel($party);
+        $b->dungeon = Dungeons::get()['id'];
         $b->startedAt = $at;
         $b->endsAt = $at + $this->battleSeconds;
         $heroes = $party->members->toArray();
@@ -149,7 +151,7 @@ class Game
                 $combatants[$k]['stats'] = $scale['stats'];
             }
         }
-        $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed);
+        $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed, Dungeons::get($b->dungeon));
         $b->timeline = $result['timeline'];
         $b->report = $result['report'];
         $b->roster = array_map(fn (Hero $h, array $c) => [
@@ -195,7 +197,8 @@ class Game
             }
         }
         // Rewards follow how far the group got: packs count 1, bosses 2, 3 and 4. A full run is 15.
-        $plan = Simulator::DUNGEON;
+        $dungeon = Dungeons::get($b->dungeon);
+        $plan = $dungeon['plan'];
         $done = $rep['encountersDone'];
         $units = 0.0;
         foreach ($plan as $n => [$kind]) {
@@ -253,8 +256,10 @@ class Game
 
         // The group chest: each boss may drop an item, the later ones more often. Never guaranteed.
         $chest = [];
-        foreach (array_slice(array_values(array_filter($plan, fn ($x) => $x[0] === 'boss')), 0, $rep['bossesKilled']) as $n => [, $boss]) {
-            if ($r->getFloat(0, 1) < self::BOSS_DROP[$n]) {
+        $bossCount = Dungeons::bossCount($dungeon);
+        foreach (array_slice(array_values(array_filter($plan, fn ($x) => $x[0] === 'boss')), 0, $rep['bossesKilled']) as $n => [, $bossId]) {
+            $boss = $dungeon['bosses'][$bossId]['name'];
+            if ($r->getFloat(0, 1) < self::BOSS_DROP[$n === $bossCount - 1 ? 2 : min($n, 1)]) {
                 $chest[] = ['spec' => Items::generate($r, 2 * $dl, Items::rollRarity($r, $keenEye ? 0.08 : 0.0)), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
             if ($dl >= 15 && $r->getFloat(0, 1) < 0.2) {
@@ -269,8 +274,8 @@ class Game
 
         $loot = $chest ? sprintf(' The chest holds %d item%s.', count($chest), count($chest) === 1 ? '' : 's') : ' No loot this time, only materials.';
         $line = $rep['wiped']
-            ? sprintf('%s: the group fell after %d of %d bosses. %s', Simulator::DUNGEON_NAME, $rep['bossesKilled'], 3, $rep['cause']).$loot
-            : sprintf('%s cleared!', Simulator::DUNGEON_NAME).$loot;
+            ? sprintf('%s: the group fell after %d of %d bosses. %s', $dungeon['name'], $rep['bossesKilled'], Dungeons::bossCount($dungeon), $rep['cause']).$loot
+            : sprintf('%s cleared!', $dungeon['name']).$loot;
         if ($rep['wiped']) {
             // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
             $b->party->running = false;
@@ -279,7 +284,7 @@ class Game
         $this->post('party:'.$b->party->id, $line, ['type' => 'report', 'battle' => $b->id]);
         foreach ($heroes as $h) {
             if ($rep['wiped']) {
-                $this->notifier->notify($h, 'wipe', 'Your group fell', sprintf('After %d of 3 bosses. Change what you need and send it back in.', $rep['bossesKilled']));
+                $this->notifier->notify($h, 'wipe', 'Your group fell', sprintf('%s: after %d of %d bosses. Change what you need and send it back in.', $dungeon['name'], $rep['bossesKilled'], Dungeons::bossCount($dungeon)));
             } elseif ($chest) {
                 $this->notifier->notify($h, 'chest', 'Loot in the group chest', sprintf('%d item%s to roll on before the chest closes.', count($chest), count($chest) === 1 ? '' : 's'));
             }

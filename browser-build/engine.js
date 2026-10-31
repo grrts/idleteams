@@ -424,6 +424,15 @@
     },
   });
 
+  // ---------- Dungeons (content/<pack>/dungeons/*.json, carried in data.js)
+  const Dg = (E.Dungeons = {
+    get: (id) => D.DUNGEONS[id] || D.DUNGEONS[D.DEFAULT_DUNGEON],
+    label: (d, c) => (d.plan[c][0] === 'boss' ? d.bosses[d.plan[c][1]].name : d.packs[d.plan[c][1]].name),
+    plan: (d) => d.plan.map((x, c) => [x[0], Dg.label(d, c)]),
+    bossCount: (d) => d.plan.filter((x) => x[0] === 'boss').length,
+    share: (budget, share) => { const m = typeof share === 'string' && share.match(/^(\d+)\/(\d+)$/); return m ? (budget * +m[1]) / +m[2] : budget * share; },
+  });
+
   // ---------- Simulator
   const DT = 0.5, WALK = 4;
   const rd2 = (x) => Math.round(x * 100) / 100;
@@ -441,22 +450,23 @@
       while (this.t < seconds) { this.t = rd2(this.t + DT); this.tick(); }
       return sum(this.report.map((r) => r.damage)) / seconds;
     }
-    run(heroes, dungeonLevel, seed) {
+    run(heroes, dungeonLevel, seed, dungeon = null) {
+      this.d = dungeon || D.DUNGEONS[D.DEFAULT_DUNGEON];
       this.r = new Rng(seed);
       this.dungeonLevel = Math.max(1, dungeonLevel);
       this.ref = Ref.forLevel(this.dungeonLevel);
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
       this.applyKin();
       let done = 0, bosses = 0;
-      for (let c = 0; c < D.DUNGEON.length; c++) {
-        const [kind, name, wing] = D.DUNGEON[c];
+      for (let c = 0; c < this.d.plan.length; c++) {
+        const [kind, name, wing] = this.d.plan[c];
         this.clear = c; this.wing = wing;
         if (c > 0) this.walk();
         for (const hero of this.h) { if (hero.dead) { hero.dead = false; hero.hp = hero.s.maxHp * 0.4; this.emit('revive', hero.i, -1, 0, 0); } hero.lastRite = false; }
         if (!this.fight(kind, name)) break;
         done++; if (kind === 'boss') bosses++;
       }
-      const report = { dungeon: D.DUNGEON_NAME, plan: D.DUNGEON.map((x) => [x[0], x[1]]), encountersDone: done, bossesKilled: bosses, wiped: !!this.wipe, cause: this.wipe ? this.explain() : null, length: round(this.t, 1), dungeonLevel, heroes: [] };
+      const report = { dungeon: this.d.name, plan: Dg.plan(this.d), encountersDone: done, bossesKilled: bosses, wiped: !!this.wipe, cause: this.wipe ? this.explain() : null, length: round(this.t, 1), dungeonLevel, heroes: [] };
       this.h.forEach((hero, i) => {
         const r = {}; for (const [k, v] of Object.entries(this.report[i])) r[k] = typeof v === 'number' ? Math.round(v) : v;
         report.heroes[i] = { ...r, id: hero.id, name: hero.name, cls: hero.cls };
@@ -494,27 +504,27 @@
     }
     walk() {
       this.e = {};
-      this.emit('walk', this.clear, -1, 0, 0, { to: D.DUNGEON[this.clear][1] });
+      this.emit('walk', this.clear, -1, 0, 0, { to: Dg.label(this.d, this.clear) });
       const end = this.t + WALK;
       while (this.t < end) { this.t = rd2(this.t + DT); if (Math.abs(this.t - Math.round(this.t)) < 0.01) this.snapshot(); }
     }
-    fight(phase, name = 'Ember Golem') {
+    fight(phase, id) {
       this.phase = phase; const f = this.difficulty(), ref = this.ref;
       this.e = {}; this.shardsSpawned = false; this.enraged = false;
       const hitDmg = (ref.hps * 0.14 * 2 * f) / (1 - ref.tankDr);
-      if (phase === 'pack' && name === 'Brute pack') {
-        for (let k = 0; k < 2; k++) this.spawn('add', 'Ember Imp', (ref.dps * 11 * f) / 4, hitDmg, 2);
-        this.spawn('brute', 'Ember Brute', (ref.dps * 11 * f) / 2, hitDmg * 1.8, 2.5);
-      } else if (phase === 'pack') {
-        for (let k = 0; k < 3; k++) this.spawn('add', 'Ember Imp', (ref.dps * 11 * f) / 3, hitDmg, 2);
+      let name;
+      if (phase === 'pack') {
+        // A pack shares one health budget among its enemies; a brute hits harder and slower than an imp.
+        const pack = this.d.packs[id]; name = pack.name;
+        for (const sp of pack.spawn) { const foe = this.d.enemies[sp.enemy]; for (let k = 0; k < sp.count; k++) this.spawn(foe.kind, foe.name, Dg.share(ref.dps * 11 * f, sp.health), hitDmg * sp.damage, sp.swing); }
       } else {
-        const [hpShare, dmgShare, mechs, enrage, hit] = D.BOSSES[name];
-        this.spawn('boss', name, ref.dps * 46 * f * hpShare, (ref.hps * 0.46 * 2 * f * dmgShare) / (1 - ref.tankDr), 2);
-        this.e[this.enemySeq].hit = hit;
-        const on = (m, at) => (mechs.includes(m) ? at : 1e9);
-        this.mech = { buster: on('buster', 12), rain: on('rain', 6), shock: on('shock', 25), curse: on('curse', 18) };
-        this.shardsSpawned = !mechs.includes('adds');
-        this.enrageAt = enrage;
+        const boss = this.d.bosses[id]; name = boss.name;
+        this.spawn('boss', name, ref.dps * 46 * f * boss.health, (ref.hps * 0.46 * 2 * f * boss.damage) / (1 - ref.tankDr), 2);
+        this.e[this.enemySeq].hit = boss.hit;
+        this.mech = {};
+        for (const [m, [at]] of Object.entries(D.MECHANIC_TIMING)) this.mech[m] = boss.mechanics.includes(m) ? ((this.d.mechanics[m] || {}).at ?? at) : 1e9;
+        this.shardsSpawned = !boss.mechanics.includes('adds');
+        this.enrageAt = boss.enrage;
       }
       this.phaseStart = this.t;
       this.emit('phase', this.clear, phase === 'boss' ? 1 : 0, 0, 0, { name, wing: this.wing, enemies: this.enemyList() });
@@ -536,6 +546,8 @@
         if (this.t > limit) { this.wipe = { t: this.t, clear: this.clear, phase, enraged: true, timeout: true }; return false; }
       }
     }
+    mechName(type) { return (this.d.mechanics[type] || {}).name || type; }
+    every(type) { return (this.d.mechanics[type] || {}).every ?? D.MECHANIC_TIMING[type][1]; }
     difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * this.wing); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
@@ -582,20 +594,20 @@
       const f = this.difficulty(), ref = this.ref, m = this.enraged ? 2 : 1;
       const mech = (i, k) => { const r = this.report[i].mechanics; r[k] = (r[k] || 0) + 1; };
       if (t >= this.mech.buster) {
-        this.mech.buster += 15;
+        this.mech.buster += this.every('buster');
         const target = this.enemyTarget(boss.id);
-        if (target !== null) { this.emit('mech', -1, target, 0, 0, { name: 'Tank Buster' }); this.damageHero(target, (ref.tankHp * 0.3 * f * m) / (1 - ref.tankDr), { melee: true, src: boss.id, what: 'Tank Buster', big: true }); }
+        if (target !== null) { this.emit('mech', -1, target, 0, 0, { name: this.mechName('buster') }); this.damageHero(target, (ref.tankHp * 0.3 * f * m) / (1 - ref.tankDr), { melee: true, src: boss.id, what: this.mechName('buster'), big: true }); }
       }
       if (t >= this.mech.rain) {
-        this.mech.rain += 9;
-        this.emit('mech', -1, -1, 0, 0, { name: 'Magma Rain' });
+        this.mech.rain += this.every('rain');
+        this.emit('mech', -1, -1, 0, 0, { name: this.mechName('rain') });
         // Scaled from healing, but never past a share of a hero's health: big heals must not mean one-shots.
         const rain = (Math.min((ref.hps * 0.3 * 9) / 5, ref.avgHp * 0.35 * (1 - ref.avgDr * 0.5)) * f * m) / (1 - ref.avgDr * 0.5);
-        this.h.forEach((h, i) => { if (!h.dead) this.damageHero(i, rain, { fire: true, magic: true, src: boss.id, what: 'Magma Rain' }); });
+        this.h.forEach((h, i) => { if (!h.dead) this.damageHero(i, rain, { fire: !!(this.d.mechanics.rain || {}).fire, magic: true, src: boss.id, what: this.mechName('rain') }); });
       }
       if (t >= this.mech.shock) {
-        this.mech.shock += 30;
-        this.emit('mech', -1, -1, 0, 0, { name: 'Shockwave' });
+        this.mech.shock += this.every('shock');
+        this.emit('mech', -1, -1, 0, 0, { name: this.mechName('shock') });
         this.h.forEach((h, i) => {
           if (h.dead) return;
           const immune = h.race === 'dwarf' || this.ks(h, 'unmovable') || this.r.getFloat(0, 1) < h.s.resist;
@@ -603,21 +615,22 @@
         });
       }
       if (t >= this.mech.curse) {
-        this.mech.curse += 30;
+        this.mech.curse += this.every('curse');
         const alive = this.h.filter((h) => !h.dead && h.role !== 'tank').map((h) => h.i);
         if (alive.length) {
           const i = alive[this.r.getInt(0, alive.length - 1)];
           if (this.r.getFloat(0, 1) < this.h[i].s.resist) { this.emit('mech', -1, i, 0, 1, { name: 'Curse resisted' }); mech(i, 'curseResisted'); }
-          else { this.emit('mech', -1, i, 0, 0, { name: 'Smouldering Curse' }); this.h[i].curse = { until: this.t + 10, dps: this.h[i].s.maxHp * 0.035 }; }
+          else { this.emit('mech', -1, i, 0, 0, { name: this.mechName('curse') }); this.h[i].curse = { until: this.t + 10, dps: this.h[i].s.maxHp * 0.035 }; }
         }
       }
       if (!this.shardsSpawned && boss.hp < boss.max * 0.5) {
         this.shardsSpawned = true;
-        this.emit('mech', -1, -1, 0, 0, { name: 'Ember Shards' });
-        for (let k = 0; k < 2; k++) {
-          this.spawn('shard', 'Ember Shard', ref.dps * 3.5 * f, (ref.hps * 0.1 * 2 * f) / (1 - ref.tankDr), 2);
+        const adds = this.d.mechanics.adds, foe = this.d.enemies[adds.enemy];
+        this.emit('mech', -1, -1, 0, 0, { name: adds.name });
+        for (let k = 0; k < adds.count; k++) {
+          this.spawn(foe.kind, foe.name, ref.dps * 3.5 * f, (ref.hps * 0.1 * 2 * f) / (1 - ref.tankDr), 2);
           const id = this.enemySeq;
-          this.emit('spawn', id, -1, Math.trunc(this.e[id].max), 0, { enemy: [id, 'shard', 'Ember Shard', Math.trunc(this.e[id].max)] });
+          this.emit('spawn', id, -1, Math.trunc(this.e[id].max), 0, { enemy: [id, foe.kind, foe.name, Math.trunc(this.e[id].max)] });
           for (const h of this.h) this.e[id].threat[h.i] = h.role === 'healer' ? 5 : 0;
         }
         this.emit('phase', this.clear, 2, 0, 0, { enemies: this.enemyList() });
@@ -891,7 +904,7 @@
     tickHots() {
       this.h.forEach((x, w) => {
         if (x.dead) return;
-        if (x.curse && x.curse.until > this.t) { x.hp -= x.curse.dps; this.report[w].taken += x.curse.dps; if (x.hp <= 0) this.onLethal(w, 'Smouldering Curse'); }
+        if (x.curse && x.curse.until > this.t) { x.hp -= x.curse.dps; this.report[w].taken += x.curse.dps; if (x.hp <= 0) this.onLethal(w, this.mechName('curse')); }
         x.hots = x.hots.filter((o) => o.until > this.t);
         for (const o of x.hots.slice()) if (o.tick > 0 && !this.h[o.src].dead) this.heal(o.src, w, o.tick, false);
       });
@@ -921,10 +934,10 @@
     emit(type, src, dst, amount, flags, extra = null) { const row = [Math.round(this.t * 10), type, src, dst, amount, flags]; if (extra) row.push(extra); this.ev.push(row); }
     explain() {
       const w = this.wipe, clock = Math.floor(w.t / 60) + ':' + String(Math.floor(w.t) % 60).padStart(2, '0');
-      const where = (c) => (D.DUNGEON[c][0] === 'boss' ? 'the ' + D.DUNGEON[c][1] : 'a ' + D.DUNGEON[c][1].toLowerCase() + ' in wing ' + (D.DUNGEON[c][2] + 1));
+      const where = (c) => (this.d.plan[c][0] === 'boss' ? 'the ' + Dg.label(this.d, c) : 'a ' + Dg.label(this.d, c).toLowerCase() + ' in wing ' + (this.d.plan[c][2] + 1));
       const at = where(w.clear) + ' at ' + clock, name = (i) => this.h[i].name;
       if (w.timeout) return 'The fight against ' + at + " ran too long: the group couldn't finish it.";
-      if (w.enraged) return 'The ' + D.DUNGEON[w.clear][1] + ' enraged at ' + clock + ": the group's damage was too low to kill it in time.";
+      if (w.enraged) return 'The ' + Dg.label(this.d, w.clear) + ' enraged at ' + clock + ": the group's damage was too low to kill it in time.";
       for (const [i, o] of Object.entries(this.oomAt)) if (this.h[i].role === 'healer' && o.clear === w.clear) return name(i) + ' ran out of mana against ' + where(o.clear) + ': more Wisdom or a mana affix would keep the heals going.';
       for (const d of this.lastDeath) {
         if (d.clear !== w.clear) continue;
