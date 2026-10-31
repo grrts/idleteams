@@ -543,15 +543,15 @@
   function frame(size, rim, stud, inner) {
     return canvasOf(size, size, (g, px) => {
       const s = size, e = s - 1;
-      px(0, 0, s, s, '#0c0610');
+      px(0, 0, s, s, '#110b06');
       px(1, 1, s - 2, s - 2, rim);
       px(1, 1, s - 2, 1, mix(rim, '#fff1d0', 0.35)); px(1, 1, 1, s - 2, mix(rim, '#fff1d0', 0.2));
-      px(1, e - 1, s - 2, 1, mix(rim, '#05020a', 0.45)); px(e - 1, 1, 1, s - 2, mix(rim, '#05020a', 0.35));
+      px(1, e - 1, s - 2, 1, mix(rim, '#090603', 0.45)); px(e - 1, 1, 1, s - 2, mix(rim, '#090603', 0.35));
       px(2, 2, s - 4, 1, mix(rim, '#fff1d0', 0.12)); px(2, 3, s - 4, 1, rim);
-      px(4, 4, s - 8, s - 8, '#0c0610');
-      px(5, 5, s - 10, 1, mix(inner, '#05020a', 0.5));
+      px(4, 4, s - 8, s - 8, '#110b06');
+      px(5, 5, s - 10, 1, mix(inner, '#090603', 0.5));
       g.clearRect(5, 6, s - 10, s - 11); g.clearRect(6, 5, s - 12, 1);
-      if (stud) [[1, 1], [e - 5, 1], [1, e - 5], [e - 5, e - 5]].forEach(([x, y]) => { px(x, y, 5, 5, '#0c0610'); px(x + 1, y + 1, 3, 3, stud); px(x + 1, y + 1, 2, 1, mix(stud, '#ffffff', 0.55)); px(x + 3, y + 3, 1, 1, mix(stud, '#05020a', 0.45)); });
+      if (stud) [[1, 1], [e - 5, 1], [1, e - 5], [e - 5, e - 5]].forEach(([x, y]) => { px(x, y, 5, 5, '#110b06'); px(x + 1, y + 1, 3, 3, stud); px(x + 1, y + 1, 2, 1, mix(stud, '#ffffff', 0.55)); px(x + 3, y + 3, 1, 1, mix(stud, '#090603', 0.45)); });
       // keep the four corner pixels empty for a softer, chipped look
       [[0, 0], [e, 0], [0, e], [e, e]].forEach(([x, y]) => g.clearRect(x, y, 1, 1));
     });
@@ -559,45 +559,45 @@
   // button: 12 px 9-slice, filled, lighter top half, dark lip under it
   function button(face, edge) {
     return canvasOf(12, 12, (g, px) => {
-      px(1, 0, 10, 12, '#0c0610'); px(0, 1, 12, 10, '#0c0610');
+      px(1, 0, 10, 12, '#110b06'); px(0, 1, 12, 10, '#110b06');
       px(1, 1, 10, 9, face); px(1, 1, 10, 4, mix(face, '#fff1d0', 0.18)); px(1, 1, 10, 1, mix(face, '#fff1d0', 0.5));
-      px(1, 9, 10, 2, edge); px(1, 1, 1, 8, mix(face, '#fff1d0', 0.3)); px(10, 1, 1, 8, mix(face, '#05020a', 0.25));
+      px(1, 9, 10, 2, edge); px(1, 1, 1, 8, mix(face, '#fff1d0', 0.3)); px(10, 1, 1, 8, mix(face, '#090603', 0.25));
     });
   }
   // stone wall for the page and a dark, slightly mottled panel fill
   function wall() {
     return canvasOf(64, 48, (g, px) => {
       const r = rnd(4242);
-      px(0, 0, 64, 48, '#120a17');
+      px(0, 0, 64, 48, '#191109');
       for (let y = 0, row = 0; y < 48; y += 12, row++) for (let x = row % 2 ? -16 : 0; x < 64; x += 32) {
-        const col = mix('#1d1226', '#251830', r());
-        px(x + 1, y + 1, 30, 10, col); px(x + 1, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 1, y + 10, 30, 1, mix(col, '#05020a', 0.35));
-        if (x < 0) { px(x + 65, y + 1, 30, 10, col); px(x + 65, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 65, y + 10, 30, 1, mix(col, '#05020a', 0.35)); }
-        for (let k = 0; k < 6; k++) px(x + 2 + Math.floor(r() * 28), y + 2 + Math.floor(r() * 8), 1, 1, mix(col, r() < 0.5 ? '#05020a' : '#fff1d0', 0.12));
+        const col = mix('#2a1d10', '#352516', r());
+        px(x + 1, y + 1, 30, 10, col); px(x + 1, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 1, y + 10, 30, 1, mix(col, '#090603', 0.35));
+        if (x < 0) { px(x + 65, y + 1, 30, 10, col); px(x + 65, y + 1, 30, 1, mix(col, '#fff1d0', 0.06)); px(x + 65, y + 10, 30, 1, mix(col, '#090603', 0.35)); }
+        for (let k = 0; k < 6; k++) px(x + 2 + Math.floor(r() * 28), y + 2 + Math.floor(r() * 8), 1, 1, mix(col, r() < 0.5 ? '#090603' : '#fff1d0', 0.12));
       }
     });
   }
   function grain(base) {
-    return canvasOf(32, 32, (g, px) => { const r = rnd(77); px(0, 0, 32, 32, base); for (let k = 0; k < 90; k++) px(Math.floor(r() * 32), Math.floor(r() * 32), 1, 1, mix(base, r() < 0.5 ? '#05020a' : '#fff1d0', 0.05 + r() * 0.04)); });
+    return canvasOf(32, 32, (g, px) => { const r = rnd(77); px(0, 0, 32, 32, base); for (let k = 0; k < 90; k++) px(Math.floor(r() * 32), Math.floor(r() * 32), 1, 1, mix(base, r() < 0.5 ? '#090603' : '#fff1d0', 0.05 + r() * 0.04)); });
   }
   // a small gold ornament for headings
   function ornament() {
-    return canvasOf(11, 7, (g, px) => { px(5, 0, 1, 7, '#0c0610'); px(4, 1, 3, 5, '#0c0610'); px(3, 2, 5, 3, '#0c0610'); px(0, 3, 11, 1, '#0c0610'); px(5, 1, 1, 5, '#ffd25a'); px(4, 2, 3, 3, '#ffd25a'); px(5, 2, 1, 1, '#fff4c0'); px(1, 3, 2, 1, '#c9952a'); px(8, 3, 2, 1, '#c9952a'); });
+    return canvasOf(11, 7, (g, px) => { px(5, 0, 1, 7, '#110b06'); px(4, 1, 3, 5, '#110b06'); px(3, 2, 5, 3, '#110b06'); px(0, 3, 11, 1, '#110b06'); px(5, 1, 1, 5, '#ffd25a'); px(4, 2, 3, 3, '#ffd25a'); px(5, 2, 1, 1, '#fff4c0'); px(1, 3, 2, 1, '#c9952a'); px(8, 3, 2, 1, '#c9952a'); });
   }
   A.applyTheme = () => {
     const vars = {
-      '--ui-frame': frame(24, '#4a3a5a', '#c9952a', '#1d1226'),
-      '--ui-frame-gold': frame(24, '#8a6a2a', '#ffd25a', '#1d1226'),
-      '--ui-frame-ember': frame(24, '#8a3a1a', '#ffb340', '#1d1226'),
-      '--ui-slot': frame(12, '#3a2c4a', null, '#140c18'),
-      '--ui-btn': button('#4a3a5e', '#2a1f38'),
-      '--ui-btn-hover': button('#5a4870', '#2a1f38'),
+      '--ui-frame': frame(24, '#5f4a35', '#c9952a', '#2a1d10'),
+      '--ui-frame-gold': frame(24, '#8a6a2a', '#ffd25a', '#2a1d10'),
+      '--ui-frame-ember': frame(24, '#8a3a1a', '#ffb340', '#2a1d10'),
+      '--ui-slot': frame(12, '#4e3b28', null, '#1a130b'),
+      '--ui-btn': button('#634c35', '#3e2d1d'),
+      '--ui-btn-hover': button('#775c41', '#3e2d1d'),
       '--ui-btn-primary': button('#e86a1e', '#8a3410'),
       '--ui-btn-primary-hover': button('#ff8a2a', '#8a3410'),
       '--ui-btn-on': button('#d9a53a', '#7a5414'),
       '--ui-wall': wall(),
-      '--ui-panel': grain('#1d1226'),
-      '--ui-panel2': grain('#271a33'),
+      '--ui-panel': grain('#2a1d10'),
+      '--ui-panel2': grain('#382818'),
       '--ui-ornament': ornament(),
     };
     const st = document.documentElement.style;

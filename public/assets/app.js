@@ -137,9 +137,10 @@
     return h;
   }
   const slotName = (it) => (it.slot === 'glyph' ? 'Glyph' : (S.cfg.slots[it.slot] || [cap(it.slot)])[0]);
+  const TIPS = [];
   function tile(it, opts = {}) {
     if (!it) return '<div class="tile empty"><span>' + esc(opts.label || '') + '</span></div>';
-    return '<div class="tile ' + it.rarity + (opts.sel ? ' sel' : '') + (opts.big ? ' big' : '') + '"' + (opts.act === false ? '' : ' data-act="sel" data-id="' + it.id + '"') + ' title="' + esc(itemName(it)) + '"><img alt="" src="' + ITA.icon(it) + '">' + (opts.up ? '<span class="up">▲</span>' : '') + (opts.tag ? '<span class="tag">' + opts.tag + '</span>' : '') + '</div>';
+    return '<div class="tile ' + it.rarity + (opts.sel ? ' sel' : '') + (opts.big ? ' big' : '') + '"' + (opts.act === false ? '' : ' data-act="sel" data-id="' + it.id + '"') + ' data-tip="' + (TIPS.push(it) - 1) + '" aria-label="' + esc(itemName(it)) + '"><img alt="" src="' + ITA.icon(it) + '">' + (opts.up ? '<span class="up">▲</span>' : '') + (opts.tag ? '<span class="tag">' + opts.tag + '</span>' : '') + '</div>';
   }
   function itemCard(it, extra = '', attrs = '') {
     return '<div class="item ' + it.rarity + '" ' + attrs + '>' + tile(it, { act: false }) + '<div><div class="nm r-' + it.rarity + '">' + esc(itemName(it)) + '</div><div class="sub">' + rarityName(it.rarity) + ' ' + slotName(it) + ' · item level ' + it.ilvl + '</div>' +
@@ -183,7 +184,7 @@
     loadView();
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) refresh(); }, 5000);
     setInterval(() => { if (S.st && S.st.hero && !document.hidden) pollChat(); }, 4000);
-    setInterval(() => { if (S.view === 'battle' && S.st && S.st.hero && !document.hidden) loadBattle(); }, 15000);
+    setInterval(() => { if (S.st && S.st.hero && S.st.party && !document.hidden) loadBattle(); }, 15000);
     requestAnimationFrame(frame);
   }
 
@@ -191,9 +192,10 @@
     try {
       const st = await get('/state');
       S.skew = st.serverTime - Date.now() / 1000;
-      const prevBattle = S.st && S.st.battle && S.st.battle.id;
+      const prevBattle = S.st && S.st.battle && S.st.battle.id, prevLevel = S.st && S.st.hero && S.st.hero.level;
       S.st = st;
-      if (st.hero && st.battle && st.battle.id !== prevBattle && S.view === 'battle') loadBattle();
+      if (st.hero && st.battle && st.battle.id !== prevBattle) loadBattle();
+      if (prevLevel && st.hero && st.hero.level > prevLevel) celebrate.level(st.hero);
     } catch (e) {
       if (e.status === 401) S.st = null; else { toast(e.message); return; }
     }
@@ -203,7 +205,7 @@
 
   async function loadView() {
     if (!S.st || !S.st.hero) return;
-    if (S.view === 'battle') loadBattle();
+    if (S.st.party) loadBattle();
     if (S.view === 'group') { S.tavern = await get('/tavern').catch(() => null); render(); }
     if (S.view === 'guild') { S.guilds = await get('/guilds').catch(() => null); render(); }
     if (S.view === 'market') loadMarket();
@@ -217,6 +219,7 @@
       const b = await get('/battle?have=' + have);
       if (b.current && b.current.timeline) S.timelines[b.current.id] = prepTimeline(b.current.timeline);
       S.battle = b;
+      celebrate.run(b);
       render();
     } catch (e) { /* not in a group */ }
   }
@@ -244,6 +247,8 @@
     S.renderPending = false;
     const app = $('#app');
     const keepScroll = $('.msgs') ? $('.msgs').scrollTop : null;
+    const keepWin = $('.win-body') && S.lastWin === S.view ? $('.win-body').scrollTop : 0; S.lastWin = S.view;
+    TIPS.length = 0;
     keepInputs(app, () => {
       if (!S.st) app.innerHTML = authView();
       else if (!S.st.hero) app.innerHTML = creatorView();
@@ -253,8 +258,9 @@
     mountMaps();
     const msgs = $('.msgs');
     if (msgs) msgs.scrollTop = keepScroll != null && !S.chatJump ? keepScroll : msgs.scrollHeight;
+    if (keepWin && $('.win-body')) $('.win-body').scrollTop = keepWin;
     S.chatJump = false;
-    if (S.st && S.st.hero && S.view === 'battle') setupScene();
+    if (S.st && S.st.hero) setupScene();
   }
 
   function authView() {
@@ -357,7 +363,6 @@
   }
   // The creator shows the hero in plain clothes: gear comes from play, not from the creator.
   const plain = (c, race) => ({ ...c.look, race: race || c.race, skin: race && race !== c.race ? ITP.RACES[race].skins[1] : c.look.skin, hat: 'none', top: 'tunic', bottom: 'pants', shoes: 'boots', gloves: 'none', cape: 'none', weapon: 'none', offhand: 'none' });
-  const STEPS = [['race', 'Race'], ['cls', 'Class'], ['origin', 'Origin'], ['story', 'Life story'], ['look', 'Look'], ['name', 'Name']];
   // The name field only exists on the last step, so creator actions copy it before re-rendering.
   const keepName = () => { const el = $('#cname'); if (el && S.creator) S.creator.name = el.value; };
   const stepDone = (c, s) => (s === 'story' ? storyDone(c.race, c.story) : s === 'name' ? c.name.trim().length >= 3 : !!(S.creatorSeen || {})[s]);
@@ -369,19 +374,12 @@
     const L = S.cfg.lifeStory, q = L.questions[race], cult = S.cfg.cultures[race], bs = S.cfg.backstories[race], out = [];
     Object.values(L.chapters).forEach(([title, ids]) => ids.forEach((id) => {
       if (id === 'home') out.push([id, title, q.home, Object.entries(cult).map(([cid, n]) => [cid, n, '', '']), null]);
-      else if (id === 'youth') out.push([id, title, q.youth, Object.entries(bs).filter(([, b]) => b[1] === story.answers.home).map(([bid, b]) => [bid, b[0], b[3], 'Starts in ' + b[5] + ' · ' + b[4]]), story.answers.home ? null : 'Answer where you were raised first.']);
-      else out.push([id, title, q[id][0], q[id][1].map((o, i) => [i, o[0], '', attrName(o[2])]), null]);
+      else if (id === 'youth') out.push([id, title, q.youth, Object.entries(bs).filter(([, b]) => b[1] === story.answers.home).map(([bid, b]) => [bid, b[0], b[3], '']), story.answers.home ? null : 'Answer where you were raised first.']);
+      else out.push([id, title, q[id][0], q[id][1].map((o, i) => [i, o[0], o[1], '']), null]);
     }));
     return out;
   }
   const storyDone = (race, story) => storyQuestions(race, story).every(([id]) => story.answers[id] !== undefined && story.answers[id] !== null);
-  // Same rule as LifeStory::lean: the three attributes the answers name most, earliest first on a tie.
-  function storyLean(race, story) {
-    const q = S.cfg.lifeStory.questions[race], count = new Map();
-    Object.values(S.cfg.lifeStory.chapters).flatMap((c) => c[1]).forEach((id) => { const a = story.answers[id]; if (typeof a === 'number' && q[id]) { const at = q[id][1][a][2]; count.set(at, (count.get(at) || 0) + 1); } });
-    const order = [...count.keys()];
-    return [...count.entries()].sort((x, y) => y[1] - x[1] || order.indexOf(x[0]) - order.indexOf(y[0])).slice(0, S.cfg.lifeStory.lean[0]).map(([a]) => a);
-  }
   // Same prose as LifeStory::biography.
   function storyBio(race, name, story) {
     const L = S.cfg.lifeStory, q = L.questions[race], home = S.cfg.cultureInfo[race][story.answers.home];
@@ -422,106 +420,188 @@
    */
   function storyWizard(race, name, story, ctx, finish) {
     const qs = storyQuestions(race, story), at = Math.min((S.storyAt || {})[ctx] || 0, qs.length), L = S.cfg.lifeStory;
-    const threads = loreThreads(storyLoreKeys(race, story));
+    const threads = typeof loreThreads === 'function' ? loreThreads(storyLoreKeys(race, story)) : [];
     const answered = qs.filter(([id]) => story.answers[id] !== undefined).length, who = name && name.trim() ? name.trim() : null;
     const bar = '<div class="tellbar"><span class="bar"><i style="width:' + (100 * answered) / qs.length + '%"></i></span><span class="small muted">' + answered + ' of ' + qs.length + '</span>' +
       (answered < qs.length ? '<button class="small ghost" data-act="storyRandom" data-ctx="' + ctx + '">Tell the rest for me</button>' : '') + '</div>';
     const back = at > 0 ? '<button class="small ghost" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at - 1) + '">← Back</button>' : '<span></span>';
     if (at >= qs.length) {
       const bio = namedBio(race, who, story), done = storyDone(race, story);
-      return '<div class="tell enter">' + bar + '<div class="tellpage"><div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
+      return '<div class="tell enter">' + bar + '<div class="tellpage">' + (ctx === 'creator' ? '' : taleArt(race, 'setting')) + '<div class="eyebrow">The tale so far</div><div class="storybio book">' + bioHtml(bio) + '</div>' +
         '<div class="storyq"><div class="qtext">Anything the tale left out? A secret, a name, a promise. (optional)</div><textarea id="storynotes" data-ctx="' + ctx + '" maxlength="' + L.notesMax + '" rows="3">' + esc(story.notes || '') + '</textarea></div>' +
         (threads.length ? '<div class="loresee threads"><span class="eyebrow">' + ico('lore') + ' Threads of this tale in the lore book</span>' + threads.map((k) => loreLink(k, null, 'chip lorechip')).join('') + '</div>' : '') +
         (done ? '' : '<p class="small bad">Some of the tale is still untold. Go back and answer the open questions.</p>') +
         '<div class="row between tellnav">' + back + (done ? finish : '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + qs.findIndex(([id]) => story.answers[id] === undefined) + '">Answer what is left</button>') + '</div></div></div>';
     }
     const [id, title, text, opts, blocked] = qs[at], first = at === 0 || qs[at - 1][1] !== title;
+    const later = qs.findIndex(([q], i) => i > at && story.answers[q] === undefined), nextOpen = later >= 0 ? later : qs.findIndex(([q]) => story.answers[q] === undefined) >= 0 ? qs.findIndex(([q]) => story.answers[q] === undefined) : qs.length;
     const chKey = Object.keys(L.chapters).find((k) => L.chapters[k][0] === title), chNo = Object.keys(L.chapters).indexOf(chKey) + 1;
     const scene = first ? '<p class="scene">' + esc(L.scenes[race][chKey]) + '</p>' : '';
     const beat = (sentence) => (who ? sentence.split('{name}').join(who) : sentence.replace(/^\{name\}/, 'Your hero').split('{name}').join('your hero'));
     const prev = !first && story.answers[qs[at - 1][0]] !== undefined ? namedBio(race, who, { answers: { [qs[at - 1][0]]: story.answers[qs[at - 1][0]], home: story.answers.home }, notes: '' }).filter(([t]) => t).map(([, p]) => p).join(' ') : '';
-    return '<div class="tell enter">' + bar + '<div class="tellpage"><div class="eyebrow">Chapter ' + chNo + ' · ' + esc(title) + '</div>' + scene +
+    const picked = story.answers[id], moment = picked !== undefined && window.ITT ? '<figure class="moment"><img class="taleart" alt="" src="' + ITT.answer(race, chKey, answerMotif(race, qs[at], picked)) + '"></figure>' : '';
+    return '<div class="tell enter">' + bar + '<div class="tellpage">' + (moment || (ctx === 'creator' ? '' : taleArt(race, chKey))) + '<div class="eyebrow">Chapter ' + chNo + ' · ' + esc(title) + '</div>' + scene +
       (prev ? '<p class="prevbeat">' + esc(prev.split('. ').slice(-1)[0]) + '</p>' : '') +
       '<h3 class="tellq">' + esc(text) + '</h3>' +
       (blocked ? '<p class="small muted">' + esc(blocked) + '</p>' : '<div class="beats">' + opts.map(([v, label, sentence, note]) => {
         const line = sentence ? beat(sentence) : id === 'home' ? (who || 'Your hero') + ' was raised among the ' + label + ': ' + S.cfg.cultureInfo[race][v][1].charAt(0).toLowerCase() + S.cfg.cultureInfo[race][v][1].slice(1) + '.' : '';
-        const le = lore(id === 'home' ? loreKey('culture', race, v) : id === 'youth' ? loreKey('backstory', race, v) : loreKey('answer', race, id, v));
-        return '<button class="beat' + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '"><b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + (le ? '<em class="lorenote">' + ico('lore') + esc(lorePlain(le.summary)) + '</em>' : '') + '</button>';
+        const emb = window.ITT ? '<img class="emb" alt="" src="' + ITT.emblem(answerMotif(race, qs[at], v)) + '">' : '';
+        return '<button class="beat' + (emb ? ' has-emb' : '') + (story.answers[id] === v ? ' on' : '') + '" data-act="ans" data-ctx="' + ctx + '" data-q="' + id + '" data-v="' + v + '">' + emb + '<b>' + esc(label) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</button>';
       }).join('') + '</div>') +
-      '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="small" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + (at + 1) + '">Next →</button>' : '<span></span>') + '</div></div></div>';
+      '<div class="row between tellnav">' + back + (story.answers[id] !== undefined ? '<button class="primary" data-act="storyAt" data-ctx="' + ctx + '" data-i="' + nextOpen + '">Continue →</button>' : '<span class="small muted">Choose what happened.</span>') + '</div></div></div>';
   }
 
+  // The creator is one tale told in order. Each step finishes a sentence: [step, the words that lead into it].
+  const STEPS = [['race', 'There once was'], ['cls', 'who would one day answer the call of'], ['origin', 'But first they had to be born, under the sign of'], ['story', 'And this is how they grew up'], ['look', 'Anyone who met them on the road would have seen'], ['name', 'And their name was']];
+  // Story words only: what each race, calling and sign is in the tale, never what it does in a fight.
+  // [the words that finish the sentence, the rest of it]; anything missing falls back to the plain name.
+  const TALE = {
+    race: {
+      human: ['a human', 'one of the many-handed, short-lived and stubborn, from the towns that rebuilt the world after the Breaking'],
+      elf: ['an elf', 'one of the long-lived, who woke first under the stars and never forget anything'],
+      dwarf: ['a dwarf', 'short, broad and patient as stone, from the deep halls under the Greyteeth'],
+      orc: ['an orc', 'big, proud and loud, a child of the drum from the red steppe'],
+      felkin: ['a felkin', 'quick and curious, from the dunes and the rooftops, who always landed on their feet'],
+      draka: ['a draka', 'hatched in the fire peaks of Kaldera, with a flame inside and dragons for ancestors'],
+    },
+    cls: {
+      guardian: ['the shield', 'and stand between their friends and whatever came out of the dark', 'Guardian'],
+      warden: ['the wild roads', 'and let the forest wear them like armour, bark for skin and thorns for anyone too close', 'Warden'],
+      cleric: ['the Undying Light', 'and carry it into the Hollows, to mend the wounded and burn away what does not belong', 'Cleric'],
+      druid: ['the Green', 'and learn to heal the way spring does: slowly, then all at once', 'Druid'],
+      ranger: ['the bow', 'and roam the far edges with the Wayfarers, very rarely wrong about where to shoot', 'Ranger'],
+      mage: ['the weave', 'and pull fire, frost and raw force out of the world itself', 'Mage'],
+      rogue: ['the quiet knife', 'and learn from the Quiet Hand to be somewhere else before anyone struck back', 'Rogue'],
+    },
+    origin: {
+      anvil: ['the Anvil', 'in the first frost of winter, and they were patient and good with their hands from the start'],
+      lantern: ['the Lantern', 'on the longest night of the year, when every window kept a light burning for them'],
+      comet: ['the Comet', 'the year a wandering star crossed the sky, and nothing about them was ever predictable again'],
+      fox: ['the Fox', 'at the thaw, clever from their first day and never quite where anyone was looking'],
+      oak: ['the Oak', 'in the spring rains, rooted and very hard to knock down'],
+      bell: ['the Bell', 'in the season of the muster, and they were loud from their very first breath'],
+      tide: ['the Tide', 'at midsummer, calm and deep as the sea'],
+      hare: ['the Hare', 'in high summer, and they were running before they could walk'],
+      wolf: ['the Wolf', 'in late summer, fierce and loyal to their own'],
+      hawk: ['the Hawk', 'at the harvest, sharp-eyed from the cradle'],
+      ember: ['the Ember', 'by the light of the autumn fires, hot-blooded and bright'],
+      crown: ['the Crown', "at the year's end, proud and generous, as if they were born to lead"],
+    },
+  };
+  // Each calling's starting gear (Rules::CLASSES kit), so the calling page shows the hero dressed for it.
+  const KIT = {
+    guardian: { weapon: 'sword', offhand: 'shield', top: 'plate', bottom: 'greaves', shoes: 'sabatons' }, warden: { weapon: 'hammer', offhand: 'buckler', top: 'leather', bottom: 'kilt', shoes: 'boots' },
+    cleric: { weapon: 'wand', offhand: 'book', top: 'robe', bottom: 'pants', shoes: 'boots' }, druid: { weapon: 'staff', offhand: 'none', top: 'robe', bottom: 'pants', shoes: 'sandals' },
+    ranger: { weapon: 'bow', offhand: 'none', top: 'leather', bottom: 'pants', shoes: 'boots' }, mage: { weapon: 'staff', offhand: 'book', top: 'robe', bottom: 'pants', shoes: 'curly' }, rogue: { weapon: 'daggers', offhand: 'none', top: 'tunic', bottom: 'shorts', shoes: 'boots' },
+  };
+  // A picture from the tale art kit (tale-art.js), or nothing when it is not loaded.
+  const taleArt = (race, chapter) => (window.ITT ? '<img class="taleart" alt="" src="' + ITT.scene(race, chapter) + '">' : '');
+  // The emblem of one answer: [id, chapter, question, options] and the value picked.
+  function answerMotif(race, q, v) {
+    const o = q[3].find(([x]) => x === v); if (!o) return 'star';
+    return ITT.motif(q[0], o[1], o[2] || (q[0] === 'home' ? S.cfg.cultureInfo[race][v][1] : ''));
+  }
+  // The scene behind each page of the creator: the race's homeland at the hour that suits the step.
+  function taleBackdrop(c, step) {
+    if (!window.ITT) return '';
+    let ch = { race: 'setting', cls: 'age', origin: 'self', look: 'childhood', name: 'setting' }[step];
+    if (step === 'origin' && (stepDone(c, 'origin') || (S.creatorPicked || {}).origin)) return ' style="--tale-bg:url(\'' + ITT.sign(c.origin) + '\')"';
+    if (step === 'story') { const qs = storyQuestions(c.race, c.story), at = (S.storyAt || {}).creator || 0, L = S.cfg.lifeStory; ch = at >= qs.length ? 'setting' : Object.keys(L.chapters).find((k) => L.chapters[k][0] === qs[at][1]); }
+    return ' style="--tale-bg:url(\'' + ITT.scene(c.race, ch) + '\')"';
+  }
+  const taleBit = (kind, id) => TALE[kind][id] || [kind === 'race' ? S.cfg.races[id].name : kind === 'cls' ? S.cfg.classes[id].name : S.cfg.origins[id][0], '', ''];
+  // The opening of the tale as far as it has been told, one sentence per step: [step, sentence].
+  function taleOpening(c, upTo) {
+    const out = [], r = taleBit('race', c.race), k = taleBit('cls', c.cls), o = taleBit('origin', c.origin), seen = (s) => stepDone(c, s) || STEPS.findIndex(([x]) => x === s) < upTo;
+    if (seen('race')) out.push(['race', 'There once was ' + r[0] + (r[1] ? ', ' + r[1] : '') + '.']);
+    if (seen('cls')) out.push(['cls', 'One day they would answer the call of ' + k[0] + (k[1] ? ', ' + k[1] : '') + (k[2] ? '. They would be a ' + k[2] : '') + '.']);
+    if (seen('origin')) out.push(['origin', 'But first they had to be born, under the sign of ' + o[0] + (o[1] ? ', ' + o[1] : '') + '.']);
+    return out;
+  }
+
+  // The whole tale as the name page tells it: the opening, then the life story with the name in it.
+  const wholeTale = (c) => bioHtml(taleOpening(c, STEPS.length).map(([, l]) => ['', l])) + bioHtml(namedBio(c.race, c.name, c.story));
+
   function creatorView() {
-    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep;
-    const start = {};
-    const add = (a, n) => { start[a] = (start[a] || 0) + n; };
-    Object.entries(cfg.races[c.race].points).forEach(([a, n]) => add(a, n));
-    Object.entries(cfg.classes[c.cls].points).forEach(([a, n]) => add(a, n));
-    add(cfg.origins[c.origin][1], cfg.originPoints);
-    storyLean(c.race, c.story).forEach((a) => add(a, cfg.lifeStory.lean[1]));
-    const maxStart = Math.max(...Object.values(start));
-    const pts = (o) => Object.entries(o).map(([a, n]) => '+' + n + ' ' + attrName(a)).join(' · ');
-    const choice = (kind, id, title, body, on) => '<div class="choice ' + (on ? 'on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '"><b>' + esc(title) + '</b>' + body + '</div>';
+    const c = creatorState(), cfg = S.cfg, R = ITP.RACES[c.race], step = S.creatorStep, idx = STEPS.findIndex(([s]) => s === step);
     const sw = (key, list, title) => '<div><label>' + title + '</label><div class="swatches">' + list.map((v) => '<span class="sw ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" style="background:' + v + '" data-act="look" data-key="' + key + '" data-v="' + v + '" title="' + v + '"></span>').join('') + '</div></div>';
     const seg = (key, values, title) => '<div><label>' + title + '</label><div class="seg">' + Object.entries(values).map(([v, n]) => '<button class="small ' + (String(c.look[key]) === String(v) ? 'on' : '') + '" data-act="look" data-key="' + key + '" data-v="' + v + '">' + esc(n) + '</button>').join('') + '</div></div>';
-    const k = cfg.classes[c.cls];
+    // a choice is the next words of the sentence, with the rest of it underneath; a calling also shows its role
+    const words = (kind, list) => '<div class="words' + (list.some((x) => x[4]) ? ' cards' : '') + '">' + list.map(([id, w, rest, tag, art]) => '<button class="word' + (c[kind] === id && chosen(kind) ? ' on' : '') + '" data-act="pick" data-kind="' + kind + '" data-id="' + id + '">' + (art ? '<span class="art">' + art + '</span>' : '') + '<span class="wtxt"><b>' + esc(w) + '</b>' + (tag || '') + (rest ? '<em class="rest">' + esc(rest) + '</em>' : '') + '</span></button>').join('') + '</div>';
+    const chosen = (s) => stepDone(c, s) || !!(S.creatorPicked || {})[s];
+    // what has been told so far; each sentence turns back to its page
+    const told = (n) => { const t = taleOpening(c, n).filter(([s]) => STEPS.findIndex(([x]) => x === s) < n); return t.length ? '<p class="told">' + t.map(([s, line]) => '<a href="#" data-act="cstep" data-s="' + s + '" title="Tell this part again">' + esc(line) + '</a>').join(' ') + '</p>' : ''; };
+    const lead = () => '<h2 class="lead">' + (step === 'cls' ? '…' : '') + esc(STEPS[idx][1]) + '…</h2>';
     let body = '';
-    if (step === 'race') {
-      const r = cfg.races[c.race];
-      body = '<h2>Choose a race</h2><p class="muted">Races come in real sizes, from stout dwarves to towering orcs and draka. Every race can play every role.</p><div class="races" style="margin-top:12px">' +
-        Object.entries(cfg.races).map(([id, x]) => '<div class="race ' + (c.race === id ? 'on' : '') + '" data-act="pick" data-kind="race" data-id="' + id + '">' + spr(plain(c, id), 1.5) + '<b>' + esc(x.name) + '</b></div>').join('') + '</div>' +
-        '<div class="detail"><b class="title">' + esc(r.name) + '</b><div><b class="gold">' + esc(r.passive[1]) + '.</b> ' + esc(r.passive[2]) + '</div><div class="muted small">Starting points: ' + pts(r.points) + '</div></div>' +
-        loreCard(loreKey('race', c.race), { title: false, section: true, more: '<div class="loresee"><span class="eyebrow">Their homelands</span>' + Object.keys(cfg.cultures[c.race]).map((cid) => loreLink(loreKey('culture', c.race, cid), null, 'chip lorechip')).join('') + loreLink('world:valdren', 'The world', 'chip lorechip') + '</div>' });
-    } else if (step === 'story') {
-      body = '<h2>Their life story</h2><p class="muted">Every ' + esc(cfg.races[c.race].name) + ' has a story before the tavern. Tell it one moment at a time. Where they were raised sets their culture, what they were known for starts their Heritage at rank 3, and the three attributes the tale names most get +' + cfg.lifeStory.lean[1] + ' each.</p>' +
-        storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Now, how do they look? →</button>');
-    } else if (step === 'cls') {
-      body = '<h2>Choose a class</h2><p class="muted">Your class sets your role in the group, your skills and the resource they spend. It is permanent.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.classes).map(([id, k]) => choice('cls', id, k.name, '<div class="row">' + role(k.role) + '<span class="chip">' + ico(k.resource) + k.resource + '</span></div><div><b class="gold">' + esc(k.passive[1]) + '.</b> ' + esc(k.passive[2]) + '</div><div class="muted small">' + pts(k.points) + '</div>', c.cls === id)).join('') + '</div>' +
-        loreCard(loreKey('class', c.cls), { section: true, more: '<div class="lorepaths">' + Object.entries(k.paths).map(([pid, p]) => { const e = lore(loreKey('path', c.cls, pid)); return '<div><b>' + esc(p[0]) + '</b> <span class="muted small">Path at level ' + cfg.pathLevel + '</span><p class="small">' + (e ? loreText(e.summary) : esc(p[1])) + '</p></div>'; }).join('') + '</div>' });
-    } else if (step === 'origin') {
-      body = '<h2>Choose an Origin</h2><p class="muted">Where your hero comes from: ' + cfg.originPoints + ' points in one attribute and a small edge of its own.</p><div class="choices" style="margin-top:12px">' +
-        Object.entries(cfg.origins).map(([id, o]) => choice('origin', id, o[0], '<div class="muted small">+' + cfg.originPoints + ' ' + attrName(o[1]) + '</div><div>' + esc(o[2]) + '</div>', c.origin === id)).join('') + '</div>' +
-        loreCard(loreKey('origin', c.origin), { section: true, more: '<div class="loresee">' + loreLink('world:wheel', 'The Wheel of Signs', 'chip lorechip') + '</div>' });
-    } else if (step === 'look') {
-      body = '<div class="head"><h2>Make them yours</h2><button class="small" data-act="randomLook">Randomise look</button></div><p class="muted">Build and height change the silhouette only. Your two clothes colours become the dyes on every piece of gear you earn later.</p><div class="lookgrid" style="margin-top:6px">' +
-        sw('skin', R.skins, 'Skin') + sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') +
-        seg('beard', ITP.OPTIONS.beard, 'Facial hair') + seg('acc', ITP.OPTIONS.acc, 'Accessory') + seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height') +
-        sw('dye1', ITP.DYES, 'Main dye') + sw('dye2', ITP.DYES, 'Second dye') + sw('metal', ITP.METALS, 'Metal') + '</div>';
+    if (step === 'race') body = lead() + words('race', Object.keys(cfg.races).map((id) => [id, ...taleBit('race', id), '', spr(plain(c, id), 2.5, 'idle')]));
+    else if (step === 'cls') body = told(idx) + lead() + words('cls', Object.keys(cfg.classes).map((id) => { const t = taleBit('cls', id); return [id, t[0], (t[1] ? t[1].charAt(4).toUpperCase() + t[1].slice(5) + '.' : '') + (t[2] ? ' A ' + t[2] + '.' : ''), role(cfg.classes[id].role), spr({ ...plain(c), ...(KIT[id] || {}) }, 2.5, 'idle')]; }));
+    else if (step === 'origin') body = told(idx) + lead() + words('origin', Object.keys(cfg.origins).map((id) => { const t = taleBit('origin', id); return [id, t[0], t[1] ? t[1].charAt(0).toUpperCase() + t[1].slice(1) + '.' : '', '', window.ITT ? '<img class="signart" alt="" src="' + ITT.sign(id) + '">' : '']; }));
+    else if (step === 'story') body = storyWizard(c.race, c.name, c.story, 'creator', '<button class="primary" data-act="cstep" data-s="look">Go on →</button>');
+    else if (step === 'look') {
+      const tab = S.lookTab || 'face', TABS = { face: 'Face', hair: 'Hair', body: 'Body', clothes: 'Clothes' };
+      const opts = {
+        face: () => sw('skin', R.skins, 'Skin') + sw('eyeColor', ITP.EYES, 'Eye colour') + seg('eyes', ITP.OPTIONS.eyes, 'Eyes') + seg('mouth', ITP.OPTIONS.mouth, 'Expression') + seg('acc', ITP.OPTIONS.acc, 'Accessory'),
+        hair: () => sw('hairColor', ITP.HAIRS, 'Hair colour') + seg('hair', ITP.OPTIONS.hair, 'Hair') + seg('beard', ITP.OPTIONS.beard, 'Facial hair'),
+        body: () => seg('build', { 0.92: 'Slim', 1: 'Average', 1.1: 'Broad' }, 'Build') + seg('height', { 0.95: 'Short', 1: 'Average', 1.05: 'Tall' }, 'Height'),
+        clothes: () => sw('dye1', ITP.DYES, 'Clothes') + sw('dye2', ITP.DYES, 'Trim') + sw('metal', ITP.METALS, 'Buckles'),
+      };
+      body = lead() + '<div class="likeness"><div class="stage' + (S.faceLeft ? ' left' : '') + '">' + spr(plain(c), 7, 'idle') +
+        '<div class="row stagebtns"><button class="small" data-act="faceTurn" title="Turn around">' + (S.faceLeft ? '→ Face right' : '← Face left') + '</button><button class="small ghost" data-act="randomLook">Someone else</button></div></div>' +
+        '<div class="lookui"><div class="seg looktabs">' + Object.entries(TABS).map(([t, n]) => '<button class="small' + (t === tab ? ' on' : '') + '" data-act="lookTab" data-t="' + t + '">' + n + '</button>').join('') + '</div><div class="lookgrid">' + opts[tab]() + '</div></div></div>';
     } else {
       const ok = storyDone(c.race, c.story);
-      body = '<h2>And their name?</h2><p class="muted">Three to twenty letters. Your group, your guild and the market will know them by it.</p>' +
-        '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="Name" autocomplete="off">' +
-        '<div class="summary">' + [[cfg.races[c.race].name, loreKey('race', c.race)], [k.name, loreKey('class', c.cls)], [cfg.origins[c.origin][0] + ' Origin', loreKey('origin', c.origin)], c.story.answers.home ? [cfg.cultures[c.race][c.story.answers.home], loreKey('culture', c.race, c.story.answers.home)] : null, c.story.answers.youth ? [cfg.backstories[c.race][c.story.answers.youth][0], loreKey('backstory', c.race, c.story.answers.youth)] : null].filter(Boolean).map(([x, key]) => lore(key) ? loreLink(key, x, 'chip lorechip') : '<span class="chip">' + esc(x) + '</span>').join('') + '</div>' +
-        (ok ? '<div class="storybio book namebio">' + bioHtml(namedBio(c.race, c.name, c.story)) + '</div>' : '<div class="detail">Their life story is not finished yet. <button class="small" data-act="cstep" data-s="story">Finish it</button></div>');
+      body = lead() + '<input id="cname" class="bigname" value="' + esc(c.name) + '" maxlength="20" placeholder="…" autocomplete="off" aria-label="Their name">' +
+        (ok ? '<div class="storybio book namebio">' + wholeTale(c) + '</div>' : '<p class="told">Their life story is not finished yet. <a href="#" data-act="cstep" data-s="story">Finish it</a></p>') +
+        '<p class="small muted">Once their tale is told it stays told. Only their looks can change later.</p>';
     }
-    const idx = STEPS.findIndex(([s]) => s === step), next = STEPS[idx + 1];
-    const nav = step === 'story' ? '' : '<div class="row between cnav">' + (idx > 0 ? '<button data-act="cstep" data-s="' + STEPS[idx - 1][0] + '">← ' + STEPS[idx - 1][1] + '</button>' : '<span></span>') + (next ? '<button class="primary" data-act="cstep" data-s="' + next[0] + '">' + next[1] + ' →</button>' : '<button class="primary big" data-act="create">Create hero</button>') + '</div>';
+    const prev = STEPS[idx - 1];
+    // the choice pages keep the chosen words and the way on in a bar at the bottom, so they stay in view on a phone
+    const pickStep = ['race', 'cls', 'origin'].includes(step), line = pickStep && chosen(step) ? (taleOpening(c, idx + 1).find(([s]) => s === step) || [])[1] : '';
+    const nav = '<div class="row between cnav' + (pickStep ? ' choosebar' : '') + '">' + (prev ? '<button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back</button>' : '<span></span>') +
+      (pickStep ? '<p class="chosen">' + (line ? esc(line) : '<span class="muted">Choose how the tale goes on.</span>') + '</p>' + (line ? '<button class="primary" data-act="cstep" data-s="' + STEPS[idx + 1][0] + '">Continue →</button>' : '<span></span>') : '') +
+      (step === 'look' ? '<button class="primary" data-act="cstep" data-s="name">Continue →</button>' : step === 'name' ? '<button class="primary big" data-act="create">Begin their tale</button>' : '') + '</div>';
     const doneN = STEPS.filter(([s]) => stepDone(c, s)).length, anim = S.creatorAnim ? ' enter ' + S.creatorAnim : '';
     S.creatorAnim = null;
-    return '<div class="creator"><div class="row between"><div class="logo">Idle <span>Teams</span></div><span class="muted small">Race, class, Origin and life story are permanent. The look is yours to keep.</span></div><div class="cols">' +
-      '<div class="stagebox"><div class="panel cside"><div class="portrait">' + spr(plain(c), 4, 'idle') + '</div><div class="stack tight">' +
-      '<div><b class="cname-show">' + esc(c.name.trim() || 'Unnamed hero') + '</b><div class="row" style="margin-top:4px"><span class="num">' + esc(ITP.RACES[c.race].name + ' ' + k.name) + '</span>' + role(k.role) + '</div></div>' +
-      (c.story.answers.youth ? '<div class="small"><span class="muted">Known as</span> <b>' + esc(cfg.backstories[c.race][c.story.answers.youth][0]) + '</b> of ' + esc(cfg.cultures[c.race][c.story.answers.home]) + '</div>' : '') +
-      '<div class="startwrap"><div class="eyebrow">Starting attributes</div><div class="startbars" style="margin-top:6px">' + Object.entries(start).sort((a, b) => b[1] - a[1]).map(([a, n]) => '<div><span>' + attrName(a) + '</span><span class="bar"><i style="width:' + (100 * n) / maxStart + '%"></i></span><b class="num">' + n + '</b></div>').join('') + '</div></div>' +
-      (doneN === STEPS.length ? '<button class="primary" data-act="create">Create hero</button>' : '') + '</div></div></div>' +
-      '<div class="panel cmain"><div class="steps">' + STEPS.map(([s, n], i) => '<button class="' + (s === step ? 'on' : '') + (stepDone(c, s) ? ' done' : '') + '" data-act="cstep" data-s="' + s + '"><i>' + (stepDone(c, s) && s !== step ? '✓' : i + 1) + '</i><span>' + n + '</span></button>').join('') + '</div>' +
-      '<span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span><div class="cbody' + anim + '">' + body + '</div>' + nav + '</div></div></div>';
+    return '<div class="creator tale"' + taleBackdrop(c, step) + '><div class="logo">Idle <span>Teams</span></div><div class="panel cmain"><span class="bar cprogress"><i style="width:' + (100 * doneN) / STEPS.length + '%"></i></span>' +
+      '<div class="cbody' + anim + '">' + body + '</div>' + (step === 'story' ? (prev ? '<div class="row between cnav"><button class="ghost" data-act="cstep" data-s="' + prev[0] + '">← Back a page</button><span></span></div>' : '') : nav) + '</div></div>';
   }
 
   // ------------------------------------------------------------------ shell
 
-  const VIEWS = [['battle', 'Battle', 'battle'], ['hero', 'Hero', 'hero'], ['skills', 'Skills', 'skills'], ['talents', 'Talents', 'talents'], ['heritage', 'Heritage', 'heritage'], ['gear', 'Gear', 'gear'], ['group', 'Group', 'group'], ['guild', 'Guild', 'guild'], ['market', 'Market', 'market'], ['lore', 'Lore', 'lore']];
+  // [view, title, icon, hotkey]. The battle view is the open scene; every other view opens as a window over it.
+  const VIEWS = [['battle', 'Dungeon', 'battle', '1'], ['hero', 'Hero', 'hero', '2'], ['skills', 'Skills', 'skills', '3'], ['talents', 'Talents', 'talents', '4'], ['heritage', 'Heritage', 'heritage', '5'], ['gear', 'Gear', 'gear', '6'], ['group', 'Group', 'group', '7'], ['guild', 'Guild', 'guild', '8'], ['market', 'Market', 'market', '9'], ['runs', 'Runs', 'chest', '0'], ['lore', 'Lore', 'lore', 'l']];
+  const WIN_TITLE = { story: ['Life story', 'heritage'] };
   function shell() {
-    const h = S.st.hero;
-    const dots = { battle: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= S.cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (S.st.party ? S.st.party.requests.filter((r) => r.kind === 'application').length : 0) };
-    const nav = VIEWS.map(([id, n, i]) => '<a href="#/' + id + '" class="' + (S.view === id ? 'on' : '') + '">' + ico(i, '') + '<span>' + n + '</span>' + (dots[id] ? '<span class="badge">' + dots[id] + '</span>' : '') + '</a>').join('') + '<a href="#" data-act="toggleChat" class="chat-link">' + ico('chat', '') + '<span>Chat</span></a>';
-    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, lore: loreView };
-    return '<div class="shell' + (S.chatOpen ? ' chat-open' : '') + '"><header class="top"><span class="logo">Idle <span>Teams</span></span>' +
-      '<span class="who">' + por(h.look) + '<span><b>' + esc(h.name) + '</b> <span class="muted small">Lv ' + h.level + ' ' + className(h.cls) + '</span></span></span>' +
-      '<span class="xp" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><span class="tiny muted">' + ico('xp') + ' ' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</span><span class="bar"><i class="xpf" style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i></span></span>' +
-      '<span class="cur"><span class="gold" title="Gold">' + ico('gold') + fmt(h.gold) + '</span><span title="Materials">' + ico('materials') + fmt(h.materials) + '</span><span class="r-epic" title="Essence">' + ico('essence') + fmt(h.essence) + '</span><button class="small" data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></span></header>' +
-      '<nav class="nav">' + nav + '</nav><main class="main">' + (views[S.view] || battleView)() + '</main><aside class="side">' + chatView() + '</aside></div>';
+    const h = S.st.hero, p = S.st.party, cur = S.battle && S.battle.current, cfg = S.cfg;
+    if (S.chatInit == null) { S.chatInit = 1; S.chatOpen = window.innerWidth > 1100; }
+    const dots = { battle: 0, runs: S.st.pendingRolls, hero: h.points.unspent + h.openKeystones.length + (h.level >= cfg.pathLevel && !h.path ? 1 : 0), skills: h.skillPoints, talents: h.talentPoints.free, heritage: h.renown.free, group: S.st.invites.length + (p ? p.requests.filter((r) => r.kind === 'application').length : 0) };
+    const views = { battle: battleView, hero: heroView, skills: skillsView, talents: talentsView, heritage: heritageView, story: storyView, gear: gearView, group: groupView, guild: guildView, market: marketView, runs: runsView, lore: loreView };
+    const isWin = S.view !== 'battle' && views[S.view];
+    // top: who you are, where the run is, what you carry
+    const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
+    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(cfg.dungeon.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + cfg.dungeon.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
+      : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
+    const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><button class="small cog" data-act="logout" title="' + (window.IT_SERVER ? 'New game' : 'Log out') + '">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div>';
+    // left: the group's unit frames, live during a run
+    const roster = cur ? cur.roster : p ? p.members.map((m) => ({ id: m.id, name: m.name, cls: m.cls, level: m.level, look: m.look, resource: cfg.classes[m.cls].resource, role: m.role })) : [{ id: h.id, name: h.name, cls: h.cls, level: h.level, look: h.look, resource: cfg.classes[h.cls].resource }];
+    const frames = '<div class="hud-party">' + roster.map((r, i) => '<div class="uf' + (r.id === h.id ? ' me' : '') + '" id="fr' + i + '">' + por(r.look, 'pframe sm') + '<div class="uf-body"><div class="uf-nm"><b>' + esc(r.name) + '</b><span>' + r.level + '</span></div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div></div>').join('') +
+      (p && p.members.length < cfg.partySize && !cur ? '<a class="uf open" href="#/group"><span class="pframe sm"></span><div class="uf-body"><b>' + (cfg.partySize - p.members.length) + ' open seat' + (cfg.partySize - p.members.length === 1 ? '' : 's') + '</b><span class="small">Find heroes</span></div></a>' : '') + '</div>';
+    // bottom: health orb, the action bar, resource orb
+    const res = cfg.classes[h.cls].resource;
+    const slots = VIEWS.map(([id, n, i, key]) => '<a href="#/' + id + '" class="slot' + (S.view === id ? ' on' : '') + '" title="' + n + ' (' + key + ')">' + ico(i, '') + '<span class="lbl">' + n + '</span><kbd>' + key + '</kbd>' + (dots[id] ? '<span class="gem">' + dots[id] + '</span>' : '') + '</a>').join('') +
+      '<a href="#" class="slot chat-slot' + (S.chatOpen ? ' on' : '') + '" data-act="toggleChat" title="Chat (Enter)">' + ico('chat', '') + '<span class="lbl">Chat</span><kbd>↵</kbd></a>';
+    const bar = '<nav class="hud-bar"><div class="orb hp" id="orbHp" title="Health"><i style="height:100%"></i><span>100%</span></div><div class="slots">' + slots + '</div><div class="orb ' + res + '" id="orbRes" title="' + esc(res) + '"><i style="height:100%"></i><span>' + esc(res) + '</span></div></nav>';
+    const log = cur ? '<div class="hud-log' + (S.logShut ? ' shut' : '') + '"><div class="hud-tt"><span>' + ico('battle') + 'Battle log</span><button class="small" data-act="toggleLog" aria-label="Toggle log">' + (S.logShut ? '▴' : '▾') + '</button></div><div class="log" id="blog"></div></div>' : '';
+    const me = h.id, rolls = S.battle && S.battle.chests.some((c) => c.chest.some((e) => !e.rolls[me]));
+    const loot = rolls && !isWin ? '<div class="hud-loot">' + chestsView() + '</div>' : '';
+    const card = !isWin ? battleView() : '';
+    const title = isWin ? (VIEWS.find(([id]) => id === S.view) || [S.view, ...(WIN_TITLE[S.view] || [S.view, 'star'])]) : null;
+    const win = isWin ? '<a class="win-shade" href="#/battle" aria-label="Close"></a><section class="win" role="dialog" aria-label="' + esc(title[1]) + '"><header class="win-hd"><span class="win-ic">' + ico(title[2], '') + '</span><h2>' + esc(title[1]) + '</h2><a class="win-x" href="#/battle" title="Close (Esc)">✕</a></header><div class="win-body">' + views[S.view]() + '</div></section>' : '';
+    // entrance animations play when the screen changes, not on every refresh
+    const fresh = S.hudView !== S.view || S.hudRun !== !!cur; S.hudView = S.view; S.hudRun = !!cur;
+    return '<div class="hud' + (isWin ? ' has-win' : '') + (cur ? ' in-run' : '') + (fresh ? ' fresh' : '') + '"><div class="hud-stage"><canvas id="scene" width="960" height="540"></canvas></div>' +
+      '<header class="hud-top">' + plate + center + purse + '</header>' + frames + (card ? '<div class="hud-card">' + card + '</div>' : '') + loot + log +
+      '<aside class="side hud-chat' + (S.chatOpen ? ' open' : '') + '">' + chatView() + '</aside>' + bar + win + '</div>';
   }
 
   // ------------------------------------------------------------------ battle
@@ -529,33 +609,26 @@
   function battleView() {
     const st = S.st, p = st.party;
     if (!p) {
-      return '<div class="stack"><div class="camp"><h1>No group yet</h1><p class="muted" style="max-width:56ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
-        '<div class="lineup"><div class="seat">' + spr(st.hero.look, 1.5, 'idle') + '<b>' + esc(st.hero.name) + '</b></div>' + [1, 2, 3, 4].map(() => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div>' +
-        '<div style="margin-top:16px"><a href="#/group"><button class="primary">Go to the tavern</button></a></div></div>' + reportsView() + '</div>';
+      return '<div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>No group yet</h1><p class="muted" style="max-width:52ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
+        '<div style="margin-top:16px"><a href="#/group"><button class="primary big">Go to the tavern</button></a></div></div>';
     }
     const cur = S.battle && S.battle.current;
-    if (!cur) {
-      const last = S.battle ? [...S.battle.chests, ...S.battle.recent].sort((a, c) => c.endsAt - a.endsAt)[0] : null;
-      const wiped = !p.running && p.members.length === S.cfg.partySize && last && last.report.wiped;
-      if (wiped) {
-        const r = last.report;
-        return '<div class="stack"><div class="camp wipe"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + ' · level ' + last.dungeonLevel + '</div><h1>' + ico('skull', 'ico lg') + ' The group fell</h1>' +
-          '<p style="margin-top:6px">' + esc(r.cause || 'The group wiped.') + '</p><p class="muted small">Battles stop after a wipe. Change gear, skills or attributes, ask in group chat, and send everyone back in when you are ready.</p>' +
-          '<div class="lineup">' + p.members.map((m) => '<div class="seat down">' + spr(m.look, 1.5) + '<b>' + esc(m.name) + '</b>' + role(m.role) + '</div>').join('') + '</div>' +
-          '<div class="row" style="margin-top:16px;justify-content:center"><button class="primary" data-act="resume">Back into the dungeon</button><a href="#/gear"><button>Gear</button></a><a href="#/skills"><button>Skills</button></a><a href="#/hero"><button>Attributes</button></a>' + (p.leader === st.hero.id ? '<a href="#/group"><button>Change difficulty</button></a>' : '') + '</div></div>' + chestsView() + reportsView() + '</div>';
-      }
-      const why = p.members.length < S.cfg.partySize ? 'The group needs ' + (S.cfg.partySize - p.members.length) + ' more hero' + (S.cfg.partySize - p.members.length === 1 ? '' : 'es') + '. The next run starts as soon as it is full.' : !p.running ? 'The group is resting. The leader can send it back in from the Group page.' : 'The next run is about to start…';
-      return '<div class="stack"><div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
-        '<div class="lineup">' + p.members.map((m) => '<div class="seat">' + spr(m.look, 1.5, 'idle') + '<b>' + esc(m.name) + '</b>' + role(m.role) + '</div>').join('') + Array.from({ length: S.cfg.partySize - p.members.length }, () => '<div class="seat"><div class="empty">Open seat</div></div>').join('') + '</div>' +
-        (p.members.length < S.cfg.partySize ? '<div style="margin-top:16px"><a href="#/group"><button class="primary">Find heroes</button></a></div>' : '') + '</div>' + chestsView() + reportsView() + '</div>';
+    if (cur) return '';
+    const last = S.battle ? [...S.battle.chests, ...S.battle.recent].sort((a, c) => c.endsAt - a.endsAt)[0] : null;
+    const wiped = !p.running && p.members.length === S.cfg.partySize && last && last.report.wiped;
+    if (wiped) {
+      const r = last.report;
+      return '<div class="camp wipe"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + ' · level ' + last.dungeonLevel + '</div><h1>' + ico('skull', 'ico lg') + ' The group fell</h1>' +
+        '<p style="margin-top:6px">' + esc(r.cause || 'The group wiped.') + '</p><p class="muted small">Battles stop after a wipe. Change gear, skills or attributes, ask in group chat, and send everyone back in when you are ready.</p>' +
+        '<div class="row" style="margin-top:16px;justify-content:center"><button class="primary big" data-act="resume">Back into the dungeon</button><a href="#/gear"><button>Gear</button></a><a href="#/skills"><button>Skills</button></a><a href="#/hero"><button>Attributes</button></a>' + (p.leader === st.hero.id ? '<a href="#/group"><button>Change difficulty</button></a>' : '') + '</div></div>';
     }
-    const plan = S.cfg.dungeon.plan;
-    const side = chestsView() + reportsView();
-    const log = '<div class="panel"><div class="head"><h3>Battle log</h3><span class="muted small">' + esc(S.cfg.dungeon.name) + ' · level ' + cur.dungeonLevel + ' · rewards land when the run ends</span></div><div class="log" id="blog"></div></div>';
-    return '<div class="stack"><div><div class="arena"><canvas id="scene" width="960" height="540"></canvas><div class="clock" id="clock"></div></div>' +
-      '<div class="track" id="track">' + plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div>' +
-      '<div class="frames">' + cur.roster.map((r, i) => '<div class="frame" id="fr' + i + '">' + por(r.look) + '<div class="nm">' + esc(r.name) + '</div><div class="cl">' + className(r.cls) + ' · ' + r.level + '</div><div><div class="bar"><i class="hp" style="width:100%"></i><i class="abs" style="width:0"></i></div><div class="bar res"><i class="' + r.resource + '" style="width:100%"></i></div></div></div>').join('') + '</div></div>' +
-      (side ? '<div class="grid2">' + log + '<div class="stack">' + side + '</div></div>' : log) + '</div>';
+    const why = p.members.length < S.cfg.partySize ? 'The group needs ' + (S.cfg.partySize - p.members.length) + ' more hero' + (S.cfg.partySize - p.members.length === 1 ? '' : 'es') + '. The next run starts as soon as it is full.' : !p.running ? 'The group is resting. The leader can send it back in from the Group window.' : 'The next run is about to start…';
+    return '<div class="camp"><div class="eyebrow">' + esc(S.cfg.dungeon.name) + '</div><h1>' + esc(p.name) + '</h1><p class="muted" style="margin-top:6px">' + why + '</p>' +
+      (p.members.length < S.cfg.partySize ? '<div style="margin-top:14px"><a href="#/group"><button class="primary big">Find heroes</button></a></div>' : '') + '</div>';
+  }
+  function runsView() {
+    const html = chestsView() + reportsView();
+    return html ? '<div class="stack">' + html + '</div>' : '<p class="muted">No runs yet. When your group finishes a run, the report and the group chest land here.</p>';
   }
 
   function chestsView() {
@@ -600,8 +673,11 @@
   const scn = { log: [], logDirty: false, arena: null };
   function setupScene() {
     const cur = S.battle && S.battle.current, cv = $('#scene');
-    if (!cur || !cv) return;
-    if (!scn.arena) scn.arena = new window.ITArena.Arena(cv, { log: logLine });
+    if (!cv) return;
+    if (!scn.camp) scn.camp = new window.ITArena.Camp(cv);
+    scn.camp.cv = cv; scn.camp.g = cv.getContext('2d');
+    if (!cur) return;
+    if (!scn.arena) scn.arena = new window.ITArena.Arena(cv, { log: logLine, hud: true });
     scn.arena.cv = cv; scn.arena.g = cv.getContext('2d');
     if (scn.battleId !== cur.id) { scn.battleId = cur.id; scn.log = []; }
     scn.redrawLog = true;
@@ -617,8 +693,13 @@
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (s[mid][0] <= simT) lo = mid; else hi = mid - 1; }
     return s[lo];
   }
-  function updateFrame(i, snap) {
+  function updateFrame(i, snap, mine) {
     const el = document.getElementById('fr' + i); if (!el || !snap) return;
+    if (mine) {
+      const o = $('#orbHp'), r = $('#orbRes'), hp = Math.max(0, snap[1][i] / 10), rs = snap[2][i] / 10;
+      if (o) { o.firstChild.style.height = hp + '%'; o.lastChild.textContent = Math.round(hp) + '%'; o.classList.toggle('low', hp < 35); }
+      if (r) { r.firstChild.style.height = rs + '%'; }
+    }
     const hp = snap[1][i], res = snap[2][i], ab = snap[4][i];
     const bars = el.querySelectorAll('.bar i');
     bars[0].style.width = hp / 10 + '%'; bars[0].className = 'hp' + (hp < 350 ? ' low' : '');
@@ -628,13 +709,18 @@
   }
   function frame() {
     requestAnimationFrame(frame);
-    if (!S.st || !S.st.hero || S.view !== 'battle') return;
+    if (!S.st || !S.st.hero || !$('#scene')) return;
     const cur = S.battle && S.battle.current; const tl = cur && S.timelines[cur.id];
-    if (!cur || !tl || !scn.arena) return;
+    // a phone with a window open covers the scene, so skip the drawing there
+    if (S.view !== 'battle' && window.innerWidth <= 900) return;
+    if (!cur || !tl || !scn.arena) {
+      if (scn.camp) { const p = S.st.party, h = S.st.hero; scn.camp.draw(p ? p.members : [{ name: h.name, cls: h.cls, look: h.look }], 0); if (window.ITS) window.ITS.scene('town'); }
+      return;
+    }
     const simT = simTime(cur, tl), snap = snapAt(tl, simT);
     scn.arena.update(cur, tl, simT);
     scn.arena.draw(cur, tl, simT, snap);
-    cur.roster.forEach((r, i) => updateFrame(i, snap));
+    cur.roster.forEach((r, i) => updateFrame(i, snap, r.id === S.st.hero.id));
     const c = $('#clock'); if (c) c.textContent = 'Run ends in ' + clock(cur.endsAt - now());
     const track = $('#track'), at = scn.arena.at;
     if (track && track.dataset.at !== String(at)) { track.dataset.at = at; track.querySelectorAll('.node').forEach((el) => { const n = +el.dataset.n; el.classList.toggle('done', n < at); el.classList.toggle('now', n === at); }); }
@@ -708,16 +794,16 @@
     const pts = (p) => (d.k * p) / ((1 - p) ** 2);
     const curve = (x) => { if (x <= 0) return 0; const b = 2 * x + d.k; return (b - Math.sqrt(b * b - 4 * x * x)) / (2 * x); };
     const maxX = Math.max(pts(0.75), d.p * 1.3), Y = (p) => H - 8 - p * (H - 16);
-    g.fillStyle = '#120812'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = '#3e2b4d'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(0.5)); g.lineTo(W, Y(0.5)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#140e07'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#513c27'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(0.5)); g.lineTo(W, Y(0.5)); g.stroke(); g.setLineDash([]);
     g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
     g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fillStyle = 'rgba(255,138,42,0.15)'; g.fill();
     g.beginPath(); for (let x = 0; x <= W; x++) { const p = Math.min(d.cap, curve((x / W) * maxX)) * (d.half ? 0.5 : 1); if (x) g.lineTo(x, Y(p)); else g.moveTo(x, Y(p)); }
     g.strokeStyle = '#ff8a2a'; g.lineWidth = 2; g.stroke();
     const me = Math.min(d.cap, curve(d.p)) * (d.half ? 0.5 : 1), mx = Math.min(W - 4, (d.p / maxX) * W);
-    g.fillStyle = '#7be07f'; g.beginPath(); g.arc(mx, Y(me), 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#120812'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#7be07f'; g.beginPath(); g.arc(mx, Y(me), 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#140e07'; g.lineWidth = 2; g.stroke();
     g.fillStyle = '#f4ead8'; g.font = '13px "Lilita One", sans-serif'; g.fillText(pct(me), Math.min(W - 44, mx + 8), Math.max(14, Y(me) - 6));
-    g.fillStyle = '#8a7a98'; g.font = '11px Nunito, sans-serif'; g.fillText('50%', 4, Y(0.5) - 4);
+    g.fillStyle = '#9e8d74'; g.font = '11px Nunito, sans-serif'; g.fillText('50%', 4, Y(0.5) - 4);
   }
 
   // ------------------------------------------------------------------ skills
@@ -1047,7 +1133,7 @@
     const h = S.st.hero;
     if (h.story) return '<div class="stack"><div class="panel"><div class="eyebrow">' + esc(S.cfg.races[h.race].name) + ' · ' + esc(S.cfg.cultures[h.race][h.story.answers.home]) + '</div><h2>The life of ' + esc(h.name) + '</h2><div class="storybio" style="margin-top:10px">' + bioHtml(h.biography) + '</div></div>' + heroLore(h, h.story) + '</div>';
     const d = storyDraft();
-    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. Where they were raised sets their culture, what they were known for starts them along one of its branches, and you write it once.</p>" +
+    return '<div class="stack"><div class="panel"><h2>Write your life story</h2><p class="muted">Every ' + esc(S.cfg.races[h.race].name) + ' has a story before the tavern. Tell ' + esc(h.name) + "'s, one moment at a time. It is written once.</p>" +
       storyWizard(h.race, h.name, d, 'hero', '<button class="primary" data-act="storySave">Write it into the tale</button>') + '</div></div>';
   }
 
@@ -1069,7 +1155,7 @@
       '<div class="panel"><h3>Resonance</h3>' + resTxt + '</div>' +
       '<div class="panel"><div class="head"><h3>Craft</h3><span class="small muted">Item level ' + 2 * h.level + '. Usually common, sometimes rare, rarely epic.</span></div><div class="row"><select id="craftSlot" aria-label="Slot">' + Object.keys(cfg.slots).filter((s) => s !== 'ring2').map((s) => '<option value="' + s + '">' + cfg.slots[s][0] + '</option>').join('') + '</select><button class="primary" data-act="craft">Craft' + (cost ? ' · ' + fmt(cost.gold) + 'g · ' + cost.materials + ' mats' : '') + '</button></div></div></div>' +
       '<div class="stack">' + (sel ? itemDetail(sel, worn) : '<div class="panel muted">Pick an item to see what you can do with it.</div>') +
-      '<div class="panel"><div class="head"><h2>Bag</h2><span class="muted small">' + bag.length + ' items</span></div><div class="bag">' + bag.map((i) => tile(i, { sel: S.sel === i.id, up: i.score != null && betterThanWorn(i, worn) })).join('') + '</div>' + (bag.length ? '' : '<p class="muted">Empty. Loot comes from the group chest, crafting and the market.</p>') + '</div></div></div>';
+      '<div class="panel"><div class="head"><h2>Bag</h2><span class="muted small">' + bag.length + ' items</span></div><div class="bag slots-grid">' + bag.map((i) => tile(i, { sel: S.sel === i.id, up: i.score != null && betterThanWorn(i, worn) })).join('') + Array.from({ length: Math.ceil(Math.max(24, bag.length + 1) / 6) * 6 - bag.length }, () => '<div class="tile empty"></div>').join('') + '</div>' + (bag.length ? '' : '<p class="muted small" style="margin-top:8px">Loot comes from the group chest, crafting and the market.</p>') + '</div></div></div>';
   }
   function betterThanWorn(i, worn) {
     if (i.slot === 'glyph') return false;
@@ -1194,6 +1280,81 @@
     } catch (e) { /* channel may have closed */ }
   }
 
+  // ------------------------------------------------------------------ HUD feel
+
+  // Hovering an item shows its card, with how it compares to what you wear.
+  const tipEl = document.createElement('div'); tipEl.className = 'tip'; tipEl.hidden = true; document.body.appendChild(tipEl);
+  function showTip(el, x, y) {
+    const it = TIPS[+el.dataset.tip]; if (!it) return;
+    let cmp = '';
+    if (S.st && S.st.inventory && it.slot !== 'glyph' && it.score != null && !it.equipped) {
+      const worn = S.st.inventory.find((w) => w.equipped === it.slot || (it.slot === 'ring1' && w.equipped === 'ring2'));
+      cmp = worn && worn.id !== it.id ? '<div class="tip-cmp ' + (it.score >= worn.score ? 'good' : 'bad') + '">' + (it.score >= worn.score ? '▲ +' : '▼ ') + (it.score - worn.score).toFixed(1) + ' rating vs ' + esc(itemName(worn)) + '</div>' : worn ? '' : '<div class="tip-cmp good">▲ Fills an empty slot</div>';
+    }
+    tipEl.innerHTML = itemCard(it) + cmp; tipEl.className = 'tip t-' + it.rarity; tipEl.hidden = false;
+    const r = tipEl.getBoundingClientRect(), pad = 14;
+    tipEl.style.left = Math.min(window.innerWidth - r.width - 8, x + pad) + 'px';
+    tipEl.style.top = Math.max(8, Math.min(window.innerHeight - r.height - 8, y + pad)) + 'px';
+  }
+  document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); else tipEl.hidden = true; });
+  document.addEventListener('mousemove', (e) => { if (!tipEl.hidden) { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); } });
+  window.addEventListener('hashchange', () => { tipEl.hidden = true; });
+
+  // Reward popups: a finished run, loot you won, a new level. They sit outside #app so a re-render keeps them.
+  const celebrate = {
+    el: null,
+    show(html, kind) {
+      this.close();
+      const el = document.createElement('div'); el.className = 'reward ' + (kind ? 'rw-' + kind : ''); el.innerHTML = '<div class="reward-box"><div class="rays"></div>' + html + '<button class="primary big" data-act="rewardClose">Continue</button></div>';
+      el.addEventListener('click', (e) => { if (e.target === el) this.close(); });
+      document.body.appendChild(el); hydrate(el); this.el = el;
+      el.querySelectorAll('[data-count]').forEach((n) => { const to = +n.dataset.count, t0 = performance.now(); const step = (t) => { const k = Math.min(1, (t - t0) / 900); n.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); });
+    },
+    close() { if (this.el) { this.el.remove(); this.el = null; } },
+    // a run you were in finished since you last looked
+    run(b) {
+      const h = S.st && S.st.hero; if (!h) return;
+      const list = [...b.chests, ...b.recent].sort((a, c) => c.endsAt - a.endsAt), last = list[0]; if (!last) return;
+      const key = 'it-seen-run-' + h.id; let seen = null;
+      try { seen = localStorage.getItem(key); localStorage.setItem(key, String(last.id)); } catch (e) { /* private mode */ }
+      if (seen == null || seen === String(last.id)) return;
+      const r = last.report, mine = r.heroes.find((x) => x.name === h.name); if (!mine) return;
+      const won = !r.wiped, loot = last.chest.filter((e) => e.winner === h.id);
+      const stat = (icon, n, label) => '<div class="rw-stat">' + ico(icon, 'ico lg') + '<b data-count="' + n + '">0</b><span>' + label + '</span></div>';
+      this.show('<div class="eyebrow">' + esc(r.dungeon) + ' · level ' + last.dungeonLevel + '</div><h1 class="rw-title">' + (won ? 'Victory!' : 'Defeat') + '</h1><p class="muted">' + (won ? 'The group cleared the dungeon.' : esc(r.cause || 'The group fell.')) + ' ' + r.bossesKilled + '/3 bosses down.</p>' +
+        '<div class="rw-stats">' + stat('xp', mine.xp, 'XP') + stat('gold', mine.gold, 'Gold') + stat('materials', mine.materials, 'Materials') + stat('heritage', mine.renown, 'Renown') + '</div>' +
+        (loot.length ? '<div class="rw-loot">' + loot.map((e) => tile(e.item, { act: false, big: true })).join('') + '</div>' : last.chest.some((e) => !e.rolls[h.id]) ? '<p class="small">The group chest is open. Roll for loot before it closes.</p>' : ''), won ? 'win' : 'lose');
+      if (window.ITS) window.ITS.play(won ? 'bossDown' : 'death');
+    },
+    level(h) {
+      this.show('<div class="eyebrow">' + esc(h.name) + '</div><h1 class="rw-title">Level ' + h.level + '!</h1><p>New attribute points, skill points and talent points are waiting.</p><div class="row" style="justify-content:center;margin-top:10px"><a href="#/hero"><button>Attributes</button></a><a href="#/skills"><button>Skills</button></a><a href="#/talents"><button>Talents</button></a></div>', 'level');
+      if (window.ITS) window.ITS.play('levelup');
+    },
+  };
+
+  // Hotkeys: 1-0 open windows, Esc closes, Enter opens chat.
+  document.addEventListener('keydown', (e) => {
+    if (!S.st || !S.st.hero || e.ctrlKey || e.metaKey || e.altKey) return;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+    if (e.key === 'Escape') { if (celebrate.el) celebrate.close(); else if (typing) e.target.blur(); else if (S.view !== 'battle') location.hash = '#/battle'; return; }
+    if (typing) return;
+    const v = VIEWS.find((x) => x[3] === e.key);
+    if (v) { e.preventDefault(); location.hash = '#/' + (S.view === v[0] ? 'battle' : v[0]); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (!S.chatOpen) handlers.toggleChat(); else { const c = $('#chatBody'); if (c) c.focus(); } }
+  });
+
+  // Click sparks: a few pixels fly off every button and slot you press.
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest && e.target.closest('button, .slot, .tile[data-act], .choice, .storyopt');
+    if (!el || el.disabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (let k = 0; k < 7; k++) {
+      const sp = document.createElement('i'); sp.className = 'spark';
+      const a = (Math.PI * 2 * k) / 7 + Math.random() * 0.5, d = 18 + Math.random() * 22;
+      sp.style.left = e.clientX + 'px'; sp.style.top = e.clientY + 'px'; sp.style.setProperty('--dx', Math.cos(a) * d + 'px'); sp.style.setProperty('--dy', Math.sin(a) * d - 10 + 'px');
+      document.body.appendChild(sp); setTimeout(() => sp.remove(), 520);
+    }
+  }, { passive: true });
+
   // ------------------------------------------------------------------ events
 
   const handlers = {
@@ -1202,21 +1363,19 @@
       keepName();
       const from = STEPS.findIndex(([x]) => x === S.creatorStep), to = STEPS.findIndex(([x]) => x === d.s);
       if (to > from) (S.creatorSeen = S.creatorSeen || {})[S.creatorStep] = true;
-      if (from === to) return;
+      if (from === to) { render(); return; }
       S.creatorAnim = to > from ? 'fwd' : 'back'; S.creatorStep = d.s; render();
-      const top = $('.creator .cmain'); if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' });
+      window.scrollTo(0, 0);
       if (d.s === 'name') { const n = $('#cname'); if (n) n.focus(); }
     },
     storyAt: (d) => { (S.storyAt = S.storyAt || {})[d.ctx] = +d.i; keepName(); render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' }); },
-    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); render(); },
+    pick: (d) => { const c = creatorState(); if (d.kind === 'race' && c.race !== d.id) c.story = { answers: {}, notes: '' }; c[d.kind] = d.id; if (d.kind === 'race') { c.look.skin = ITP.RACES[d.id].skins[1]; (S.storyAt = S.storyAt || {}).creator = 0; } keepName(); (S.creatorPicked = S.creatorPicked || {})[d.kind] = true; render(); },
     ans: (d) => {
       const story = d.ctx === 'creator' ? creatorState().story : storyDraft(), v = /^\d+$/.test(d.v) ? +d.v : d.v;
       const race = d.ctx === 'creator' ? creatorState().race : S.st.hero.race;
       story.answers[d.q] = v;
       if (d.q === 'home') { const y = story.answers.youth; if (y && S.cfg.backstories[race][y][1] !== v) delete story.answers.youth; }
-      // the tale moves on to the next untold moment, or to the closing page once everything is told
-      const qs = storyQuestions(race, story), at = qs.findIndex(([id]) => id === d.q), open = qs.findIndex(([id], i) => i > at && story.answers[id] === undefined);
-      (S.storyAt = S.storyAt || {})[d.ctx] = open >= 0 ? open : storyDone(race, story) ? qs.length : at + 1;
+      // the answer shows its picture first; Continue moves the tale on
       render(); const t = $('.tell'); if (t && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'start' });
     },
     storyRandom: (d) => {
@@ -1229,6 +1388,8 @@
       if (!storyDone(h.race, story)) { toast('Answer every question first.'); return; }
       confirmBox('Write this as ' + esc(h.name) + "'s life story? You will follow <b>" + esc(S.cfg.cultures[h.race][story.answers.home]) + '</b> and gain ' + fmt(S.cfg.backstoryRenown) + ' Renown. It cannot be rewritten.', () => act(() => post('/hero/act', { action: 'story', story }), 'Your story is written.'));
     },
+    lookTab: (d) => { keepName(); S.lookTab = d.t; render(); },
+    faceTurn: () => { S.faceLeft = !S.faceLeft; render(); },
     look: (d) => { const c = creatorState(); c.look[d.key] = isNaN(+d.v) || d.v.startsWith('#') ? d.v : +d.v; keepName(); render(); },
     randomLook: () => { const c = creatorState(), r = ITP.randomHero(); keepName(); Object.assign(c.look, { skin: ITP.RACES[c.race].skins[Math.floor(Math.random() * ITP.RACES[c.race].skins.length)], hair: r.hair, hairColor: r.hairColor, eyes: r.eyes, eyeColor: r.eyeColor, mouth: r.mouth, beard: r.beard, acc: r.acc, build: r.build, height: r.height, dye1: r.dye1, dye2: r.dye2, metal: r.metal }); render(); },
     create: async () => {
@@ -1244,7 +1405,9 @@
       if (window.IT_SERVER) { location.hash = ''; location.reload(); return; }
       S.st = null; S.chat = { channel: 'tavern', msgs: {}, last: {} }; render();
     },
-    toggleChat: () => { S.chatOpen = !S.chatOpen; render(); },
+    toggleChat: () => { S.chatOpen = !S.chatOpen; render(); if (S.chatOpen) { const c = $('#chatBody'); if (c && window.innerWidth > 900) c.focus(); } },
+    toggleLog: () => { S.logShut = !S.logShut; render(); },
+    rewardClose: () => celebrate.close(),
     chan: (d) => { S.chat.channel = d.id; S.chatJump = true; render(); pollChat(); },
     lore: (d) => openLore(d.k),
     loreBack: () => { const t = S.loreTrail || []; if (t.length > 1) { S.loreTrail = t.slice(0, -2); openLore(t[t.length - 2]); } },
@@ -1325,7 +1488,7 @@
   });
   // Finding on a map repaints it in place, so typing stays smooth.
   document.addEventListener('input', (e) => {
-    if (e.target.id === 'cname') { keepName(); const show = $('.cname-show'); if (show) show.textContent = e.target.value.trim() || 'Unnamed hero'; const nb = $('.namebio'); if (nb) { const c = creatorState(); nb.innerHTML = bioHtml(namedBio(c.race, c.name, c.story)); } return; }
+    if (e.target.id === 'cname') { keepName(); const nb = $('.namebio'); if (nb) nb.innerHTML = wholeTale(creatorState()); return; }
     if (e.target.id === 'loreq') { S.loreQ = e.target.value; S.loreKey = null; const box = $('.lorelist'); if (box) box.innerHTML = loreList(); else render(); return; }
     if (e.target.id === 'storynotes') { (e.target.dataset.ctx === 'creator' ? creatorState().story : storyDraft()).notes = e.target.value; return; }
     if (e.target.id !== 'mapq') return;
