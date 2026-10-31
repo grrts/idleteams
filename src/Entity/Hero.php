@@ -107,6 +107,14 @@ class Hero
     #[ORM\Column(options: ['default' => 0])]
     public int $signatureXp = 0;
 
+    /** Joined a group in its tier's scarcest role: the next chests roll twice and keep the higher. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $bonusRolls = 0;
+
+    /** When the last scarce-role bonus was given (one a day). */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $scarceAt = 0;
+
     /** The short first fight after the hero is made: played or skipped. */
     #[ORM\Column(options: ['default' => false])]
     public bool $prologueDone = false;
@@ -184,5 +192,11 @@ class Hero
         }
 
         return ($this->level - 1) - $spent;
+    }
+
+    /** New heroes are flagged on the tavern board for their first days, and veterans earn a bonus for taking them in. */
+    public function isNewcomer(?int $now = null): bool
+    {
+        return !$this->user->demo && $this->level < Rules::NEWCOMER_LEVEL && ($now ?? time()) - $this->createdAt < Rules::NEWCOMER_DAYS * 86400;
     }
 }

@@ -44,7 +44,7 @@ class Present
             'rarities' => Rules::RARITIES, 'glyphs' => Rules::GLYPHS, 'powers' => Rules::LEGENDARY_POWERS, 'caps' => Stats::CAPS,
             'pointsPerLevel' => Rules::POINTS_PER_LEVEL, 'softCapShare' => Rules::SOFT_CAP_SHARE, 'oathLevel' => Rules::OATH_LEVEL,
             'pathLevel' => Rules::PATH_LEVEL, 'keystoneLevels' => Rules::KEYSTONE_LEVELS, 'ultimateLevel' => Rules::ULTIMATE_LEVEL,
-            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'legendLevel' => Legends::LEVEL, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
+            'signatureLevel' => Rules::SIGNATURE_LEVEL, 'legendLevel' => Legends::LEVEL, 'scarceRolls' => Rules::SCARCE_ROLLS, 'mentorLevel' => Rules::MENTOR_LEVEL, 'mentorBonus' => Rules::MENTOR_BONUS, 'signatureTraits' => Rules::SIGNATURE_TRAITS,
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
@@ -108,7 +108,7 @@ class Present
     {
         return [
             'id' => $h->id, 'name' => $h->name, 'race' => $h->race, 'culture' => $h->culture, 'backstory' => $h->backstory, 'heritageRank' => $h->heritageRank(), 'cls' => $h->cls, 'origin' => $h->origin, 'path' => $h->path,
-            'legend' => $h->legend, 'title' => Legends::get($h->path, $h->legend)[0] ?? null,
+            'legend' => $h->legend, 'title' => Legends::get($h->path, $h->legend)[0] ?? null, 'newcomer' => $h->isNewcomer(),
             'role' => $h->role(), 'level' => $h->level, 'look' => $this->game->look($h), 'marks' => $h->marks,
             'guild' => $h->guild ? ['id' => $h->guild->id, 'name' => $h->guild->name, 'tag' => $h->guild->tag] : null,
             'party' => $h->party?->id, 'keystones' => $h->keystones, 'codex' => count($h->codex), 'demo' => $h->user->demo,
@@ -167,6 +167,7 @@ class Present
             'stats' => $stats, 'k' => Stats::k($L), 'curves' => $curves,
             'skills' => $skills, 'skillPoints' => $h->skillPoints(), 'loadout' => $this->game->loadout($h),
             'signature' => $this->signature($h), 'legendForm' => $this->legend($h),
+            'bonusRolls' => $h->bonusRolls,
             'prologue' => !$h->prologueDone && $h->level <= 2 && ($h->career['battles'] ?? 0) === 0,
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,

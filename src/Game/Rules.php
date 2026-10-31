@@ -118,6 +118,15 @@ final class Rules
     public const PATH_LEVEL = 10;
     public const KEYSTONE_LEVELS = [15, 25, 35, 45];
     public const ULTIMATE_LEVEL = 20;
+
+    /** The first days: new heroes are marked on the tavern board; veterans who run with them earn the mentor bonus. */
+    public const NEWCOMER_DAYS = 3;
+    public const NEWCOMER_LEVEL = 15;
+    public const MENTOR_LEVEL = 20;
+    public const MENTOR_BONUS = 0.20;
+
+    /** Joining a group in its tier's scarcest role: this many chests roll twice and keep the higher, once a day. */
+    public const SCARCE_ROLLS = 5;
     public const REFORGE_LEVEL = 50;
     public const LOADOUT_SIZE = 5;
 

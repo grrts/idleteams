@@ -104,6 +104,7 @@
       add('level10', hero.level >= 10); add('level25', hero.level >= 25); add('level40', hero.level >= 40);
       add('veteran', (c.battles || 0) >= 100); add('ironVeteran', (c.battles || 0) >= 1000); add('hundredClears', (c.dungeons || 0) >= 100);
       add('centurion', (c.bossKills || 0) >= 100); add('thousandBosses', (c.bossKills || 0) >= 1000); add('floor', (c.deaths || 0) >= 50);
+      add('mentor', (c.mentored || 0) >= 10);
       add('cartographer', dungeons.every((d) => cleared.includes(d))); add('wyvernSlayer', cleared.includes('wyvern-roost'));
       add('scarred', (row.deaths || 0) >= 3); add('dentedShield', (mech.busterBlocked || 0) >= 3); add('untouchable', (mech.busterDodged || 0) >= 3);
       add('curseBreaker', (mech.curseResisted || 0) >= 3); add('grounded', (mech.shockResisted || 0) >= 3);

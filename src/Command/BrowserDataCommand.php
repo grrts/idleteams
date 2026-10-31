@@ -34,6 +34,7 @@ class BrowserDataCommand extends Command
                 'PATH_LEVEL' => Rules::PATH_LEVEL, 'KEYSTONE_LEVELS' => Rules::KEYSTONE_LEVELS, 'ULTIMATE_LEVEL' => Rules::ULTIMATE_LEVEL,
                 'REFORGE_LEVEL' => Rules::REFORGE_LEVEL, 'LOADOUT_SIZE' => Rules::LOADOUT_SIZE, 'ORIGIN_POINTS' => Rules::ORIGIN_POINTS,
                 'SIGNATURE_LEVEL' => Rules::SIGNATURE_LEVEL, 'SIGNATURE_TRAITS' => Rules::SIGNATURE_TRAITS, 'LEGEND_LEVEL' => Legends::LEVEL,
+                'NEWCOMER_DAYS' => Rules::NEWCOMER_DAYS, 'NEWCOMER_LEVEL' => Rules::NEWCOMER_LEVEL, 'MENTOR_LEVEL' => Rules::MENTOR_LEVEL, 'MENTOR_BONUS' => Rules::MENTOR_BONUS, 'SCARCE_ROLLS' => Rules::SCARCE_ROLLS,
             ],
             'LEGENDS' => Legends::FORMS,
             'PROLOGUE' => ['SECONDS' => Prologue::SECONDS, 'DUNGEON' => Prologue::DUNGEON, 'ENCOUNTERS' => Prologue::ENCOUNTERS, 'LEVEL' => Prologue::LEVEL, 'GUIDES' => Prologue::GUIDES],

@@ -37,16 +37,19 @@ class Social
         $p->createdAt = time();
         $this->em->persist($p);
         $this->em->flush();
-        $this->join($h, $p);
+        $this->join($h, $p, false);
 
         return $p;
     }
 
-    private function join(Hero $h, Party $p): void
+    private function join(Hero $h, Party $p, bool $answered = true): void
     {
         if ($p->members->count() >= Party::SIZE) {
             throw new GameError('That group is full.');
         }
+        // Checked before the posts below are cleared: was this hero's role the scarcest in the group's tier?
+        $tier = $this->game->dungeonFor($p)['id'];
+        $scarce = $answered && ($this->scarcity()[$tier]['role'] ?? null) === $h->role() && time() - $h->scarceAt >= 86400;
         $h->party = $p;
         $p->members->add($h);
         foreach ($this->em->getRepository(PartyRequest::class)->findBy(['hero' => $h]) as $r) {
@@ -64,6 +67,49 @@ class Social
             }
         }
         $this->game->post('party:'.$p->id, sprintf('%s joined the group.', $h->name));
+        if ($scarce) {
+            $h->bonusRolls = Rules::SCARCE_ROLLS;
+            $h->scarceAt = time();
+            $this->game->post('party:'.$p->id, sprintf('%s answered the call as a scarce %s: they roll twice on their next %d chests.', $h->name, $h->role() === 'dps' ? 'damage dealer' : $h->role(), Rules::SCARCE_ROLLS));
+        }
+    }
+
+    /**
+     * The scarcest role in each dungeon tier on the tavern board: wanted by the most groups looking for members,
+     * offered by the fewest heroes looking for a group. [dungeon id => ['role', 'wanted', 'offered']]; tiers with
+     * no shortage are left out.
+     */
+    public function scarcity(): array
+    {
+        $wanted = [];
+        $offered = [];
+        foreach ($this->em->getRepository(TavernPost::class)->findAll() as $t) {
+            if ($t->kind === 'lfm' && $t->party) {
+                $tier = $this->game->dungeonFor($t->party)['id'];
+                foreach ($t->roles as $r) {
+                    $wanted[$tier][$r] = ($wanted[$tier][$r] ?? 0) + 1;
+                }
+            } elseif ($t->kind === 'lfg') {
+                $tier = Dungeons::newest($t->author->level)['id'];
+                $r = $t->author->role();
+                $offered[$tier][$r] = ($offered[$tier][$r] ?? 0) + 1;
+            }
+        }
+        $out = [];
+        foreach ($wanted as $tier => $roles) {
+            $best = null;
+            foreach (['tank', 'healer', 'dps'] as $r) {
+                $gap = ($roles[$r] ?? 0) - ($offered[$tier][$r] ?? 0);
+                if ($gap > 0 && (!$best || $gap > $best[1])) {
+                    $best = [$r, $gap];
+                }
+            }
+            if ($best) {
+                $out[$tier] = ['role' => $best[0], 'wanted' => $roles[$best[0]], 'offered' => $offered[$tier][$best[0]] ?? 0];
+            }
+        }
+
+        return $out;
     }
 
     public function leave(Hero $h): void

@@ -223,6 +223,7 @@ class Game
             $keenEye = $keenEye || $h->cls === 'rogue';
         }
         $group = array_map(fn (Hero $h) => ['race' => $h->race, 'real' => !$h->user->demo], $heroes);
+        $newcomers = count(array_filter($heroes, fn (Hero $h) => $h->isNewcomer($b->endsAt)));
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
             $xp = Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']);
@@ -245,6 +246,13 @@ class Game
             $gold = (int) round(5 * 1.045 ** (2 * $dl) * $units * $stats['fortune']);
             // Every run pays materials, even one that ends early.
             $mats = (int) round((3 + 0.5 * $units) * (1 + $dl / 10) * $stats['fortune']);
+            // Mentors: veterans running with a new hero earn a bit more of everything.
+            $mentor = $newcomers > 0 && $h->level >= Rules::MENTOR_LEVEL && !$h->isNewcomer($b->endsAt);
+            if ($mentor) {
+                $gold = (int) round($gold * (1 + Rules::MENTOR_BONUS));
+                $mats = (int) round($mats * (1 + Rules::MENTOR_BONUS));
+                $rep['heroes'][$k]['mentor'] = true;
+            }
             $h->gold = (string) ((int) $h->gold + $gold);
             $h->materials += $mats;
             $c = $h->career + ['battles' => 0, 'dungeons' => 0, 'bossKills' => 0, 'deaths' => 0];
@@ -252,6 +260,9 @@ class Game
             $c['dungeons'] = ($c['dungeons'] ?? 0) + ($rep['wiped'] ? 0 : 1);
             $c['bossKills'] += $rep['bossesKilled'];
             $c['deaths'] += $rep['heroes'][$k]['deaths'] ?? 0;
+            if ($mentor) {
+                $c['mentored'] = ($c['mentored'] ?? 0) + 1;
+            }
             if (!$rep['wiped']) {
                 $c['cleared'] = array_values(array_unique([...$c['cleared'] ?? [], $dungeon['id']]));
             }
@@ -435,6 +446,13 @@ class Game
             }
         }
         $r = new Randomizer(new Mt19937($b->seed ^ 0x1234567));
+        // Scarce-role bonus: these heroes roll twice on every item in this chest and keep the higher.
+        $twice = [];
+        foreach ($ids as $id) {
+            if (($h = $this->em->find(Hero::class, $id)) && $h->bonusRolls > 0) {
+                $twice[$id] = $h;
+            }
+        }
         foreach ($chest as $idx => $entry) {
             $best = null;
             $rolls = [];
@@ -442,6 +460,9 @@ class Game
                 foreach ($entry['rolls'] as $id => $choice) {
                     if ($choice === $tier) {
                         $rolls[$id] = $r->getInt(1, 100);
+                        if (isset($twice[$id])) {
+                            $rolls[$id] = max($rolls[$id], $r->getInt(1, 100));
+                        }
                     }
                 }
                 if ($rolls) {
@@ -469,6 +490,11 @@ class Game
                         $h->essence += max(1, intdiv(Items::salvageValue($spec), 2));
                     }
                 }
+            }
+        }
+        if ($chest) {
+            foreach ($twice as $h) {
+                --$h->bonusRolls;
             }
         }
         $b->chest = $chest;

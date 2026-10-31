@@ -48,6 +48,7 @@ final class Marks
         'legendFound' => ['Legend Finder', 'Won a legendary from a group chest'],
         'bannerBearer' => ['Banner Bearer', 'Joined a guild'],
         'founder' => ['Founder', 'Founded a guild'],
+        'mentor' => ['Mentor', 'Ran 10 times with a new hero in the group'],
     ];
 
     /**
@@ -81,6 +82,7 @@ final class Marks
         $add('thousandBosses', ($c['bossKills'] ?? 0) >= 1000);
         $add('floor', ($c['deaths'] ?? 0) >= 50);
         $add('cartographer', !array_diff($dungeons, $c['cleared'] ?? []));
+        $add('mentor', ($c['mentored'] ?? 0) >= 10);
         $add('wyvernSlayer', in_array('wyvern-roost', $c['cleared'] ?? [], true));
 
         $add('scarred', ($row['deaths'] ?? 0) >= 3);

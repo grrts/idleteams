@@ -100,6 +100,7 @@
   }
   // Level bands: a group may run every dungeon whose band starts at or below its median level.
   const unlocked = (level) => Object.values(D.DUNGEONS).filter((d) => d.levels[0] <= Math.max(1, level));
+  const newest = (level) => { const open = unlocked(level); return open[open.length - 1] || Dg.get(null); };
   function dungeonFor(p) {
     const open = unlocked(medianLevel(p));
     return open.find((d) => d.id === p.dungeon) || open[open.length - 1] || Dg.get(null);
@@ -147,6 +148,7 @@
     });
     const keenEye = heroes.some((h) => h.cls === 'rogue');
     const group = heroes.map((h) => ({ race: h.race, real: !(userOf(h) || {}).demo }));
+    const newcomers = heroes.filter((h) => isNewcomer(h, b.endsAt)).length;
     heroes.forEach((h, k) => {
       const stats = S.derive(build(h)), row = rep.heroes[k] || {};
       const xp = Math.round(10.5 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)) * (1 + stats.xpBonus));
@@ -156,11 +158,15 @@
       h.renown += renown;
       if (heritageRank(h) > rankBefore) post(heroChannel(h), h.name + "'s " + D.RACES[h.race].name + ' Heritage reached rank ' + heritageRank(h) + '.', { type: 'hero', hero: h.id });
       Object.assign(row, { renown, kin });
-      const gold = Math.round(5 * 1.045 ** (2 * dl) * units * stats.fortune);
-      const mats = Math.round((3 + 0.5 * units) * (1 + dl / 10) * stats.fortune);
+      let gold = Math.round(5 * 1.045 ** (2 * dl) * units * stats.fortune);
+      let mats = Math.round((3 + 0.5 * units) * (1 + dl / 10) * stats.fortune);
+      // Mentors: veterans running with a new hero earn a bit more of everything.
+      const mentor = newcomers > 0 && h.level >= C.MENTOR_LEVEL && !isNewcomer(h, b.endsAt);
+      if (mentor) { gold = Math.round(gold * (1 + C.MENTOR_BONUS)); mats = Math.round(mats * (1 + C.MENTOR_BONUS)); row.mentor = true; }
       h.gold += gold; h.materials += mats;
       const c = Object.assign({ battles: 0, dungeons: 0, bossKills: 0, deaths: 0 }, h.career);
       c.battles++; c.dungeons += rep.wiped ? 0 : 1; c.bossKills += rep.bossesKilled; c.deaths += row.deaths || 0;
+      if (mentor) c.mentored = (c.mentored || 0) + 1;
       if (!rep.wiped) c.cleared = uniq([...(c.cleared || []), dungeon.id]);
       h.career = c;
       Object.assign(row, { xp, gold, materials: mats });
@@ -238,10 +244,13 @@
       for (const id of ids) { const h = find('heroes', id); if (entry.rolls[id] === undefined && h) autoRoll(b, h, idx); }
     }
     const r = new Rng(b.seed ^ 0x1234567);
+    // Scarce-role bonus: these heroes roll twice on every item in this chest and keep the higher.
+    const twice = ids.map((id) => find('heroes', id)).filter((h) => h && h.bonusRolls > 0);
+    const twiceIds = new Set(twice.map((h) => String(h.id)));
     for (const entry of b.chest) {
       let best = null, rolls = {};
       for (const tier of ['need', 'greed']) {
-        for (const [id, choice] of Object.entries(entry.rolls)) if (choice === tier) rolls[id] = r.getInt(1, 100);
+        for (const [id, choice] of Object.entries(entry.rolls)) if (choice === tier) { rolls[id] = r.getInt(1, 100); if (twiceIds.has(String(id))) rolls[id] = Math.max(rolls[id], r.getInt(1, 100)); }
         if (keys(rolls).length) { let top = -1; for (const [id, n] of Object.entries(rolls)) if (n > top) { top = n; best = +id; } break; }
       }
       entry.numbers = rolls; entry.winner = best;
@@ -257,6 +266,7 @@
         for (const id of ids) { const h = find('heroes', id); if (h) h.essence += Math.max(1, Math.floor(I.salvageValue(spec) / 2)); }
       }
     }
+    if (b.chest.length) for (const h of twice) h.bonusRolls--;
     b.state = 'done';
   }
   function post(channel, body, card = null, author = null) {
@@ -271,7 +281,7 @@
     return {
       attributes: D.ATTRIBUTES, races: D.RACES, origins: D.ORIGINS, originPoints: C.ORIGIN_POINTS, classes, keystones: D.KEYSTONES, slots: D.SLOTS, bases: D.BASES,
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
-      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
+      pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
@@ -284,7 +294,7 @@
   function heroCard(h) {
     const g = guildOf(h);
     return {
-      id: h.id, name: h.name, race: h.race, culture: h.culture, backstory: h.backstory, heritageRank: heritageRank(h), cls: h.cls, origin: h.origin, path: h.path, legend: h.legend || null, title: (LG.get(h.path, h.legend) || [null])[0], role: role(h), level: h.level, look: look(h), marks: h.marks,
+      id: h.id, name: h.name, race: h.race, culture: h.culture, backstory: h.backstory, heritageRank: heritageRank(h), cls: h.cls, origin: h.origin, path: h.path, legend: h.legend || null, title: (LG.get(h.path, h.legend) || [null])[0], newcomer: isNewcomer(h), role: role(h), level: h.level, look: look(h), marks: h.marks,
       guild: g ? { id: g.id, name: g.name, tag: g.tag } : null, party: h.party, keystones: h.keystones, codex: h.codex.length, demo: isDemo(h),
     };
   }
@@ -308,7 +318,7 @@
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
       attributes: attrs.total, sources: attrs.sources, effective: S.effective(attrs.total), stats, k: S.k(L), curves,
-      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h), prologue: !h.prologueDone && h.level <= 2 && !((h.career || {}).battles),
+      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h), bonusRolls: h.bonusRolls || 0, prologue: !h.prologueDone && h.level <= 2 && !((h.career || {}).battles),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
@@ -678,17 +688,37 @@
     if (h.party) fail('Leave your group first.');
     name = String(name).trim() || h.name + "'s group";
     const p = ins('parties', { name: name.slice(0, 40), leader: h.id, dungeonOffset: 0, running: true, battlesTogether: 0, createdAt: time() });
-    join(h, p);
+    join(h, p, false);
     return p;
   }
-  function join(h, p) {
+  function join(h, p, answered = true) {
     if (members(p).length >= PARTY_SIZE) fail('That group is full.');
+    const scarce = answered && (scarcity()[dungeonFor(p).id] || {}).role === role(h) && time() - (h.scarceAt || 0) >= 86400;
     h.party = p.id;
     db.requests = db.requests.filter((r) => r.hero !== h.id);
     db.posts = db.posts.filter((t) => !(t.author === h.id && t.kind === 'lfg'));
     if (members(p).length >= PARTY_SIZE) { db.posts = db.posts.filter((t) => t.party !== p.id); db.requests = db.requests.filter((r) => r.party !== p.id); }
     post('party:' + p.id, h.name + ' joined the group.');
+    if (scarce) {
+      h.bonusRolls = C.SCARCE_ROLLS; h.scarceAt = time();
+      post('party:' + p.id, h.name + ' answered the call as a scarce ' + (role(h) === 'dps' ? 'damage dealer' : role(h)) + ': they roll twice on their next ' + C.SCARCE_ROLLS + ' chests.');
+    }
   }
+  // The scarcest role per dungeon tier on the tavern board (Social::scarcity).
+  function scarcity() {
+    const wanted = {}, offered = {}, out = {};
+    for (const t of db.posts) {
+      if (t.kind === 'lfm' && t.party) { const p = find('parties', t.party); if (!p) continue; const tier = dungeonFor(p).id; wanted[tier] = wanted[tier] || {}; for (const r of t.roles) wanted[tier][r] = (wanted[tier][r] || 0) + 1; }
+      else if (t.kind === 'lfg') { const a = find('heroes', t.author); if (!a) continue; const tier = newest(a.level).id, r = role(a); offered[tier] = offered[tier] || {}; offered[tier][r] = (offered[tier][r] || 0) + 1; }
+    }
+    for (const [tier, roles] of Object.entries(wanted)) {
+      let best = null;
+      for (const r of ['tank', 'healer', 'dps']) { const gap = (roles[r] || 0) - ((offered[tier] || {})[r] || 0); if (gap > 0 && (!best || gap > best[1])) best = [r, gap]; }
+      if (best) out[tier] = { role: best[0], wanted: roles[best[0]], offered: (offered[tier] || {})[best[0]] || 0 };
+    }
+    return out;
+  }
+  const isNewcomer = (h, now) => !(userOf(h) || {}).demo && h.level < C.NEWCOMER_LEVEL && (now || time()) - (h.createdAt || 0) < C.NEWCOMER_DAYS * 86400;
   function leave(h) {
     const p = partyOf(h) || fail('You are not in a group.');
     h.party = null;
@@ -986,7 +1016,8 @@
     ['POST', /^\/request\/(\d+)\/(accept|decline)$/, (m) => { const h = hero(), r = find('requests', m[1]) || fail('That request is gone.'); m[2] === 'accept' ? accept(h, r) : decline(h, r); return { ok: true }; }],
     ['GET', /^\/tavern$/, () => {
       const h = hero();
-      return { posts: [...db.posts].reverse().slice(0, 100).map(presentPost), freeHeroes: db.heroes.filter((x) => !x.party && x !== h).sort((a, c) => c.level - a.level).slice(0, 40).map(heroCard) };
+      return { posts: [...db.posts].reverse().slice(0, 100).map(presentPost), freeHeroes: db.heroes.filter((x) => !x.party && x !== h).sort((a, c) => c.level - a.level).slice(0, 40).map(heroCard),
+        scarcity: scarcity(), myTier: h.party ? dungeonFor(find('parties', h.party)).id : newest(h.level).id };
     }],
     ['POST', /^\/tavern$/, (m, b) => presentPost(postTavern(hero(), String(b.kind || ''), String(b.text || ''), [].concat(b.roles || [])))],
     ['DELETE', /^\/tavern\/(\d+)$/, (m) => { removeTavern(hero(), must('posts', m[1])); return { ok: true }; }],

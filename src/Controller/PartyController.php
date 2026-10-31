@@ -6,6 +6,8 @@ use App\Entity\Hero;
 use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
+use App\Game\Dungeons;
+use App\Service\Game;
 use App\Service\GameError;
 use App\Service\Present;
 use App\Service\Social;
@@ -46,7 +48,7 @@ class PartyController extends ApiController
     }
 
     #[Route('/api/tavern', methods: ['GET'])]
-    public function tavern(Present $present): JsonResponse
+    public function tavern(Present $present, Social $social, Game $game): JsonResponse
     {
         $h = $this->hero();
         $posts = $this->em->getRepository(TavernPost::class)->findBy([], ['id' => 'DESC'], 100);
@@ -57,6 +59,8 @@ class PartyController extends ApiController
         return $this->json([
             'posts' => array_map(fn (TavernPost $t) => $present->tavernPost($t), $posts),
             'freeHeroes' => array_map(fn (Hero $x) => $present->heroCard($x), $heroes),
+            'scarcity' => (object) $social->scarcity(),
+            'myTier' => $h->party ? $game->dungeonFor($h->party)['id'] : Dungeons::newest($h->level)['id'],
         ]);
     }
 
