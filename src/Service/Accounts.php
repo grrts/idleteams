@@ -23,6 +23,7 @@ class Accounts
         private EntityManagerInterface $em,
         private MailerInterface $mailer,
         private UserPasswordHasherInterface $hasher,
+        private ApiTokens $tokens,
         #[Autowire('%env(APP_URL)%')] private string $appUrl,
         #[Autowire('%env(MAILER_FROM)%')] private string $from,
     ) {
@@ -79,6 +80,8 @@ class Accounts
         }
         $this->consume($u, 'reset', $token);
         $u->password = $this->hasher->hashPassword($u, $password);
+        // a new password ends every app login
+        $this->tokens->revokeAll($u);
         // Whoever could read the mail could reset; the address is proven now.
         $u->emailVerified = true;
 

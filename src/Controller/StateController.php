@@ -78,6 +78,11 @@ class StateController extends ApiController
         if (!$live->enabled()) {
             return null;
         }
+        if (\App\Service\ApiTokens::fromHeader($request->headers->get('Authorization'))) {
+            $url = $live->subscribeUrlWithToken($topics);
+
+            return $url ? ['url' => $url] : null;
+        }
         try {
             $auth->setCookie($request, $topics);
         } catch (\Throwable $e) {

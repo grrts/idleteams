@@ -92,6 +92,18 @@ class Live
         return $this->publicUrl.(str_contains($this->publicUrl, '?') ? '&' : '?').implode('&', array_map(fn ($t) => $param.'='.rawurlencode($t), $topics));
     }
 
+    /**
+     * For the native apps, which run on another origin and cannot hold the hub's cookie: the same address with the
+     * subscriber token in the query (the hub reads "authorization" there).
+     */
+    public function subscribeUrlWithToken(array $topics): ?string
+    {
+        $url = $this->subscribeUrl($topics);
+        $jwt = $url ? $this->hub->getFactory()?->create($topics) : null;
+
+        return $jwt ? $url.'&authorization='.rawurlencode($jwt) : null;
+    }
+
     /** @return int updates sent */
     public function flush(): int
     {

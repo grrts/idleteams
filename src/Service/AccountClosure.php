@@ -47,6 +47,7 @@ class AccountClosure
             'purchases' => $q(\App\Entity\Purchase::class, ['user' => $u]),
             'notices' => $q(Notice::class, ['user' => $u]),
             'pushSubscriptions' => array_map(fn (PushSubscription $s) => ['endpoint' => parse_url($s->endpoint, PHP_URL_HOST), 'createdAt' => $s->createdAt], $this->em->getRepository(PushSubscription::class)->findBy(['user' => $u])),
+            'appLogins' => array_map(fn (\App\Entity\ApiToken $t) => ['platform' => $t->platform, 'createdAt' => $t->createdAt, 'lastUsedAt' => $t->lastUsedAt], $this->em->getRepository(\App\Entity\ApiToken::class)->findBy(['user' => $u])),
         ];
     }
 
@@ -79,7 +80,7 @@ class AccountClosure
             }
             $this->em->remove($h);
         }
-        foreach ([[ChatReport::class, 'reporter'], [ChatReport::class, 'target'], [Notice::class, 'user'], [PushSubscription::class, 'user']] as [$class, $field]) {
+        foreach ([[ChatReport::class, 'reporter'], [ChatReport::class, 'target'], [Notice::class, 'user'], [PushSubscription::class, 'user'], [\App\Entity\ApiToken::class, 'user']] as [$class, $field]) {
             $this->gone($class, $field, [$u]);
         }
         // Purchases stay for the tax records, without the account.
