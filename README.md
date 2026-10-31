@@ -61,6 +61,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   officers), and three weekly goals from a pool scaled to the guild's size that members' runs fill; a finished goal
   pays everyone who helped. Guild levels open rooms (notice board, trophy wall, a bigger vault, guild tags in chat, a
   Mythic gallery), never combat power. Rules in `src/Game/GuildHall.php`.
+- Guild raids: The Sundered Keep, for up to forty heroes of level 50 and up in eight squads of five. An officer plans
+  the night, members sign up with their role, and the planner puts them into squads (by hand or automatically, with
+  a tank and a healer in each where there are enough) and onto four fronts. Every squad fights its front at once; with
+  three fronts taken, the squads that held theirs face the Sundered King. One raid a week per guild; every raider is
+  paid, and may find an item straight in their bags. Rules in `src/Game/Raids.php`, raids in `content/*/raids/`.
+  The playable build has no raids (it holds one group, not forty heroes).
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
   backstory, every life story answer and every Heritage branch. The creator shows the lore of each choice as it is

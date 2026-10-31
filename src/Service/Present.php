@@ -10,6 +10,7 @@ use App\Entity\Hero;
 use App\Entity\Item;
 use App\Entity\Party;
 use App\Entity\PartyRequest;
+use App\Entity\Raid;
 use App\Entity\TavernPost;
 use App\Entity\User;
 use App\Game\Art;
@@ -21,6 +22,7 @@ use App\Game\Items;
 use App\Game\Legends;
 use App\Game\Marks;
 use App\Game\Modes;
+use App\Game\Raids;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Stats;
@@ -53,6 +55,7 @@ class Present
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
             'guildHall' => ['rooms' => GuildHall::ROOMS, 'memberWithdrawals' => GuildHall::MEMBER_WITHDRAWALS],
+            'raids' => array_map(fn ($r) => ['id' => $r['id'], 'name' => $r['name'], 'summary' => $r['summary'], 'level' => $r['level'], 'fronts' => array_map(fn ($f) => ['name' => $f['name'], 'summary' => $f['summary'], 'boss' => array_values($f['bosses'])[0]['name']], $r['fronts']), 'final' => ['name' => $r['final']['name'], 'boss' => array_values($r['final']['bosses'])[0]['name']], 'squads' => Raids::SQUADS, 'squadSize' => Raids::SQUAD_SIZE, 'frontsNeeded' => Raids::FRONTS_NEEDED], Raids::all()),
             'modes' => ['affixes' => Modes::AFFIXES, 'mythicLevel' => Modes::MYTHIC_LEVEL, 'secondAt' => Modes::SECOND_AT, 'weekly' => Modes::weekly(Modes::week(time()))],
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
@@ -323,11 +326,35 @@ class Present
                 'log' => $g->bankLog ?? [], 'taken' => $viewer ? count(array_filter($g->bankLog ?? [], fn ($e) => $e[0] >= time() - 86400 && $e[2] === $viewer->id && $e[3] === 'out')) : 0,
                 'goals' => array_map(fn ($x) => $x + ['label' => GuildHall::label($x)], $g->goals ?? []), 'helped' => $viewer ? ($g->helpers[(string) $viewer->id] ?? 0) : 0,
                 'reward' => $viewer ? GuildHall::reward($viewer->level) : null, 'weekEnds' => (Modes::week(time()) + 1) * 604800 + 345600,
-                'trophies' => in_array('trophies', $rooms, true) ? ($g->trophies ?? []) + ['heroic' => 0, 'bosses' => 0, 'goals' => 0, 'bestMythic' => null] : null,
+                'trophies' => in_array('trophies', $rooms, true) ? ($g->trophies ?? []) + ['heroic' => 0, 'bosses' => 0, 'goals' => 0, 'bestMythic' => null, 'raids' => 0] : null,
+                'raid' => $this->raid($this->em->getRepository(Raid::class)->findOneBy(['guild' => $g, 'week' => Modes::week(time())], ['id' => 'DESC'])),
             ];
         }
 
         return $out;
+    }
+
+    /** The raid planner's view of a raid night: sign-ups with roles, squads with warnings, fronts, and the outcome. */
+    public function raid(?Raid $r): ?array
+    {
+        if (!$r) {
+            return null;
+        }
+        $def = Raids::get($r->raid);
+        $card = function (int $id) {
+            $h = $this->em->find(Hero::class, $id);
+
+            return $h ? ['id' => $h->id, 'name' => $h->name, 'cls' => $h->cls, 'level' => $h->level, 'role' => $h->role(), 'look' => $this->game->look($h)] : null;
+        };
+        $signups = array_values(array_filter(array_map(fn ($id) => $card((int) $id), array_keys($r->signups))));
+        $roles = array_column($signups, 'role', 'id');
+
+        return [
+            'id' => $r->id, 'raid' => $r->raid, 'name' => $def['name'] ?? $r->raid, 'state' => $r->state, 'startsAt' => $r->startsAt,
+            'signups' => $signups, 'squads' => $r->squads, 'fronts' => $r->fronts,
+            'warnings' => array_map(fn ($sq) => Raids::warnings(array_map(fn ($id) => $roles[$id] ?? 'dps', $sq)), $r->squads),
+            'report' => $r->report,
+        ];
     }
 
     public function guildLevel(int $xp): int

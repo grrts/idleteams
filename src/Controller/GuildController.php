@@ -5,7 +5,9 @@ namespace App\Controller;
 use App\Entity\Guild;
 use App\Entity\Hero;
 use App\Entity\Item;
+use App\Entity\Raid;
 use App\Service\GuildActions;
+use App\Service\RaidActions;
 use App\Service\Present;
 use App\Service\Social;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -83,6 +85,35 @@ class GuildController extends ApiController
     {
         $in = $this->body($r);
         $guild->rank($this->hero(), $this->find(Hero::class, (int) ($in['hero'] ?? 0)), (string) ($in['rank'] ?? ''));
+        $this->em->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    #[Route('/api/raid/plan', methods: ['POST'])]
+    public function planRaid(Request $r, RaidActions $raids): JsonResponse
+    {
+        $in = $this->body($r);
+        $raids->plan($this->hero(), (string) ($in['raid'] ?? ''), (int) ($in['startsAt'] ?? time()));
+        $this->em->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    #[Route('/api/raid/{id}/{action}', methods: ['POST'], requirements: ['id' => '\d+', 'action' => 'signup|leave|arrange|fill|cancel|start'])]
+    public function raid(int $id, string $action, Request $r, RaidActions $raids): JsonResponse
+    {
+        $h = $this->hero();
+        $raid = $this->find(Raid::class, $id);
+        $in = $this->body($r);
+        match ($action) {
+            'signup' => $raids->signup($h, $raid, true),
+            'leave' => $raids->signup($h, $raid, false),
+            'arrange' => $raids->arrange($h, $raid, (array) ($in['squads'] ?? []), array_map('intval', (array) ($in['fronts'] ?? []))),
+            'fill' => $raids->autoFill($h, $raid),
+            'cancel' => $raids->cancel($h, $raid),
+            'start' => $raids->start($h, $raid),
+        };
         $this->em->flush();
 
         return $this->json(['ok' => true]);

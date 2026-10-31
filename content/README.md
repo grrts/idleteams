@@ -32,6 +32,16 @@ fails at load with the file name and what is wrong.
 Health and damage scale with the dungeon level and the reference group (`src/Game/Reference.php`), so a file never
 holds absolute numbers. Check a new dungeon with `php bin/console app:balance`.
 
+## Raids
+
+One file per guild raid in `<pack>/raids/<id>.json` (`src/Game/Raids.php`): `id`, `name`, `summary`, `level` (the
+lowest level that may sign up; the raid is fought at the raiders' median level if that is higher), `health` and
+`damage` (multipliers on top of a dungeon at that level), `fronts` (a list of at least three, each written like a
+dungeon above, with a one-wing `plan`) and `final` (the throne, also written like a dungeon). Up to eight squads of
+five each take a front; a front is taken if any squad on it clears it; with three taken, the squads that took theirs
+fight the final boss, who hits 15% harder for each front lost, and the raid is won if half of them bring him down.
+`tests/Game/RaidsTest.php` checks every raid loads and its art exists.
+
 ## Art
 
 Parts for the pixel renderer, in `<pack>/art/*.json`: `{ "parts": { kind: { id: part } }, "palettes": {...} }`. The

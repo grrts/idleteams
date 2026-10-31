@@ -1434,7 +1434,43 @@
     const rankPick = (x) => lead && x.id !== me.id ? '<select class="small" data-act-change="guildRank" data-id="' + x.id + '" aria-label="Rank">' + ['member', 'officer', 'leader'].map((r) => '<option value="' + r + '"' + (r === x.rank ? ' selected' : '') + '>' + (r === 'leader' ? 'Make leader' : r[0].toUpperCase() + r.slice(1)) + '</option>').join('') + '</select>' : '';
     const members = '<div class="panel"><h2>Members</h2><div class="cards">' + m.members.map((x) => memberCard(x, '<div class="row" style="gap:6px;margin-top:4px">' + (x.rank !== 'member' ? '<span class="chip gold">' + (x.rank === 'leader' ? 'Leader' : 'Officer') + '</span>' : '') + rankPick(x) + '<span class="tiny muted">' + (x.party ? 'In a group' : 'Looking for a group') + '</span></div>')).join('') + '</div></div>';
     const gallery = room('gallery') ? '<div class="panel"><h3>Mythic gallery</h3><ol class="plain">' + m.members.filter((x) => x.mythicBest).sort((a, b) => b.mythicBest - a.mythicBest).map((x) => '<li>' + esc(x.name) + ' <span class="chip">Mythic ' + x.mythicBest + '</span></li>').join('') + '</ol>' + (m.members.some((x) => x.mythicBest) ? '' : '<p class="muted small">No member has cleared a Mythic tier yet.</p>') + '</div>' : '';
-    return '<div class="stack">' + head + notice + goals + bank + trophies + gallery + rooms + members + '</div>';
+    return '<div class="stack">' + head + notice + goals + raidPanel(H.raid, officer) + bank + trophies + gallery + rooms + members + '</div>';
+  }
+  // The raid planner: plan a night, sign up, put heroes into squads and fronts, start it, read the outcome.
+  function raidPanel(r, officer) {
+    const list = Object.values(S.cfg.raids || {}); if (!list.length) return '';
+    const me = S.st.hero, roleChip = (role) => '<span class="chip ' + role + '">' + ({ tank: 'Tank', healer: 'Healer', dps: 'Damage' }[role]) + '</span>';
+    if (!r) {
+      const def = list[0];
+      return '<div class="panel"><h3>Raid</h3><p class="small">' + esc(def.name) + ': ' + esc(def.summary) + ' Level ' + def.level + '+, up to ' + def.squads * def.squadSize + ' heroes in ' + def.squads + ' squads.</p>' +
+        (officer ? '<div class="row"><select id="raidPick" aria-label="Raid">' + list.map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('') + '</select><input id="raidAt" type="datetime-local" aria-label="Start time"><button class="primary small" data-act="raidPlan">Plan the raid</button></div>' : '<p class="muted small">No raid planned this week. The leader and officers plan one.</p>') + '</div>';
+    }
+    const def = S.cfg.raids[r.raid], byId = {}; r.signups.forEach((x) => { byId[x.id] = x; });
+    const when = '<span class="small muted">' + (r.state === 'planning' ? 'Planned for ' + new Date(r.startsAt * 1000).toLocaleString() : 'Fought this week') + '</span>';
+    if (r.state === 'done') {
+      const R = r.report, sq = (x) => '<li class="small">Squad ' + (x.squad + 1) + ' (' + x.heroes.map((h) => esc(h.name)).join(', ') + '): ' + (x.wiped ? '<span class="bad">fell</span> after ' + x.encountersDone + ' fights. ' + esc(x.cause || '') : '<span class="good">cleared</span> in ' + Math.round(x.length) + 's, top damage ' + esc(x.top || '')) + '</li>';
+      return '<div class="panel"><div class="head"><h3>' + esc(r.name) + '</h3>' + when + '</div><h2 class="' + (R.won ? 'good' : 'bad') + '">' + (R.won ? 'Victory' : 'The keep held') + '</h2>' +
+        R.fronts.map((f) => '<div><b>' + esc(f.name) + '</b> ' + (f.taken ? '<span class="chip good">Taken</span>' : '<span class="chip bad">Lost</span>') + '<ul class="plain">' + (f.squads.map(sq).join('') || '<li class="small muted">No squad went here.</li>') + '</ul></div>').join('') +
+        (R.final ? '<div><b>' + esc(R.final.name) + '</b>' + (R.final.lost ? ' <span class="small muted">(' + R.final.lost + ' front' + (R.final.lost === 1 ? '' : 's') + ' lost: the King hits harder)</span>' : '') + '<ul class="plain">' + R.final.squads.map(sq).join('') + '</ul></div>' : '<p class="small muted">Too few fronts were taken to reach the throne.</p>') +
+        '<details><summary class="small">Rewards</summary><ul class="plain">' + R.rewards.map((x) => '<li class="small">' + esc(x.hero) + ': ' + (x.repeat ? 'already paid this week' : fmt(x.gold) + ' gold, ' + x.materials + ' materials' + (x.item ? ', ' + esc(x.item) : '')) + '</li>').join('') + '</ul></details></div>';
+    }
+    const signed = !!byId[me.id], placed = new Set(r.squads.flat());
+    const free = r.signups.filter((x) => !placed.has(x.id));
+    const squad = (ids, k) => '<div class="panel tight"><div class="row between"><b>Squad ' + (k + 1) + '</b>' + (officer ? '<select class="small" data-act-change="raidFront" data-k="' + k + '" aria-label="Front">' + def.fronts.map((f, n) => '<option value="' + n + '"' + (n === r.fronts[k] ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>' : '<span class="small muted">' + esc((def.fronts[r.fronts[k]] || {}).name || '') + '</span>') + '</div>' +
+      '<ul class="plain">' + ids.map((id) => byId[id] ? '<li class="small">' + esc(byId[id].name) + ' ' + roleChip(byId[id].role) + (officer ? ' <button class="small linkish" data-act="raidOut" data-k="' + k + '" data-id="' + id + '" aria-label="Take out">✕</button>' : '') + '</li>' : '').join('') + '</ul>' +
+      (officer && ids.length < def.squadSize && free.length ? '<select class="small" data-act-change="raidIn" data-k="' + k + '" aria-label="Add a hero"><option value="">Add…</option>' + free.map((x) => '<option value="' + x.id + '">' + esc(x.name) + ' (' + x.role + ')</option>').join('') + '</select>' : '') +
+      (r.warnings[k] && r.warnings[k].length ? '<div class="tiny bad">' + r.warnings[k].join(', ') + '</div>' : '') + '</div>';
+    return '<div class="panel"><div class="head"><h3>' + esc(r.name) + '</h3>' + when + '</div><p class="small muted">Squads take fronts: ' + def.fronts.map((f) => esc(f.name) + ' (' + esc(f.boss) + ')').join(', ') + '. A front is taken if any squad on it clears it; with ' + def.frontsNeeded + ' taken, the squads that took theirs face ' + esc(def.final.boss) + '. Win if half of them bring him down.</p>' +
+      '<div class="row">' + (me.level >= def.level ? '<button class="small ' + (signed ? '' : 'primary') + '" data-act="raidSign" data-on="' + (signed ? 0 : 1) + '">' + (signed ? 'Withdraw' : 'Sign up as ' + me.role) + '</button>' : '<span class="small muted">The raid needs level ' + def.level + '.</span>') + '<span class="small">' + r.signups.length + ' signed up' + (free.length && r.squads.length ? ', ' + free.length + ' not in a squad' : '') + '</span></div>' +
+      (r.signups.length ? '<div class="row">' + r.signups.map((x) => '<span class="chip">' + esc(x.name) + ' · ' + x.role + '</span>').join('') + '</div>' : '') +
+      (officer ? '<div class="row"><button class="small" data-act="raidFill">Fill squads automatically</button><button class="small primary" data-act="raidStart">Start the raid</button><button class="small danger" data-act="raidCancel">Cancel</button></div>' : '') +
+      (r.squads.length ? '<div class="cards">' + r.squads.map(squad).join('') + (officer && r.squads.length < def.squads ? '<div class="panel tight"><button class="small" data-act="raidNewSquad">Add a squad</button></div>' : '') + '</div>' : officer ? '<p class="small muted">Fill the squads automatically or add one by hand.</p><button class="small" data-act="raidNewSquad">Add a squad</button>' : '') + '</div>';
+  }
+  async function raidArrange(fn) {
+    const r = S.guilds.mine.hall.raid, squads = r.squads.map((x) => [...x]), fronts = [...r.fronts];
+    fn(squads, fronts);
+    await act(() => post('/raid/' + r.id + '/arrange', { squads, fronts }));
+    reloadGuilds();
   }
 
   // ------------------------------------------------------------------ market
@@ -1846,6 +1882,13 @@
     reloadTavern: () => reloadTavern(),
     // guild
     joinGuild: (d) => act(() => post('/guild/' + d.id + '/join'), 'Welcome to the guild!').then(reloadGuilds),
+    raidPlan: () => { const at = $('#raidAt').value ? Math.floor(new Date($('#raidAt').value).getTime() / 1000) : Math.floor(Date.now() / 1000); act(() => post('/raid/plan', { raid: $('#raidPick').value, startsAt: at }), 'Raid planned. Members can sign up now.').then(reloadGuilds); },
+    raidSign: (d) => act(() => post('/raid/' + S.guilds.mine.hall.raid.id + '/' + (d.on === '1' ? 'signup' : 'leave')), d.on === '1' ? 'Signed up.' : 'Withdrawn.').then(reloadGuilds),
+    raidFill: () => act(() => post('/raid/' + S.guilds.mine.hall.raid.id + '/fill'), 'Squads filled.').then(reloadGuilds),
+    raidStart: () => confirmBox('Start the raid now? Every squad fights at once.', () => act(() => post('/raid/' + S.guilds.mine.hall.raid.id + '/start'), 'The raid is fought.').then(reloadGuilds)),
+    raidCancel: () => confirmBox('Cancel this raid night?', () => act(() => post('/raid/' + S.guilds.mine.hall.raid.id + '/cancel')).then(reloadGuilds)),
+    raidNewSquad: () => raidArrange((sq, fr) => { sq.push([]); fr.push((sq.length - 1) % S.cfg.raids[S.guilds.mine.hall.raid.raid].fronts.length); }),
+    raidOut: (d) => raidArrange((sq) => { sq[+d.k] = sq[+d.k].filter((id) => id !== +d.id); }),
     guildNotice: () => act(() => post('/guild/notice', { notice: $('#gNotice').value }), 'Pinned.').then(reloadGuilds),
     guildDeposit: () => { const id = +$('#gDeposit').value; if (id) act(() => post('/guild/bank/deposit', { id }), 'In the bank.').then(reloadGuilds); },
     guildWithdraw: (d) => act(() => post('/guild/bank/withdraw', { id: +d.id }), 'In your bags.').then(reloadGuilds),
@@ -1880,6 +1923,8 @@
     const el = e.target;
     const a = el.dataset.actChange;
     if (a === 'dungeon') act(() => post('/party/settings', { dungeon: el.value || null }), 'The next run goes there.');
+    if (a === 'raidFront') raidArrange((sq, fr) => { fr[+el.dataset.k] = +el.value; });
+    if (a === 'raidIn' && el.value) raidArrange((sq) => { sq[+el.dataset.k].push(+el.value); });
     if (a === 'guildRank') act(() => post('/guild/rank', { hero: +el.dataset.id, rank: el.value }), 'Rank changed.').then(reloadGuilds);
     if (a === 'difficulty') act(() => post('/party/settings', { difficulty: el.value }), 'The next run uses the new difficulty.');
     if (a === 'mythicTier') act(() => post('/party/settings', { mythicTier: +el.value }), 'The next run uses that tier.');

@@ -131,7 +131,7 @@ final class Dungeons
     }
 
     /** Fills defaults and checks every reference, so a broken file fails loudly at load and in the tests. */
-    private static function normalise(array $d, string $file): array
+    public static function normalise(array $d, string $file): array
     {
         $fail = fn (string $why) => throw new \RuntimeException(basename($file).': '.$why);
         foreach (['name', 'wings', 'enemies', 'packs', 'bosses', 'mechanics', 'plan'] as $k) {

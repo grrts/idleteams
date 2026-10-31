@@ -76,6 +76,26 @@ class Game
         return $ids ?: Combatants::defaultLoadout($hero->cls, $hero->level, $hero->path, $hero->talents);
     }
 
+    /**
+     * Heroes in fighting order (tanks, healers, then damage) and their combatants, scaled down to $level + 5.
+     *
+     * @param Hero[] $heroes sorted in place
+     */
+    public function lineUp(array &$heroes, int $level): array
+    {
+        usort($heroes, fn (Hero $a, Hero $c) => [array_search($a->role(), ['tank', 'healer', 'dps']), $a->id] <=> [array_search($c->role(), ['tank', 'healer', 'dps']), $c->id]);
+        $combatants = array_map(fn (Hero $h) => $this->combatant($h), $heroes);
+        // Heroes above the dungeon's level band are scaled down to it.
+        foreach ($combatants as $k => $c) {
+            if ($c['level'] > $level + 5) {
+                $scale = Combatants::make(array_merge($this->build($heroes[$k]), ['level' => $level + 5]), $c['id'], $c['name'], $c['loadout'], $c['ranks']);
+                $combatants[$k]['stats'] = $scale['stats'];
+            }
+        }
+
+        return $combatants;
+    }
+
     public function combatant(Hero $hero): array
     {
         $c = Combatants::make($this->build($hero), $hero->id, $hero->name, $this->loadout($hero), $hero->skillRanks);
@@ -180,15 +200,7 @@ class Game
         $b->startedAt = $at;
         $b->endsAt = $at + $this->battleSeconds;
         $heroes = $party->members->toArray();
-        usort($heroes, fn (Hero $a, Hero $c) => [array_search($a->role(), ['tank', 'healer', 'dps']), $a->id] <=> [array_search($c->role(), ['tank', 'healer', 'dps']), $c->id]);
-        $combatants = array_map(fn (Hero $h) => $this->combatant($h), $heroes);
-        // Heroes above the dungeon's level band are scaled down to it.
-        foreach ($combatants as $k => $c) {
-            if ($c['level'] > $b->dungeonLevel + 5) {
-                $scale = Combatants::make(array_merge($this->build($heroes[$k]), ['level' => $b->dungeonLevel + 5]), $c['id'], $c['name'], $c['loadout'], $c['ranks']);
-                $combatants[$k]['stats'] = $scale['stats'];
-            }
-        }
+        $combatants = $this->lineUp($heroes, $b->dungeonLevel);
         $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed, Dungeons::get($b->dungeon), Modes::mods($b->mode, $b->tier, $b->affixes));
         $result['report']['mode'] = $b->mode;
         $result['report']['tier'] = $b->tier;
