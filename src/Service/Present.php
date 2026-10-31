@@ -167,6 +167,7 @@ class Present
             'stats' => $stats, 'k' => Stats::k($L), 'curves' => $curves,
             'skills' => $skills, 'skillPoints' => $h->skillPoints(), 'loadout' => $this->game->loadout($h),
             'signature' => $this->signature($h), 'legendForm' => $this->legend($h),
+            'prologue' => !$h->prologueDone && $h->level <= 2 && ($h->career['battles'] ?? 0) === 0,
             'openKeystones' => $openKeystones, 'codexPowers' => $h->codex, 'career' => (object) $h->career,
             'gold' => (int) $h->gold, 'materials' => $h->materials, 'essence' => $h->essence, 'lootPolicy' => $h->lootPolicy,
             'resonance' => Stats::resonance($build['items']), 'guildRank' => $h->guildRank,

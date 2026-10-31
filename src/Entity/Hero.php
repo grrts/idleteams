@@ -107,6 +107,10 @@ class Hero
     #[ORM\Column(options: ['default' => 0])]
     public int $signatureXp = 0;
 
+    /** The short first fight after the hero is made: played or skipped. */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $prologueDone = false;
+
     /** Level 50: the Legend form of this hero's Path (permanent). */
     #[ORM\Column(length: 30, nullable: true)]
     public ?string $legend = null;

@@ -308,7 +308,7 @@
       xp: h.xp, xpNext: R.xpForLevel(L), oathTaken: h.oathTaken,
       points: { total: totalPoints(h), unspent: unspent(h), spent: h.spent, carved: h.carved },
       attributes: attrs.total, sources: attrs.sources, effective: S.effective(attrs.total), stats, k: S.k(L), curves,
-      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h),
+      skills, skillPoints: skillPoints(h), loadout: loadout(h), openKeystones: keystoneLevels(L).filter((kl) => h.keystones[kl] === undefined), signature: signatureView(h), legendForm: legendView(h), prologue: !h.prologueDone && h.level <= 2 && !((h.career || {}).battles),
       codexPowers: h.codex, career: h.career, gold: h.gold, materials: h.materials, essence: h.essence, lootPolicy: h.lootPolicy,
       resonance: S.resonance(b.items), guildRank: h.guildRank,
       twists, talents: h.talents, talentPoints: { total: T.points(L), free: talentPoints(h) }, talentResetCost: talentResetCost(h), heritage: h.heritage,
@@ -430,6 +430,28 @@
     h.marks = uniq([...h.marks, 'signature']);
     const base = R.classSkills(h.cls)[skill][0];
     post(heroChannel(h), h.name + ' made ' + base + " their Signature: " + h.name + "'s " + (name || base) + '.', { type: 'hero', hero: h.id });
+  }
+  // The prologue: four guides, the first wing, always a clear, no rewards (Prologue.php).
+  function prologue(h) {
+    const P = D.PROLOGUE, rl = role(h), dg = Object.assign({}, Dg.get(P.DUNGEON));
+    dg.plan = dg.plan.slice(0, P.ENCOUNTERS);
+    const me = Object.assign(combatant(h), { level: P.LEVEL });
+    const seats = [{ c: me, look: look(h), role: rl, race: h.race, level: h.level }];
+    let n = 0;
+    for (const [seat, [name, race, cls, glook]] of Object.entries(P.GUIDES)) {
+      if (seat === (rl === 'dps' ? 'dps3' : rl)) continue;
+      const b = E.Reference.build(cls, P.LEVEL + 1); b.race = race;
+      const kit = Object.fromEntries(Object.entries(D.CLASSES[cls].kit).filter(([, x]) => x !== 'none'));
+      seats.push({ c: Cb.make(b, -(++n), name), look: Object.assign({}, glook, kit, { race, hat: 'none', gloves: 'none', cape: 'none', offhand: kit.offhand || 'none' }), role: D.CLASSES[cls].role, race, level: P.LEVEL + 1 });
+    }
+    const order = ['tank', 'healer', 'dps'];
+    seats.sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+    let res;
+    for (let seed = 1; seed <= 40; seed++) { res = new Simulator().run(seats.map((x) => x.c), 2, seed, dg); if (!res.report.wiped) break; }
+    const now = time();
+    return { current: { id: 'prologue', state: 'running', prologue: true, dungeon: P.DUNGEON, dungeonLevel: 2, startedAt: now, endsAt: now + P.SECONDS, chestClosesAt: null,
+      roster: seats.map((x) => ({ id: x.c.id, name: x.c.name, cls: x.c.cls, race: x.race, level: x.level, role: x.role, look: x.look, resource: x.c.stats.resource, maxHp: Math.trunc(x.c.stats.maxHp) })),
+      report: null, timeline: res.timeline, chest: [], plan: dg.plan } };
   }
   function legendView(h) {
     if (h.level < C.LEGEND_LEVEL || !h.path) return null;
@@ -946,6 +968,8 @@
     ['POST', /^\/logout$/, () => { db = fresh(); seed(); return { ok: true }; }],
     ['GET', /^\/state$/, () => state()],
     ['GET', /^\/battle$/, (m, b, q) => battles(q)],
+    ['GET', /^\/prologue$/, () => prologue(hero())],
+    ['POST', /^\/prologue\/done$/, () => { const h = hero(); h.prologueDone = true; return presentHero(h); }],
     ['POST', /^\/battle\/(\d+)\/roll$/, (m, b) => { const h = hero(), bt = must('battles', m[1]); roll(bt, h, int(b.idx, -1), String(b.choice || '')); return presentBattle(bt, h, false); }],
     ['POST', /^\/hero$/, (m, b) => presentHero(createHero(me(), b))],
     ['GET', /^\/hero\/(\d+)$/, (m) => { const h = must('heroes', m[1]); return Object.assign(heroCard(h), { gear: equipped(h).map((i) => presentItem(i)) }); }],

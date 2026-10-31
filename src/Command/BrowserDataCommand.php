@@ -6,6 +6,7 @@ use App\Game\Heritage;
 use App\Game\LifeStory;
 use App\Game\Lore;
 use App\Game\Legends;
+use App\Game\Prologue;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Simulator;
@@ -35,6 +36,7 @@ class BrowserDataCommand extends Command
                 'SIGNATURE_LEVEL' => Rules::SIGNATURE_LEVEL, 'SIGNATURE_TRAITS' => Rules::SIGNATURE_TRAITS, 'LEGEND_LEVEL' => Legends::LEVEL,
             ],
             'LEGENDS' => Legends::FORMS,
+            'PROLOGUE' => ['SECONDS' => Prologue::SECONDS, 'DUNGEON' => Prologue::DUNGEON, 'ENCOUNTERS' => Prologue::ENCOUNTERS, 'LEVEL' => Prologue::LEVEL, 'GUIDES' => Prologue::GUIDES],
             'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),
             'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,

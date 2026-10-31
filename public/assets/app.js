@@ -207,6 +207,7 @@
       const prevBattle = S.st && S.st.battle && S.st.battle.id, prevLevel = S.st && S.st.hero && S.st.hero.level;
       S.st = st;
       if (st.hero && st.battle && st.battle.id !== prevBattle) loadBattle();
+      if (st.hero && st.hero.prologue && !st.party && !S.prologue) startPrologue();
       if (prevLevel && st.hero && st.hero.level > prevLevel) celebrate.level(st.hero);
       liveSync(st.live);
     } catch (e) {
@@ -225,7 +226,53 @@
     if (S.view === 'gear' && !S.craftCost) { S.craftCost = await get('/craft/cost').catch(() => null); render(); }
     pollChat();
   }
+  // ------------------------------------------------------------------ prologue
+
+  // The first fight: four guides fill the other seats and the arena plays it like any run, with a few words on top.
+  async function startPrologue() {
+    S.prologue = { loading: true };
+    try {
+      const b = await get('/prologue');
+      S.timelines.prologue = prepTimeline(b.current.timeline);
+      S.prologue = b.current;
+      S.battle = { current: b.current, chests: [], recent: [] };
+      location.hash = '#/battle';
+      render();
+    } catch (e) { S.prologue = null; }
+  }
+  async function endPrologue() {
+    if (!S.prologue || S.prologue.ending) return;
+    S.prologue.ending = true;
+    try { await post('/prologue/done', {}); } catch (e) { /* shown again next time */ }
+    S.prologue = null; S.battle = null; S.prologueOver = true;
+    await refresh();
+  }
+  function prologueLines(cur) {
+    const me = S.st.hero, r = cur.roster, by = (role) => r.filter((x) => x.role === role), you = (x) => x.id === me.id;
+    const nm = (list) => list.map((x) => (you(x) ? 'you' : x.name)).join(', ').replace(/, ([^,]*)$/, ' and $1');
+    const tank = by('tank')[0], healer = by('healer')[0], dps = by('dps');
+    return [
+      [0, 'Ember Hollow', 'A group is five heroes, and each one has a job. Watch them work together.'],
+      [0.12, you(tank) ? 'You are the tank' : tank.name + ' is the tank', 'Enemies attack whoever angers them most. The tank makes sure that is them, and wears heavy armor to take it.'],
+      [0.3, you(healer) ? 'You are the healer' : healer.name + ' is the healer', 'The healer keeps everyone standing, the tank above all. Without one, the group falls fast.'],
+      [0.48, 'Damage: ' + nm(dps), 'The damage dealers bring enemies down before the healer runs dry. Faster kills mean fewer hits taken.'],
+      [0.66, 'The boss', 'Bosses hit hard and have big attacks. A good group sees them coming: the tank braces, the healer shields, the others focus.'],
+      [0.86, 'This is the game', 'Runs play out on their own, even while you are away. Your part is to make your hero better between runs and to choose good company.'],
+    ];
+  }
+  function prologueCard(cur) {
+    return '<div class="prologue"><div class="eyebrow">Prologue</div><h2 id="plH"></h2><p id="plP"></p><div class="row" style="justify-content:center;margin-top:8px"><button class="small ghost" data-act="skipPrologue">Skip</button></div></div>';
+  }
+  function prologueTick(cur, tl, simT) {
+    const f = simT / Math.max(1, tl.length), lines = prologueLines(cur);
+    let line = lines[0];
+    for (const l of lines) if (f >= l[0]) line = l;
+    const h = $('#plH'), p = $('#plP');
+    if (h && h.textContent !== line[1]) { h.textContent = line[1]; p.textContent = line[2]; h.parentNode.classList.remove('in'); void h.parentNode.offsetWidth; h.parentNode.classList.add('in'); }
+  }
+
   async function loadBattle() {
+    if (S.prologue) return;
     const cur = S.battle && S.battle.current;
     const have = cur && S.timelines[cur.id] ? cur.id : 0;
     try {
@@ -597,7 +644,7 @@
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(h.title || className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
     const dg = cur ? dun(cur.dungeon) : null;
     if (dg) ITA.setDungeon(dg);
-    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + dg.plan.map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
+    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + (cur.plan || dg.plan).map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
       : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
     const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
     // left: the group's unit frames, live during a run
@@ -609,7 +656,7 @@
     const slots = VIEWS.map(([id, n, i, key]) => '<a href="#/' + id + '" class="slot' + (S.view === id ? ' on' : '') + '" title="' + n + ' (' + key + ')">' + ico(i, '') + '<span class="lbl">' + n + '</span><kbd>' + key + '</kbd>' + (dots[id] ? '<span class="gem">' + dots[id] + '</span>' : '') + '</a>').join('') +
       '<a href="#" class="slot chat-slot' + (S.chatOpen ? ' on' : '') + '" data-act="toggleChat" title="Chat (Enter)">' + ico('chat', '') + '<span class="lbl">Chat</span><kbd>↵</kbd></a>';
     const bar = '<nav class="hud-bar"><div class="orb hp" id="orbHp" title="Health"><i style="height:100%"></i><span>100%</span></div><div class="slots">' + slots + '</div><div class="orb ' + res + '" id="orbRes" title="' + esc(res) + '"><i style="height:100%"></i><span>' + esc(res) + '</span></div></nav>';
-    const log = cur ? '<div class="hud-log' + (S.logShut ? ' shut' : '') + '"><div class="hud-tt"><span>' + ico('battle') + 'Battle log</span><button class="small" data-act="toggleLog" aria-label="Toggle log">' + (S.logShut ? '▴' : '▾') + '</button></div><div class="log" id="blog"></div></div>' : '';
+    const log = cur && !cur.prologue ? '<div class="hud-log' + (S.logShut ? ' shut' : '') + '"><div class="hud-tt"><span>' + ico('battle') + 'Battle log</span><button class="small" data-act="toggleLog" aria-label="Toggle log">' + (S.logShut ? '▴' : '▾') + '</button></div><div class="log" id="blog"></div></div>' : '';
     const me = h.id, rolls = S.battle && S.battle.chests.some((c) => c.chest.some((e) => !e.rolls[me]));
     const loot = rolls && !isWin ? '<div class="hud-loot">' + chestsView() + '</div>' : '';
     const card = !isWin ? battleView() : '';
@@ -638,6 +685,12 @@
   function dun(id) { return (S.cfg.dungeons && S.cfg.dungeons[id]) || S.cfg.dungeon; }
   function battleView() {
     const st = S.st, p = st.party;
+    const pc = S.battle && S.battle.current;
+    if (pc && pc.prologue) return prologueCard(pc);
+    if (!p && S.prologueOver) {
+      return '<div class="camp"><div class="eyebrow">Your first week starts here</div><h1>Find your group</h1><p class="muted" style="max-width:52ch;margin:8px auto 0">The guides go back to the tavern. Real runs need five real heroes: look for a group that needs your role on the tavern board, or start one and invite people. New heroes are marked there, so veterans know to take you in.</p>' +
+        '<div style="margin-top:16px"><a href="#/group"><button class="primary big">Go to the tavern</button></a></div></div>';
+    }
     if (!p) {
       return '<div class="camp"><div class="eyebrow">' + esc(dun(null).name) + '</div><h1>No group yet</h1><p class="muted" style="max-width:52ch;margin:8px auto 0">Dungeons are run by a group of five real heroes. Find one on the tavern board, or start your own and invite people.</p>' +
         '<div style="margin-top:16px"><a href="#/group"><button class="primary big">Go to the tavern</button></a></div></div>';
@@ -756,6 +809,7 @@
     if (track && track.dataset.at !== String(at)) { track.dataset.at = at; track.querySelectorAll('.node').forEach((el) => { const n = +el.dataset.n; el.classList.toggle('done', n < at); el.classList.toggle('now', n === at); }); }
     const log = $('#blog');
     if (log && (scn.logDirty || scn.redrawLog)) { log.innerHTML = scn.log.slice().reverse().join(''); scn.logDirty = false; scn.redrawLog = false; }
+    if (cur.prologue) { prologueTick(cur, tl, simT); if (now() > cur.endsAt + 1) endPrologue(); return; }
     if (now() > cur.endsAt + 2 && !scn.reloading) { scn.reloading = true; setTimeout(async () => { await refresh(); await loadBattle(); scn.reloading = false; }, 1500); }
   }
 
@@ -1606,6 +1660,7 @@
     lootPolicy: (d) => act(() => post('/hero/act', { action: 'lootPolicy', policy: d.v }), 'Saved.'),
     path: (d) => act(() => post('/hero/act', { action: 'path', path: d.id }), 'Path chosen. You can still change it until the Oath.'),
     legendPick: (d) => confirmBox('Become <b>' + esc(d.t) + '</b>? Your Legend form is permanent.', () => act(() => post('/hero/act', { action: 'legend', form: d.id }), 'You are a Legend now.')),
+    skipPrologue: () => endPrologue(),
     sigPick: () => {
       const skill = $('#sigSkill').value, name = $('#sigName').value.trim(), s = S.st.hero.skills.find((x) => x.id === skill);
       confirmBox('Make <b>' + esc(s ? s.name : skill) + '</b> your Signature' + (name ? ', named <b>' + esc(name) + '</b>' : '') + '? This is permanent.', () => act(() => post('/hero/act', { action: 'signature', skill, name }), 'Your Signature is chosen.'));
