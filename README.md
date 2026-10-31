@@ -50,6 +50,12 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
   run pays materials (plus XP and gold for each fight won), and each boss may drop an item into the group
   chest for need/greed/pass. Loot is never guaranteed. Players who are away roll by their loot setting
   when the chest closes.
+- After the story: Heroic opens for a dungeon once the group outgrows it (its median level reaches the top of the
+  band): tougher enemies at the group's own level, 25% more rewards and better items. At level 50 the leader can
+  pick Mythic, an endless ladder: each tier adds health and damage, a clear moves the group up a tier (the leader
+  may step down to any tier up to one past the best cleared), and item levels and rewards grow with the tier. The
+  week's affixes (Monday to Monday, UTC) change fights: Fortified or Tyrannical from tier 1, and Volcanic, Raging,
+  Bolstering or Quaking from tier 4. Every fifth new best posts to the guild. Rules in `src/Game/Modes.php`.
 - Guilds and chat (tavern, guild and group channels).
 - Lore: a lore book of the world of Valdren, about 600 entries: its history, places, powers, faiths, bestiary and
   Hollows, the six peoples and their eighteen cultures, the seven classes and their Paths, the twelve Origins, every
@@ -196,6 +202,7 @@ a database and cron.
 | `src/Game/Stats.php` | Build → attributes (with sources) → combat stats; the percentage curve and soft cap |
 | `src/Game/Items.php` | Item and glyph generation, names, tempering and salvage values |
 | `src/Game/Simulator.php` | The deterministic battle simulation (packs, the Ember Golem, mechanics, AI, timeline for playback) |
+| `src/Game/Modes.php` | Heroic and Mythic: when they open, tiers, weekly affixes, enemy modifiers and rewards |
 | `src/Game/Reference.php` | The reference group enemies are scaled from, so balance holds at every level |
 | `src/Service/Game.php` | The game clock: starting and settling battles, XP and levels, Oath Day, the group chest |
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |

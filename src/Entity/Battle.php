@@ -33,6 +33,16 @@ class Battle
     #[ORM\Column(length: 40, options: ['default' => 'ember-hollow'])]
     public string $dungeon = 'ember-hollow';
 
+    /** normal, heroic or mythic, the Mythic tier and the affixes fought (src/Game/Modes.php). */
+    #[ORM\Column(length: 10, options: ['default' => 'normal'])]
+    public string $mode = 'normal';
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $tier = 0;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $affixes = null;
+
     #[ORM\Column]
     public int $startedAt = 0;
 

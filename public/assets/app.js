@@ -649,7 +649,7 @@
     const plate = '<a class="plate" href="#/hero" title="Hero (2)">' + por(h.look, 'pframe') + '<b class="lv">' + h.level + '</b><span class="pl-txt"><b>' + esc(h.name) + '</b><span>' + esc(h.title || className(h.cls)) + '</span><span class="xpbar" title="' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP"><i style="width:' + Math.min(100, (100 * h.xp) / h.xpNext) + '%"></i><em>' + fmt(h.xp) + ' / ' + fmt(h.xpNext) + ' XP</em></span></span></a>';
     const dg = cur ? dun(cur.dungeon) : null;
     if (dg) ITA.setDungeon(dg);
-    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + (cur.plan || dg.plan).map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
+    const center = cur ? '<div class="runbar"><div class="rb-title">' + esc(dg.name) + ' <span>· ' + (modeLabel(cur.mode, cur.tier) ? esc(modeLabel(cur.mode, cur.tier)) + ' · ' : '') + 'level ' + cur.dungeonLevel + '</span></div><div class="track" id="track">' + (cur.plan || dg.plan).map(([kind, name], n) => '<span class="node ' + kind + '" data-n="' + n + '" title="' + esc(name) + '">' + (kind === 'boss' ? esc(name) : '') + '</span>').join('') + '</div><div class="clock" id="clock"></div></div>'
       : '<div class="runbar idle"><div class="rb-title">' + (p ? esc(p.name) : 'The tavern camp') + '</div><div class="small">' + (p ? (p.running ? 'Between runs' : 'Resting at camp') : 'No group yet') + '</div></div>';
     const purse = '<div class="purse"><span class="coin" title="Gold">' + ico('gold') + '<b>' + fmt(h.gold) + '</b></span><span class="coin" title="Materials">' + ico('materials') + '<b>' + fmt(h.materials) + '</b></span><span class="coin ess" title="Essence">' + ico('essence') + '<b>' + fmt(h.essence) + '</b></span><a class="small cog btn" href="#/settings" title="Settings, account and moderation">⚙<span class="lbl"> Settings</span>' + (S.st.user && S.st.user.admin && S.st.user.reports ? ' <span class="gem">' + S.st.user.reports + '</span>' : '') + '</a></div>';
     // left: the group's unit frames, live during a run
@@ -684,8 +684,23 @@
       : '<b>' + esc(cur.name) + '</b>';
     const next = Object.values(S.cfg.dungeons || {}).find((d) => !p.unlocked.includes(d.id));
     return '<div class="stack tight"><div class="row"><label style="margin:0" for="dungeonPick">Dungeon</label>' + pick + '<span class="small muted">' + band(cur) + '</span>' + (cur.lore ? '<button class="small" data-act="loreBook" data-k="' + cur.lore + '">Lore</button>' : '') + '</div>' +
-      '<p class="small muted" style="margin:0">' + esc(cur.summary) + (next ? ' Next: ' + esc(next.name) + ' at level ' + next.levels[0] + '.' : '') + '</p></div>';
+      '<p class="small muted" style="margin:0">' + esc(cur.summary) + (next ? ' Next: ' + esc(next.name) + ' at level ' + next.levels[0] + '.' : '') + '</p>' + modeRow(p, lead) + '</div>';
   }
+  // Heroic once the group outgrows a dungeon; Mythic tiers at level 50, with the week's affixes.
+  function modeRow(p, lead) {
+    const M = S.cfg.modes; if (!M) return '';
+    const [mode, tier] = p.mode || ['normal', 0], top = dun(p.dungeon).levels[1] || M.mythicLevel;
+    const opts = [['normal', 'Normal', true], ['heroic', 'Heroic', p.heroicOpen], ['mythic', 'Mythic', p.mythicOpen]];
+    const pick = lead
+      ? '<select id="modePick" data-act-change="difficulty">' + opts.map(([id, name, open]) => '<option value="' + id + '"' + (id === p.difficulty ? ' selected' : '') + (open ? '' : ' disabled') + '>' + name + (open ? '' : id === 'heroic' ? ' (level ' + top + ')' : ' (level ' + M.mythicLevel + ')') + '</option>').join('') + '</select>'
+      : '<b>' + (modeLabel(mode, tier) || 'Normal') + '</b>';
+    const tiers = lead && mode === 'mythic' ? '<select id="tierPick" data-act-change="mythicTier" aria-label="Mythic tier">' + Array.from({ length: p.mythicBest + 1 }, (_, k) => k + 1).map((t) => '<option value="' + t + '"' + (t === tier ? ' selected' : '') + '>Tier ' + t + '</option>').join('') + '</select>' : '';
+    const affix = (id) => '<span class="chip" title="' + esc(M.affixes[id][1]) + '">' + esc(M.affixes[id][0]) + '</span>';
+    const week = mode === 'mythic' ? '<div class="row small muted" style="margin:0">This week: ' + affix(M.weekly[0]) + ' from tier 1, ' + affix(M.weekly[1]) + ' from tier ' + M.secondAt + '. Best cleared: ' + (p.mythicBest ? 'tier ' + p.mythicBest : 'none yet') + '.</div>' : '';
+    const why = mode === 'heroic' ? 'Tougher enemies at your own level, better loot and 25% more rewards.' : mode === 'mythic' ? 'Each tier is tougher; a clear moves the group up one. Item levels and rewards grow with the tier.' : '';
+    return '<div class="row"><label style="margin:0" for="modePick">Difficulty</label>' + pick + tiers + '<span class="small muted">' + why + '</span></div>' + week;
+  }
+  function modeLabel(mode, tier) { return mode === 'heroic' ? 'Heroic' : mode === 'mythic' ? 'Mythic ' + tier : ''; }
   /** A dungeon's names, plan and scenery by id; the default one when the id is unknown. */
   function dun(id) { return (S.cfg.dungeons && S.cfg.dungeons[id]) || S.cfg.dungeon; }
   function battleView() {
@@ -745,7 +760,7 @@
       const rows = r.heroes.map((h) => '<tr><td><b>' + esc(h.name) + '</b><div class="bar meter" style="width:110px"><i style="width:' + (100 * h.damage) / top + '%"></i></div></td><td class="n">' + fmt(h.damage) + '</td><td class="n">' + fmt(h.healing) + '</td><td class="n">' + fmt(h.taken) + '</td><td class="n">' + h.deaths + '</td><td class="n">' + fmt(h.xp) + '</td><td class="n gold">' + fmt(h.gold) + '</td><td class="n">' + fmt(h.materials) + '</td><td class="n" title="' + (h.kin ? h.kin + ' kin in the group' : 'No kin in the group') + '">' + fmt(h.renown) + (h.kin ? ' <span class="r-epic">×' + h.kin + '</span>' : '') + '</td></tr>').join('');
       const fellAt = r.wiped ? r.plan[r.encountersDone] : null;
       const loot = x.chest.filter((e) => e.winner).map((e) => '<span class="row" style="gap:6px">' + tile(e.item, { act: false }) + '<span><span class="r-' + e.item.rarity + '"><b>' + esc(e.item.name) + '</b></span><br><span class="small muted">won by ' + esc((x.roster.find((q) => q.id === e.winner) || {}).name || '?') + '</span></span></span>').join('');
-      return '<details class="run"' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b><span class="chip">' + r.bossesKilled + '/3 bosses</span><span class="chip">level ' + x.dungeonLevel + '</span><span class="small muted">' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</span></summary>' +
+      return '<details class="run"' + (x === list[0] ? ' open' : '') + '><summary><b class="' + (won ? 'good' : 'bad') + '">' + (won ? 'Cleared ' + esc(r.dungeon) : 'Fell at the ' + esc(fellAt[1])) + '</b><span class="chip">' + r.bossesKilled + '/3 bosses</span>' + (modeLabel(x.mode, x.tier) ? '<span class="chip">' + modeLabel(x.mode, x.tier) + '</span>' : '') + '<span class="chip">level ' + x.dungeonLevel + '</span><span class="small muted">' + new Date(x.endsAt * 1000).toLocaleTimeString() + '</span></summary>' +
         (r.cause ? '<p class="bad small" style="margin-top:8px">' + esc(r.cause) + '</p>' : '') +
         '<div class="scroll-x" style="margin-top:8px"><table class="t"><tr><th>Hero</th><th class="n">Damage</th><th class="n">Healing</th><th class="n">Taken</th><th class="n">Deaths</th><th class="n">XP</th><th class="n">Gold</th><th class="n">Mats</th><th class="n">Renown</th></tr>' + rows + '</table></div>' +
         (loot ? '<div class="row" style="margin-top:10px;gap:14px">' + loot + '</div>' : x.state === 'done' ? '<p class="small muted" style="margin-top:8px">No loot this time, only materials.</p>' : '') + '</details>';
@@ -1626,7 +1641,7 @@
       const r = last.report, mine = r.heroes.find((x) => x.name === h.name); if (!mine) return;
       const won = !r.wiped, loot = last.chest.filter((e) => e.winner === h.id);
       const stat = (icon, n, label) => '<div class="rw-stat">' + ico(icon, 'ico lg') + '<b data-count="' + n + '">0</b><span>' + label + '</span></div>';
-      this.show('<div class="eyebrow">' + esc(r.dungeon) + ' · level ' + last.dungeonLevel + '</div><h1 class="rw-title">' + (won ? 'Victory!' : 'Defeat') + '</h1><p class="muted">' + (won ? 'The group cleared the dungeon.' : esc(r.cause || 'The group fell.')) + ' ' + r.bossesKilled + '/3 bosses down.</p>' +
+      this.show('<div class="eyebrow">' + esc(r.dungeon) + ' · ' + (modeLabel(last.mode, last.tier) ? esc(modeLabel(last.mode, last.tier)) + ' · ' : '') + 'level ' + last.dungeonLevel + '</div><h1 class="rw-title">' + (won ? 'Victory!' : 'Defeat') + '</h1><p class="muted">' + (won ? 'The group cleared the dungeon.' : esc(r.cause || 'The group fell.')) + ' ' + r.bossesKilled + '/3 bosses down.</p>' +
         '<div class="rw-stats">' + stat('xp', mine.xp, 'XP') + stat('gold', mine.gold, 'Gold') + stat('materials', mine.materials, 'Materials') + stat('heritage', mine.renown, 'Renown') + '</div>' +
         (loot.length ? '<div class="rw-loot">' + loot.map((e) => tile(e.item, { act: false, big: true })).join('') + '</div>' : last.chest.some((e) => !e.rolls[h.id]) ? '<p class="small">The group chest is open. Roll for loot before it closes.</p>' : ''), won ? 'win' : 'lose');
       if (window.ITS) window.ITS.play(won ? 'bossDown' : 'death');
@@ -1832,6 +1847,8 @@
     const el = e.target;
     const a = el.dataset.actChange;
     if (a === 'dungeon') act(() => post('/party/settings', { dungeon: el.value || null }), 'The next run goes there.');
+    if (a === 'difficulty') act(() => post('/party/settings', { difficulty: el.value }), 'The next run uses the new difficulty.');
+    if (a === 'mythicTier') act(() => post('/party/settings', { mythicTier: +el.value }), 'The next run uses that tier.');
     if (a === 'offset') act(() => post('/party/settings', { dungeonOffset: +el.value }), 'The next run uses the new level.');
     if (a === 'outfit') act(() => post('/outfit', { slot: el.dataset.slot, look: el.value || null }), 'Wardrobe updated.');
     if (a === 'mSlot') { S.marketFilter.slot = el.value; loadMarket(); }

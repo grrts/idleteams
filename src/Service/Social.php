@@ -10,6 +10,7 @@ use App\Entity\Party;
 use App\Entity\PartyRequest;
 use App\Entity\TavernPost;
 use App\Game\Dungeons;
+use App\Game\Modes;
 use App\Game\Rules;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -155,6 +156,27 @@ class Social
                 throw new GameError('Your group has not reached that dungeon yet.');
             }
             $p->dungeon = $pick;
+        }
+        if (isset($in['difficulty'])) {
+            $mode = (string) $in['difficulty'];
+            $median = $this->game->medianLevel($p);
+            if (!in_array($mode, Modes::MODES, true)) {
+                throw new GameError('Pick normal, heroic or mythic.');
+            }
+            if ($mode === 'heroic' && !Modes::heroicOpen($this->game->dungeonFor($p), $median)) {
+                throw new GameError('Heroic opens once your group outgrows this dungeon (its top level).');
+            }
+            if ($mode === 'mythic' && !Modes::mythicOpen($median)) {
+                throw new GameError('Mythic opens at level '.Modes::MYTHIC_LEVEL.'.');
+            }
+            $p->difficulty = $mode;
+        }
+        if (isset($in['mythicTier'])) {
+            $tier = (int) $in['mythicTier'];
+            if ($tier < 1 || $tier > $p->mythicBest + 1) {
+                throw new GameError(sprintf('Pick a tier from 1 to %d: one above the best your group has cleared.', $p->mythicBest + 1));
+            }
+            $p->mythicTier = $tier;
         }
         if (isset($in['running'])) {
             $p->running = (bool) $in['running'];

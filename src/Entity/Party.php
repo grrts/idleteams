@@ -30,6 +30,18 @@ class Party
     #[ORM\Column(length: 40, nullable: true)]
     public ?string $dungeon = null;
 
+    /** normal, heroic or mythic (src/Game/Modes.php). */
+    #[ORM\Column(length: 10, options: ['default' => 'normal'])]
+    public string $difficulty = 'normal';
+
+    /** The Mythic tier the next Mythic run uses; a clear raises it by one. */
+    #[ORM\Column(options: ['default' => 1])]
+    public int $mythicTier = 1;
+
+    /** The highest Mythic tier the group has cleared. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $mythicBest = 0;
+
     /** Battles chain automatically while this is true. */
     #[ORM\Column]
     public bool $running = true;

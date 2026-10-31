@@ -49,6 +49,11 @@ final class Simulator
     private ?array $wipe = null;
     private array $lastDeath = [];
     private array $oomAt = [];
+    /** Heroic and Mythic (src/Game/Modes.php): enemy health and damage, and the affixes in play. */
+    private array $mods = ['pack' => [1.0, 1.0], 'boss' => [1.0, 1.0], 'affixes' => []];
+    private float $hpMod = 1.0;
+    private float $dmgMod = 1.0;
+    private array $affixAt = [];
 
     /**
      * @param array $heroes [['id', 'name', 'cls', 'race', 'origin', 'level', 'path', 'keystones', 'loadout', 'ranks', 'stats' => Stats::derive()]]
@@ -79,9 +84,10 @@ final class Simulator
         return array_sum(array_column($this->report, 'damage')) / $seconds;
     }
 
-    public function run(array $heroes, int $dungeonLevel, int $seed, ?array $dungeon = null): array
+    public function run(array $heroes, int $dungeonLevel, int $seed, ?array $dungeon = null, ?array $mods = null): array
     {
         $this->d = $dungeon ?? Dungeons::get();
+        $this->mods = $mods ?? $this->mods;
         $this->r = new Randomizer(new Mt19937($seed));
         $this->dungeonLevel = max(1, $dungeonLevel);
         $this->ref = Reference::forLevel($this->dungeonLevel);
@@ -123,6 +129,7 @@ final class Simulator
             'cause' => $this->wipe ? $this->explain() : null,
             'length' => round($this->t, 1),
             'dungeonLevel' => $dungeonLevel,
+            'affixes' => $this->mods['affixes'],
             'heroes' => [],
         ];
         foreach ($this->h as $i => $hero) {
@@ -236,6 +243,8 @@ final class Simulator
         $this->e = [];
         $this->shardsSpawned = false;
         $this->enraged = false;
+        [$this->hpMod, $this->dmgMod] = $this->mods[$phase];
+        $this->affixAt = ['volcanic' => 9.0, 'quaking' => 15.0];
         $hitDmg = $ref['hps'] * 0.14 * 2 * $f / (1 - $ref['tankDr']);
         if ($phase === 'pack') {
             // A pack shares one health budget among its enemies; a brute hits harder and slower than an imp.
@@ -337,6 +346,8 @@ final class Simulator
     private function spawn(string $kind, string $name, float $hp, float $dmg, float $swing): void
     {
         $id = ++$this->enemySeq;
+        $hp *= $this->hpMod;
+        $dmg *= $this->dmgMod;
         $this->e[$id] = ['id' => $id, 'kind' => $kind, 'name' => $name, 'hp' => $hp, 'max' => $hp, 'dmg' => $dmg, 'swingEvery' => $swing,
             'swing' => $this->t + 1.0, 'threat' => [], 'taunt' => null, 'tauntUntil' => 0.0, 'slows' => [], 'marks' => [], 'dots' => []];
     }
@@ -404,7 +415,7 @@ final class Simulator
             if ($t >= $e['swing']) {
                 $target = $this->enemyTarget($id);
                 if ($target !== null) {
-                    $mult = $this->enraged && $e['kind'] === 'boss' ? 3.0 : 1.0;
+                    $mult = ($this->enraged && $e['kind'] === 'boss' ? 3.0 : 1.0) * ($this->affix('raging') && $e['hp'] < $e['max'] * 0.3 ? 1.5 : 1.0);
                     $this->damageHero($target, $e['dmg'] * $mult, ['melee' => true, 'src' => $id, 'what' => $e['hit'] ?? $e['name']]);
                 }
                 $e['swing'] = $t + $e['swingEvery'] * (1 + $slow) * ($this->enraged && $e['kind'] === 'boss' ? 0.6 : 1);
@@ -415,9 +426,57 @@ final class Simulator
         if ($this->phase === 'boss') {
             $this->bossMechanics();
         }
+        if ($this->mods['affixes']) {
+            $this->affixes();
+        }
 
         if ($whole) {
             $this->snapshot();
+        }
+    }
+
+    private function affix(string $id): bool
+    {
+        return in_array($id, $this->mods['affixes'], true);
+    }
+
+    /** Volcanic and Quaking go off on a timer in every fight. */
+    private function affixes(): void
+    {
+        $t = $this->t - $this->phaseStart;
+        $ref = $this->ref;
+        $f = $this->difficulty() * $this->dmgMod;
+        if ($this->affix('volcanic') && $t >= $this->affixAt['volcanic']) {
+            $this->affixAt['volcanic'] += 9;
+            $alive = array_keys(array_filter($this->h, fn ($h) => !$h['dead'] && $h['role'] !== 'tank'));
+            if ($alive) {
+                $i = $alive[$this->r->getInt(0, count($alive) - 1)];
+                $this->emit('mech', -1, $i, 0, 0, ['name' => 'Volcanic']);
+                $this->damageHero($i, $ref['avgHp'] * 0.16 * $f, ['fire' => true, 'magic' => true, 'src' => -1, 'what' => 'Volcanic']);
+            }
+        }
+        if ($this->affix('quaking') && $t >= $this->affixAt['quaking']) {
+            $this->affixAt['quaking'] += 15;
+            $this->emit('mech', -1, -1, 0, 0, ['name' => 'Quaking']);
+            foreach ($this->h as $i => $h) {
+                if (!$h['dead']) {
+                    $this->damageHero($i, $ref['avgHp'] * 0.07 * $f, ['magic' => true, 'src' => -1, 'what' => 'Quaking']);
+                }
+            }
+        }
+    }
+
+    /** Bolstering: a pack enemy's death heals the rest of the pack and makes it hit harder. */
+    private function bolster(int $dead): void
+    {
+        if (!$this->affix('bolstering') || $this->e[$dead]['kind'] === 'boss') {
+            return;
+        }
+        foreach ($this->e as $id => $e) {
+            if ($e['hp'] > 0 && $e['kind'] !== 'boss') {
+                $this->e[$id]['dmg'] *= 1.15;
+                $this->e[$id]['hp'] = min($e['max'], $e['hp'] + $e['max'] * 0.1);
+            }
         }
     }
 
@@ -433,7 +492,7 @@ final class Simulator
         if (!$boss) {
             return;
         }
-        $f = $this->difficulty();
+        $f = $this->difficulty() * $this->dmgMod;
         $ref = $this->ref;
         $m = $this->enraged ? 2.0 : 1.0;
 
@@ -493,7 +552,7 @@ final class Simulator
             $foe = $this->d['enemies'][$adds['enemy']];
             $this->emit('mech', -1, -1, 0, 0, ['name' => $adds['name']]);
             for ($k = 0; $k < $adds['count']; ++$k) {
-                $this->spawn($foe['kind'], $foe['name'], $ref['dps'] * 3.5 * $f, $ref['hps'] * 0.10 * 2 * $f / (1 - $ref['tankDr']), 2.0);
+                $this->spawn($foe['kind'], $foe['name'], $ref['dps'] * 3.5 * $this->difficulty(), $ref['hps'] * 0.10 * 2 * $this->difficulty() / (1 - $ref['tankDr']), 2.0);
                 $id = $this->enemySeq;
                 $this->emit('spawn', $id, -1, (int) $this->e[$id]['max'], 0, ['enemy' => [$id, $foe['kind'], $foe['name'], (int) $this->e[$id]['max']]]);
                 foreach ($this->h as $h) {
@@ -1047,6 +1106,7 @@ final class Simulator
         }
         if (isset($this->e[$eid]) && $this->e[$eid]['hp'] <= 0) {
             $this->emit('kill', $i, $eid, 0, 0);
+            $this->bolster($eid);
         }
     }
 

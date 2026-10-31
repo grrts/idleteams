@@ -19,6 +19,7 @@ use App\Game\LifeStory;
 use App\Game\Items;
 use App\Game\Legends;
 use App\Game\Marks;
+use App\Game\Modes;
 use App\Game\Rules;
 use App\Game\Dungeons;
 use App\Game\Stats;
@@ -50,6 +51,7 @@ class Present
             'reforgeLevel' => Rules::REFORGE_LEVEL, 'loadoutSize' => Rules::LOADOUT_SIZE, 'maxSkillRank' => HeroActions::MAX_RANK,
             'dungeon' => self::dungeon(Dungeons::get()), 'dungeons' => array_map(self::dungeon(...), Dungeons::all()), 'battleSeconds' => $this->game->battleSeconds(), 'partySize' => Party::SIZE,
             'marks' => HeroActions::MARKS,
+            'modes' => ['affixes' => Modes::AFFIXES, 'mythicLevel' => Modes::MYTHIC_LEVEL, 'secondAt' => Modes::SECOND_AT, 'weekly' => Modes::weekly(Modes::week(time()))],
             'cultures' => array_map(fn ($t) => array_map(fn ($c) => $c[0], $t['cultures']), Heritage::TREES),
             'cultureInfo' => array_map(fn ($t) => array_map(fn ($c) => [$c[0], $c[1]], $t['cultures']), Heritage::TREES),
             'talentPointsPerLevel' => Talents::POINTS_PER_LEVEL, 'treeShape' => ['talent' => Talents::SHAPE, 'heritage' => Heritage::SHAPE],
@@ -279,6 +281,8 @@ class Present
             'id' => $p->id, 'name' => $p->name, 'leader' => $p->leader?->id, 'dungeonOffset' => $p->dungeonOffset,
             'running' => $p->running, 'battlesTogether' => $p->battlesTogether, 'dungeonLevel' => $this->game->dungeonLevel($p),
             'dungeon' => $this->game->dungeonFor($p)['id'], 'dungeonPick' => $p->dungeon, 'unlocked' => array_keys(Dungeons::unlocked($this->game->medianLevel($p))),
+            'difficulty' => $p->difficulty, 'mode' => $this->game->modeFor($p), 'mythicTier' => $p->mythicTier, 'mythicBest' => $p->mythicBest,
+            'heroicOpen' => Modes::heroicOpen($this->game->dungeonFor($p), $this->game->medianLevel($p)), 'mythicOpen' => Modes::mythicOpen($this->game->medianLevel($p)),
             'members' => array_map(fn (Hero $m) => $this->heroCard($m), $p->members->toArray()),
             'requests' => $p->leader === $viewer ? $requests : array_values(array_filter($requests, fn ($r) => $r['hero']['id'] === $viewer->id)),
         ];
@@ -365,7 +369,7 @@ class Present
         }
 
         return [
-            'id' => $b->id, 'state' => $b->state, 'dungeon' => $b->dungeon, 'dungeonLevel' => $b->dungeonLevel, 'startedAt' => $b->startedAt, 'endsAt' => $b->endsAt,
+            'id' => $b->id, 'state' => $b->state, 'dungeon' => $b->dungeon, 'dungeonLevel' => $b->dungeonLevel, 'mode' => $b->mode, 'tier' => $b->tier, 'affixes' => $b->affixes ?? [], 'startedAt' => $b->startedAt, 'endsAt' => $b->endsAt,
             'chestClosesAt' => $b->chestClosesAt, 'roster' => $b->roster,
             'report' => $b->state === 'running' ? null : $b->report,
             'timeline' => $withTimeline && $b->state === 'running' ? $b->timeline : null,

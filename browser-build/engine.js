@@ -478,11 +478,28 @@
     share: (budget, share) => { const m = typeof share === 'string' && share.match(/^(\d+)\/(\d+)$/); return m ? (budget * +m[1]) / +m[2] : budget * share; },
   });
 
+  // ---------- Heroic and Mythic (src/Game/Modes.php)
+  const Md = (E.Modes = {
+    MYTHIC_LEVEL: 50, SECOND: ['volcanic', 'raging', 'bolstering', 'quaking'], SECOND_AT: 4,
+    week: (time) => Math.floor((time - 345600) / 604800),
+    weekly: (week) => [week % 2 ? 'tyrannical' : 'fortified', Md.SECOND[Math.floor(week / 2) % Md.SECOND.length]],
+    affixes: (mode, tier, week) => (mode !== 'mythic' ? [] : tier >= Md.SECOND_AT ? Md.weekly(week) : [Md.weekly(week)[0]]),
+    heroicOpen: (d, median) => median >= (d.levels[1] || Md.MYTHIC_LEVEL),
+    mythicOpen: (median) => median >= Md.MYTHIC_LEVEL,
+    level: (d, level, mode) => (mode === 'normal' ? Math.max(d.levels[0], d.levels[1] > 0 ? Math.min(d.levels[1], level) : level) : Math.max(d.levels[1] || Md.MYTHIC_LEVEL, level)),
+    mods(mode, tier, affixes) {
+      const [hp, dmg] = mode === 'heroic' ? [1.25, 1.1] : mode === 'mythic' ? [1.5 * 1.08 ** (tier - 1), 1.25 * 1.05 ** (tier - 1)] : [1, 1];
+      return { pack: affixes.includes('fortified') ? [hp * 1.25, dmg * 1.15] : [hp, dmg], boss: affixes.includes('tyrannical') ? [hp * 1.25, dmg * 1.15] : [hp, dmg], affixes: [...affixes] };
+    },
+    reward: (mode, tier) => (mode === 'heroic' ? { units: 1.25, ilvl: 6, luck: 0.05, drop: 0.15 } : mode === 'mythic' ? { units: 1.5 + 0.05 * tier, ilvl: 10 + 2 * Math.min(tier, 20), luck: Math.min(0.25, 0.08 + 0.01 * tier), drop: 0.25 } : { units: 1, ilvl: 0, luck: 0, drop: 0 }),
+    label: (mode, tier) => (mode === 'heroic' ? 'Heroic' : mode === 'mythic' ? 'Mythic ' + tier : ''),
+  });
+
   // ---------- Simulator
   const DT = 0.5, WALK = 4;
   const rd2 = (x) => Math.round(x * 100) / 100;
   class Simulator {
-    constructor() { Object.assign(this, { t: 0, h: [], e: {}, clear: 0, wing: 0, phaseStart: 0, phase: 'pack', ev: [], snap: [], report: [], enemySeq: 0, dungeonLevel: 1, mech: {}, enrageAt: 0, enraged: false, shardsSpawned: false, wipe: null, lastDeath: [], oomAt: {} }); }
+    constructor() { Object.assign(this, { t: 0, h: [], e: {}, clear: 0, wing: 0, phaseStart: 0, phase: 'pack', ev: [], snap: [], report: [], enemySeq: 0, dungeonLevel: 1, mech: {}, enrageAt: 0, enraged: false, shardsSpawned: false, wipe: null, lastDeath: [], oomAt: {}, mods: { pack: [1, 1], boss: [1, 1], affixes: [] }, hpMod: 1, dmgMod: 1, affixAt: {} }); }
     newReport() { return { damage: 0, healing: 0, overheal: 0, taken: 0, absorbed: 0, deaths: 0, mechanics: {}, casts: 0, sigXp: 0 }; }
     measureDps(heroes, seconds = 90, seed = 12345) {
       this.r = new Rng(seed);
@@ -495,8 +512,9 @@
       while (this.t < seconds) { this.t = rd2(this.t + DT); this.tick(); }
       return sum(this.report.map((r) => r.damage)) / seconds;
     }
-    run(heroes, dungeonLevel, seed, dungeon = null) {
+    run(heroes, dungeonLevel, seed, dungeon = null, mods = null) {
       this.d = dungeon || D.DUNGEONS[D.DEFAULT_DUNGEON];
+      if (mods) this.mods = mods;
       this.r = new Rng(seed);
       this.dungeonLevel = Math.max(1, dungeonLevel);
       this.ref = Ref.forLevel(this.dungeonLevel);
@@ -511,7 +529,7 @@
         if (!this.fight(kind, name)) break;
         done++; if (kind === 'boss') bosses++;
       }
-      const report = { dungeon: this.d.name, plan: Dg.plan(this.d), encountersDone: done, bossesKilled: bosses, wiped: !!this.wipe, cause: this.wipe ? this.explain() : null, length: round(this.t, 1), dungeonLevel, heroes: [] };
+      const report = { dungeon: this.d.name, plan: Dg.plan(this.d), encountersDone: done, bossesKilled: bosses, wiped: !!this.wipe, cause: this.wipe ? this.explain() : null, length: round(this.t, 1), dungeonLevel, affixes: this.mods.affixes, heroes: [] };
       this.h.forEach((hero, i) => {
         const r = {}; for (const [k, v] of Object.entries(this.report[i])) r[k] = typeof v === 'number' ? Math.round(v) : v;
         report.heroes[i] = { ...r, id: hero.id, name: hero.name, cls: hero.cls };
@@ -557,6 +575,7 @@
     fight(phase, id) {
       this.phase = phase; const f = this.difficulty(), ref = this.ref;
       this.e = {}; this.shardsSpawned = false; this.enraged = false;
+      [this.hpMod, this.dmgMod] = this.mods[phase]; this.affixAt = { volcanic: 9, quaking: 15 };
       const hitDmg = (ref.hps * 0.14 * 2 * f) / (1 - ref.tankDr);
       let name;
       if (phase === 'pack') {
@@ -597,6 +616,7 @@
     difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * this.wing); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
+      hp *= this.hpMod; dmg *= this.dmgMod;
       this.e[id] = { id, kind, name, hp, max: hp, dmg, swingEvery: swing, swing: this.t + 1, threat: {}, taunt: null, tauntUntil: 0, slows: [], marks: [], dots: {} };
     }
     tick() {
@@ -626,18 +646,39 @@
         let slow = 0; for (const sl of e.slows) if (sl[1] > t) slow = Math.max(slow, sl[0]);
         if (t >= e.swing) {
           const target = this.enemyTarget(e.id);
-          if (target !== null) this.damageHero(target, e.dmg * (this.enraged && e.kind === 'boss' ? 3 : 1), { melee: true, src: e.id, what: e.hit || e.name });
+          if (target !== null) this.damageHero(target, e.dmg * (this.enraged && e.kind === 'boss' ? 3 : 1) * (this.affix('raging') && e.hp < e.max * 0.3 ? 1.5 : 1), { melee: true, src: e.id, what: e.hit || e.name });
           e.swing = t + e.swingEvery * (1 + slow) * (this.enraged && e.kind === 'boss' ? 0.6 : 1);
         }
       }
       if (this.phase === 'boss') this.bossMechanics();
+      if (this.mods.affixes.length) this.affixes();
       if (whole) this.snapshot();
+    }
+    affix(id) { return this.mods.affixes.includes(id); }
+    /** Volcanic and Quaking go off on a timer in every fight. */
+    affixes() {
+      const t = this.t - this.phaseStart, ref = this.ref, f = this.difficulty() * this.dmgMod;
+      if (this.affix('volcanic') && t >= this.affixAt.volcanic) {
+        this.affixAt.volcanic += 9;
+        const alive = this.h.filter((h) => !h.dead && h.role !== 'tank').map((h) => h.i);
+        if (alive.length) { const i = alive[this.r.getInt(0, alive.length - 1)]; this.emit('mech', -1, i, 0, 0, { name: 'Volcanic' }); this.damageHero(i, ref.avgHp * 0.16 * f, { fire: true, magic: true, src: -1, what: 'Volcanic' }); }
+      }
+      if (this.affix('quaking') && t >= this.affixAt.quaking) {
+        this.affixAt.quaking += 15;
+        this.emit('mech', -1, -1, 0, 0, { name: 'Quaking' });
+        this.h.forEach((h, i) => { if (!h.dead) this.damageHero(i, ref.avgHp * 0.07 * f, { magic: true, src: -1, what: 'Quaking' }); });
+      }
+    }
+    /** Bolstering: a pack enemy's death heals the rest of the pack and makes it hit harder. */
+    bolster(dead) {
+      if (!this.affix('bolstering') || this.e[dead].kind === 'boss') return;
+      for (const e of Object.values(this.e)) if (e.hp > 0 && e.kind !== 'boss') { e.dmg *= 1.15; e.hp = Math.min(e.max, e.hp + e.max * 0.1); }
     }
     bossMechanics() {
       const t = this.t - this.phaseStart;
       let boss = null; for (const e of Object.values(this.e)) if (e.kind === 'boss' && e.hp > 0) boss = e;
       if (!boss) return;
-      const f = this.difficulty(), ref = this.ref, m = this.enraged ? 2 : 1;
+      const f = this.difficulty() * this.dmgMod, ref = this.ref, m = this.enraged ? 2 : 1;
       const mech = (i, k) => { const r = this.report[i].mechanics; r[k] = (r[k] || 0) + 1; };
       if (t >= this.mech.buster) {
         this.mech.buster += this.every('buster');
@@ -674,7 +715,7 @@
         const adds = this.d.mechanics.adds, foe = this.d.enemies[adds.enemy];
         this.emit('mech', -1, -1, 0, 0, { name: adds.name });
         for (let k = 0; k < adds.count; k++) {
-          this.spawn(foe.kind, foe.name, ref.dps * 3.5 * f, (ref.hps * 0.1 * 2 * f) / (1 - ref.tankDr), 2);
+          this.spawn(foe.kind, foe.name, ref.dps * 3.5 * this.difficulty(), (ref.hps * 0.1 * 2 * this.difficulty()) / (1 - ref.tankDr), 2);
           const id = this.enemySeq;
           this.emit('spawn', id, -1, Math.trunc(this.e[id].max), 0, { enemy: [id, foe.kind, foe.name, Math.trunc(this.e[id].max)] });
           for (const h of this.h) this.e[id].threat[h.i] = h.role === 'healer' ? 5 : 0;
@@ -898,7 +939,7 @@
       const storm = this.res(h, 'storm');
       if (crit && storm && !o.chain) for (const other of this.aliveEnemies()) if (other !== eid) { this.hit(i, other, mult * 0.3 * storm, school, { chain: true }); break; }
       if (mega && this.power(h, 'starfall') && !o.chain) for (const other of this.aliveEnemies()) if (other !== eid) this.hit(i, other, mult, school, { chain: true });
-      if (this.e[eid] && this.e[eid].hp <= 0) this.emit('kill', i, eid, 0, 0);
+      if (this.e[eid] && this.e[eid].hp <= 0) { this.emit('kill', i, eid, 0, 0); this.bolster(eid); }
     }
     heal(src, w, amount, canCrit = true) {
       if (w === null || w === undefined || this.h[w].dead) return;

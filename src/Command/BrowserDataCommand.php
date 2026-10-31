@@ -42,7 +42,7 @@ class BrowserDataCommand extends Command
             'PROLOGUE' => ['SECONDS' => Prologue::SECONDS, 'DUNGEON' => Prologue::DUNGEON, 'ENCOUNTERS' => Prologue::ENCOUNTERS, 'LEVEL' => Prologue::LEVEL, 'GUIDES' => Prologue::GUIDES],
             'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),
-            'MARKS' => HeroActions::MARKS, 'MAX_RANK' => HeroActions::MAX_RANK,
+            'MARKS' => HeroActions::MARKS, 'MODE_AFFIXES' => \App\Game\Modes::AFFIXES, 'MAX_RANK' => HeroActions::MAX_RANK,
             'TWISTS' => Rules::TWISTS, 'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'HERITAGE_TREES' => Heritage::trees(),
             'TALENT' => ['POINTS_PER_LEVEL' => Talents::POINTS_PER_LEVEL, 'SHAPE' => Talents::SHAPE, 'SKILL_AT' => Talents::SKILL_AT, 'VERSION' => Talents::VERSION, 'BRANCHES' => array_map(fn ($t) => array_keys($t['branches']), Talents::TREES)],
             'HERITAGE' => ['RENOWN_ALONE' => Heritage::RENOWN_ALONE, 'RENOWN_PER_KIN' => Heritage::RENOWN_PER_KIN, 'CULTURE_SWAP_GOLD' => Heritage::CULTURE_SWAP_GOLD, 'KIN_CAP' => Heritage::KIN_CAP, 'SHAPE' => Heritage::SHAPE,

@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const D = window.IT_DATA, C = D.C, E = window.IT_ENGINE;
-  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng, Dungeons: Dg, Legends: LG } = E;
+  const { Rules: R, Items: I, Stats: S, Combatants: Cb, Talents: T, Heritage: H, TreeMap: TM, Simulator, Rng, Dungeons: Dg, Legends: LG, Modes: Md } = E;
   const BATTLE_SECONDS = 150, CHEST_SECONDS = 90, OFFLINE_CAP = 43200, MAX_CATCH_UP = 12, PARTY_SIZE = 5, GUILD_MAX = 100, MAX_TEMPER = 15;
   const BOSS_DROP = [0.35, 0.45, 0.6];
   const KEY = 'idleteams-play-v1';
@@ -107,10 +107,18 @@
   }
   const clampLevel = (d, level) => Math.max(d.levels[0], d.levels[1] > 0 ? Math.min(d.levels[1], level) : level);
   function dungeonLevel(p) {
-    return clampLevel(dungeonFor(p), Math.max(1, medianLevel(p) + p.dungeonOffset));
+    return Md.level(dungeonFor(p), Math.max(1, medianLevel(p) + p.dungeonOffset), modeFor(p)[0]);
+  }
+  // [mode, tier] the next run uses: the leader's pick while the group qualifies for it, else normal.
+  function modeFor(p) {
+    const median = medianLevel(p);
+    if (p.difficulty === 'mythic' && Md.mythicOpen(median)) return ['mythic', Math.max(1, Math.min(p.mythicTier || 1, (p.mythicBest || 0) + 1))];
+    if (p.difficulty === 'heroic' && Md.heroicOpen(dungeonFor(p), median)) return ['heroic', 0];
+    return ['normal', 0];
   }
   function start(p, at) {
-    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), dungeon: dungeonFor(p).id, startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
+    const [mode, tier] = modeFor(p), affixes = Md.affixes(mode, tier, Md.week(at));
+    const b = { party: p.id, state: 'running', seed: rnd(1, 2000000000), dungeonLevel: dungeonLevel(p), dungeon: dungeonFor(p).id, mode, tier, affixes, startedAt: at, endsAt: at + BATTLE_SECONDS, chestClosesAt: 0, roster: [], timeline: null, report: {}, chest: [] };
     const order = ['tank', 'healer', 'dps'];
     const heroes = members(p).sort((a, c) => order.indexOf(role(a)) - order.indexOf(role(c)) || a.id - c.id);
     const combatants = heroes.map(combatant);
@@ -118,9 +126,9 @@
     combatants.forEach((c, k) => {
       if (c.level > b.dungeonLevel + 5) c.stats = Cb.make(Object.assign(build(heroes[k]), { level: b.dungeonLevel + 5 }), c.id, c.name, c.loadout, c.ranks).stats;
     });
-    const result = new Simulator().run(combatants, b.dungeonLevel, b.seed, Dg.get(b.dungeon));
+    const result = new Simulator().run(combatants, b.dungeonLevel, b.seed, Dg.get(b.dungeon), Md.mods(mode, tier, affixes));
     b.timeline = result.timeline;
-    b.report = result.report;
+    b.report = Object.assign(result.report, { mode, tier });
     b.roster = heroes.map((h, k) => ({ id: h.id, name: h.name, cls: h.cls, race: h.race, level: h.level, role: role(h), look: look(h), resource: combatants[k].stats.resource, maxHp: Math.trunc(combatants[k].stats.maxHp) }));
     return ins('battles', b);
   }
@@ -179,11 +187,14 @@
     const heroes = b.roster.map((row) => find('heroes', row.id)).filter(Boolean);
     // Rewards follow how far the group got: packs count 1, bosses 2, 3 and 4. A full run is 15.
     const dungeon = Dg.get(b.dungeon), plan = dungeon.plan, done = rep.encountersDone, bossCount = Dg.bossCount(dungeon);
+    const mode = b.mode || 'normal', tier = b.tier || 0, reward = Md.reward(mode, tier);
+    const title = dungeon.name + (Md.label(mode, tier) ? ' (' + Md.label(mode, tier) + ')' : '');
     let units = 0;
     plan.forEach(([kind], n) => {
       const w = kind === 'boss' ? 1 + plan.slice(0, n + 1).filter((x) => x[0] === 'boss').length : 1;
       if (n < done) units += w; else if (n === done && rep.wiped) units += w / 2;
     });
+    units *= reward.units;
     const keenEye = heroes.some((h) => h.cls === 'rogue');
     const group = heroes.map((h) => ({ race: h.race, real: !(userOf(h) || {}).demo }));
     const newcomers = heroes.filter((h) => isNewcomer(h, b.endsAt)).length;
@@ -205,7 +216,11 @@
       const c = Object.assign({ battles: 0, dungeons: 0, bossKills: 0, deaths: 0 }, h.career);
       c.battles++; c.dungeons += rep.wiped ? 0 : 1; c.bossKills += rep.bossesKilled; c.deaths += row.deaths || 0;
       if (mentor) c.mentored = (c.mentored || 0) + 1;
-      if (!rep.wiped) c.cleared = uniq([...(c.cleared || []), dungeon.id]);
+      if (!rep.wiped) {
+        c.cleared = uniq([...(c.cleared || []), dungeon.id]);
+        if (mode === 'heroic') c.heroic = uniq([...(c.heroic || []), dungeon.id]);
+        if (mode === 'mythic') c.mythicBest = Math.max(c.mythicBest || 0, tier);
+      }
       h.career = c;
       Object.assign(row, { xp, gold, materials: mats });
       for (const w of equipped(h)) collectLook(h, w);
@@ -225,12 +240,23 @@
     const chest = [];
     plan.filter((x) => x[0] === 'boss').slice(0, rep.bossesKilled).forEach(([, bossId], n) => {
       const boss = dungeon.bosses[bossId].name;
-      if (r.getFloat(0, 1) < BOSS_DROP[n === bossCount - 1 ? 2 : Math.min(n, 1)]) chest.push({ spec: I.generate(r, 2 * dl, I.rollRarity(r, keenEye ? 0.08 : 0)), rolls: {}, winner: null, from: boss });
-      if (dl >= 15 && r.getFloat(0, 1) < 0.2) chest.push({ spec: I.glyph(r, 2 * dl), rolls: {}, winner: null, from: boss });
+      if (r.getFloat(0, 1) < BOSS_DROP[n === bossCount - 1 ? 2 : Math.min(n, 1)] + reward.drop) chest.push({ spec: I.generate(r, 2 * dl + reward.ilvl, I.rollRarity(r, (keenEye ? 0.08 : 0) + reward.luck)), rolls: {}, winner: null, from: boss });
+      if (dl >= 15 && r.getFloat(0, 1) < 0.2) chest.push({ spec: I.glyph(r, 2 * dl + reward.ilvl), rolls: {}, winner: null, from: boss });
     });
     b.chest = chest; b.report = rep; b.state = 'chest'; b.chestClosesAt = b.endsAt + CHEST_SECONDS; b.timeline = null;
     const loot = chest.length ? ' The chest holds ' + chest.length + ' item' + (chest.length === 1 ? '' : 's') + '.' : ' No loot this time, only materials.';
-    let line = rep.wiped ? dungeon.name + ': the group fell after ' + rep.bossesKilled + ' of ' + bossCount + ' bosses. ' + rep.cause + loot : dungeon.name + ' cleared!' + loot;
+    let line = rep.wiped ? title + ': the group fell after ' + rep.bossesKilled + ' of ' + bossCount + ' bosses. ' + rep.cause + loot : title + ' cleared!' + loot;
+    if (mode === 'mythic' && !rep.wiped) {
+      // The ladder: a clear opens the next tier and the group moves up to it.
+      const best = p.mythicBest || 0;
+      p.mythicBest = Math.max(best, tier); p.mythicTier = Math.min(tier + 1, p.mythicBest + 1);
+      line += ' Next: Mythic ' + p.mythicTier + '.';
+      if (p.mythicBest > best && p.mythicBest % 5 === 0) {
+        const byGuild = {};
+        for (const h of heroes) if (h.guild) (byGuild[h.guild] = byGuild[h.guild] || []).push(h.name);
+        for (const [gid, names] of Object.entries(byGuild)) post('guild:' + gid, names.join(', ') + ' cleared ' + dungeon.name + ' on Mythic ' + tier + '.');
+      }
+    }
     // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
     if (rep.wiped) { p.running = false; line += ' The group rests until someone sends it back in.'; }
     post('party:' + p.id, line, { type: 'report', battle: b.id });
@@ -326,6 +352,7 @@
       rarities: D.RARITIES, glyphs: D.GLYPHS, powers: D.POWERS, caps: D.CAPS, pointsPerLevel: C.POINTS_PER_LEVEL, softCapShare: C.SOFT_CAP_SHARE, oathLevel: C.OATH_LEVEL,
       pathLevel: C.PATH_LEVEL, keystoneLevels: C.KEYSTONE_LEVELS, ultimateLevel: C.ULTIMATE_LEVEL, signatureLevel: C.SIGNATURE_LEVEL, signatureTraits: C.SIGNATURE_TRAITS, legendLevel: C.LEGEND_LEVEL, scarceRolls: C.SCARCE_ROLLS, dyes: D.DYES, metals: D.METALS, dyeCost: D.DYE_COST, mentorLevel: C.MENTOR_LEVEL, mentorBonus: C.MENTOR_BONUS, reforgeLevel: C.REFORGE_LEVEL, loadoutSize: C.LOADOUT_SIZE, maxSkillRank: D.MAX_RANK,
       dungeon: D.DUNGEON_VIEWS[D.DEFAULT_DUNGEON], dungeons: D.DUNGEON_VIEWS, battleSeconds: BATTLE_SECONDS, partySize: PARTY_SIZE, marks: D.MARKS,
+      modes: { affixes: D.MODE_AFFIXES, mythicLevel: Md.MYTHIC_LEVEL, secondAt: Md.SECOND_AT, weekly: Md.weekly(Md.week(time())) },
       cultures: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, x[0]]))])),
       talentPointsPerLevel: D.TALENT.POINTS_PER_LEVEL, treeShape: { talent: D.TALENT.SHAPE, heritage: D.HERITAGE.SHAPE },
       cultureInfo: Object.fromEntries(Object.entries(D.HERITAGE_TREES).map(([r, t]) => [r, Object.fromEntries(Object.entries(t.cultures).map(([c, x]) => [c, [x[0], x[1]]]))])),
@@ -386,6 +413,7 @@
     return {
       id: p.id, name: p.name, leader: p.leader, dungeonOffset: p.dungeonOffset, running: p.running, battlesTogether: p.battlesTogether, dungeonLevel: dungeonLevel(p),
       dungeon: dungeonFor(p).id, dungeonPick: p.dungeon || null, unlocked: unlocked(medianLevel(p)).map((d) => d.id),
+      difficulty: p.difficulty || 'normal', mode: modeFor(p), mythicTier: p.mythicTier || 1, mythicBest: p.mythicBest || 0, heroicOpen: Md.heroicOpen(dungeonFor(p), medianLevel(p)), mythicOpen: Md.mythicOpen(medianLevel(p)),
       members: members(p).map(heroCard), requests: p.leader === viewer.id ? requests : requests.filter((r) => r.hero.id === viewer.id),
     };
   }
@@ -432,7 +460,7 @@
       upgrade: viewer ? isUpgrade(viewer, c.spec) : false, rolls: c.rolls, numbers: c.numbers || {}, winner: c.winner,
     }));
     return {
-      id: b.id, state: b.state, dungeon: b.dungeon || D.DEFAULT_DUNGEON, dungeonLevel: b.dungeonLevel, startedAt: b.startedAt, endsAt: b.endsAt, chestClosesAt: b.chestClosesAt, roster: b.roster,
+      id: b.id, state: b.state, dungeon: b.dungeon || D.DEFAULT_DUNGEON, dungeonLevel: b.dungeonLevel, mode: b.mode || 'normal', tier: b.tier || 0, affixes: b.affixes || [], startedAt: b.startedAt, endsAt: b.endsAt, chestClosesAt: b.chestClosesAt, roster: b.roster,
       report: b.state === 'running' ? null : b.report, timeline: withTimeline && b.state === 'running' ? b.timeline : null, chest: b.state === 'running' ? [] : chest,
     };
   }
@@ -809,6 +837,18 @@
       const pick = input.dungeon || null;
       if (pick && !unlocked(medianLevel(p)).some((d) => d.id === pick)) fail('Your group has not reached that dungeon yet.');
       p.dungeon = pick;
+    }
+    if (input.difficulty !== undefined) {
+      const mode = String(input.difficulty), median = medianLevel(p);
+      if (!['normal', 'heroic', 'mythic'].includes(mode)) fail('Pick normal, heroic or mythic.');
+      if (mode === 'heroic' && !Md.heroicOpen(dungeonFor(p), median)) fail('Heroic opens once your group outgrows this dungeon (its top level).');
+      if (mode === 'mythic' && !Md.mythicOpen(median)) fail('Mythic opens at level ' + Md.MYTHIC_LEVEL + '.');
+      p.difficulty = mode;
+    }
+    if (input.mythicTier !== undefined) {
+      const tier = Math.trunc(+input.mythicTier), best = p.mythicBest || 0;
+      if (!(tier >= 1 && tier <= best + 1)) fail('Pick a tier from 1 to ' + (best + 1) + ': one above the best your group has cleared.');
+      p.mythicTier = tier;
     }
     if (input.running !== undefined) p.running = !!input.running;
     if (input.name !== undefined && String(input.name).trim() !== '') p.name = String(input.name).trim().slice(0, 40);

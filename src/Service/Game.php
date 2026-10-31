@@ -12,6 +12,7 @@ use App\Game\Dungeons;
 use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\Marks;
+use App\Game\Modes;
 use App\Game\Rules;
 use App\Game\Simulator;
 use App\Game\Stats;
@@ -148,7 +149,21 @@ class Game
 
     public function dungeonLevel(Party $party): int
     {
-        return Dungeons::clamp($this->dungeonFor($party), max(1, $this->medianLevel($party) + $party->dungeonOffset));
+        return Modes::level($this->dungeonFor($party), max(1, $this->medianLevel($party) + $party->dungeonOffset), $this->modeFor($party)[0]);
+    }
+
+    /** [mode, tier] the next run uses: the leader's pick while the group qualifies for it, else normal. */
+    public function modeFor(Party $party): array
+    {
+        $median = $this->medianLevel($party);
+        if ($party->difficulty === 'mythic' && Modes::mythicOpen($median)) {
+            return ['mythic', max(1, min($party->mythicTier, $party->mythicBest + 1))];
+        }
+        if ($party->difficulty === 'heroic' && Modes::heroicOpen($this->dungeonFor($party), $median)) {
+            return ['heroic', 0];
+        }
+
+        return ['normal', 0];
     }
 
     public function start(Party $party, int $at): Battle
@@ -158,6 +173,8 @@ class Game
         $b->seed = random_int(1, 2_000_000_000);
         $b->dungeonLevel = $this->dungeonLevel($party);
         $b->dungeon = $this->dungeonFor($party)['id'];
+        [$b->mode, $b->tier] = $this->modeFor($party);
+        $b->affixes = Modes::affixes($b->mode, $b->tier, Modes::week($at));
         $b->startedAt = $at;
         $b->endsAt = $at + $this->battleSeconds;
         $heroes = $party->members->toArray();
@@ -170,7 +187,9 @@ class Game
                 $combatants[$k]['stats'] = $scale['stats'];
             }
         }
-        $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed, Dungeons::get($b->dungeon));
+        $result = (new Simulator())->run($combatants, $b->dungeonLevel, $b->seed, Dungeons::get($b->dungeon), Modes::mods($b->mode, $b->tier, $b->affixes));
+        $result['report']['mode'] = $b->mode;
+        $result['report']['tier'] = $b->tier;
         $b->timeline = $result['timeline'];
         $b->report = $result['report'];
         $b->roster = array_map(fn (Hero $h, array $c) => [
@@ -247,7 +266,9 @@ class Game
         }
         $dungeon = Dungeons::get($b->dungeon);
         $plan = $dungeon['plan'];
-        $units = Dungeons::units($dungeon, $rep);
+        $reward = Modes::reward($b->mode, $b->tier);
+        $units = Dungeons::units($dungeon, $rep) * $reward['units'];
+        $title = trim($dungeon['name'].' '.(Modes::label($b->mode, $b->tier) ? '('.Modes::label($b->mode, $b->tier).')' : ''));
         $keenEye = false;
         foreach ($heroes as $h) {
             $keenEye = $keenEye || $h->cls === 'rogue';
@@ -295,6 +316,12 @@ class Game
             }
             if (!$rep['wiped']) {
                 $c['cleared'] = array_values(array_unique([...$c['cleared'] ?? [], $dungeon['id']]));
+                if ($b->mode === 'heroic') {
+                    $c['heroic'] = array_values(array_unique([...$c['heroic'] ?? [], $dungeon['id']]));
+                }
+                if ($b->mode === 'mythic') {
+                    $c['mythicBest'] = max($c['mythicBest'] ?? 0, $b->tier);
+                }
             }
             $h->career = $c;
             $rep['heroes'][$k]['xp'] = $xp;
@@ -317,11 +344,11 @@ class Game
         $bossCount = Dungeons::bossCount($dungeon);
         foreach (array_slice(array_values(array_filter($plan, fn ($x) => $x[0] === 'boss')), 0, $rep['bossesKilled']) as $n => [, $bossId]) {
             $boss = $dungeon['bosses'][$bossId]['name'];
-            if ($r->getFloat(0, 1) < self::BOSS_DROP[$n === $bossCount - 1 ? 2 : min($n, 1)]) {
-                $chest[] = ['spec' => Items::generate($r, 2 * $dl, Items::rollRarity($r, $keenEye ? 0.08 : 0.0)), 'rolls' => [], 'winner' => null, 'from' => $boss];
+            if ($r->getFloat(0, 1) < self::BOSS_DROP[$n === $bossCount - 1 ? 2 : min($n, 1)] + $reward['drop']) {
+                $chest[] = ['spec' => Items::generate($r, 2 * $dl + $reward['ilvl'], Items::rollRarity($r, ($keenEye ? 0.08 : 0.0) + $reward['luck'])), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
             if ($dl >= 15 && $r->getFloat(0, 1) < 0.2) {
-                $chest[] = ['spec' => Items::glyph($r, 2 * $dl), 'rolls' => [], 'winner' => null, 'from' => $boss];
+                $chest[] = ['spec' => Items::glyph($r, 2 * $dl + $reward['ilvl']), 'rolls' => [], 'winner' => null, 'from' => $boss];
             }
         }
         $b->chest = $chest;
@@ -332,8 +359,27 @@ class Game
 
         $loot = $chest ? sprintf(' The chest holds %d item%s.', count($chest), count($chest) === 1 ? '' : 's') : ' No loot this time, only materials.';
         $line = $rep['wiped']
-            ? sprintf('%s: the group fell after %d of %d bosses. %s', $dungeon['name'], $rep['bossesKilled'], Dungeons::bossCount($dungeon), $rep['cause']).$loot
-            : sprintf('%s cleared!', $dungeon['name']).$loot;
+            ? sprintf('%s: the group fell after %d of %d bosses. %s', $title, $rep['bossesKilled'], Dungeons::bossCount($dungeon), $rep['cause']).$loot
+            : sprintf('%s cleared!', $title).$loot;
+        if ($b->mode === 'mythic' && !$rep['wiped']) {
+            // The ladder: a clear opens the next tier and the group moves up to it.
+            $p = $b->party;
+            $best = $p->mythicBest;
+            $p->mythicBest = max($p->mythicBest, $b->tier);
+            $p->mythicTier = min($b->tier + 1, $p->mythicBest + 1);
+            $line .= sprintf(' Next: Mythic %d.', $p->mythicTier);
+            if ($p->mythicBest > $best && $p->mythicBest % 5 === 0) {
+                $byGuild = [];
+                foreach ($heroes as $h) {
+                    if ($h->guild) {
+                        $byGuild[$h->guild->id][] = $h->name;
+                    }
+                }
+                foreach ($byGuild as $gid => $names) {
+                    $this->post('guild:'.$gid, sprintf('%s cleared %s on Mythic %d.', implode(', ', $names), $dungeon['name'], $b->tier));
+                }
+            }
+        }
         if ($rep['wiped']) {
             // A wipe stops the chain: the group rests until someone comes back, changes what they need and sends it in.
             $b->party->running = false;
