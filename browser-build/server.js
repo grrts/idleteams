@@ -144,7 +144,7 @@
     const keenEye = heroes.some((h) => h.cls === 'rogue');
     heroes.forEach((h, k) => {
       const stats = S.derive(build(h)), row = rep.heroes[k] || {};
-      const xp = Math.round(12 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)) * (1 + stats.xpBonus));
+      const xp = Math.round(10.5 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)) * (1 + stats.xpBonus));
       // Heritage: Renown for running with your own race, twice for your own culture.
       const kin = H.kin(h.race, h.culture, heroes.filter((o) => o !== h).map((o) => [o.race, o.culture, o.backstory]), h.backstory);
       const renown = H.renownGain(units, kin, stats.renownBonus), rankBefore = heritageRank(h);

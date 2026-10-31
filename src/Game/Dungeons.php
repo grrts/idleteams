@@ -98,6 +98,23 @@ final class Dungeons
         return array_map(fn ($c) => [$d['plan'][$c][0], self::label($d, $c)], array_keys($d['plan']));
     }
 
+    /** How much of the run counts for rewards: packs 1, bosses 2, 3, 4 and on; half for the fight the group fell in. */
+    public static function units(array $d, array $report): float
+    {
+        $units = 0.0;
+        $bosses = 0;
+        foreach ($d['plan'] as $n => [$kind]) {
+            $w = $kind === 'boss' ? 2 + $bosses++ : 1;
+            if ($n < $report['encountersDone']) {
+                $units += $w;
+            } elseif ($n === $report['encountersDone'] && $report['wiped']) {
+                $units += $w / 2;
+            }
+        }
+
+        return $units;
+    }
+
     public static function bossCount(array $d): int
     {
         return count(array_filter($d['plan'], fn ($x) => $x[0] === 'boss'));

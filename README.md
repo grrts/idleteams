@@ -201,7 +201,7 @@ a database and cron.
 | `src/Service/*Actions.php`, `Social.php` | Player actions: growth, gear, groups, tavern, guilds, chat |
 | `src/Service/Bots.php` | Plays the demo heroes |
 | `src/Controller/` | The JSON API under `/api` and the page shell |
-| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup`, `app:load-test` |
+| `src/Command/` | `app:tick` (cron), `app:demo:seed`, `app:balance`, `app:browser-data`, `app:migration`, `app:admin`, `app:push:keys`, `app:backup`, `app:load-test`, `app:pacing` |
 | `public/assets/` | The client: `app.js`, `app.css` and the pixel sprite renderer `pixel.js` |
 
 ## Balance notes
@@ -212,6 +212,15 @@ group's damage with talents; enemy hits follow its health and healing without th
 a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
 intended. Known gaps: a Warden plus Druid group falls behind on damage from level 50, and level 80+ needs
 another pass once gear past 50 is designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+
+## Pacing
+
+`php bin/console app:pacing` plays a reference group on the production clock (3-hour runs, the 12-hour offline cap,
+a wipe stopping the chain until the next check-in) through the dungeon bands with the real XP rules, and fails
+outside the target (`--target=6-8` days to level 50). With check-ins at 8, 12, 18 and 22 o'clock (or just morning
+and evening, since the cap covers the gap) the group reaches 20 on day 2.8, 30 on day 4.0 and 50 on day 6.2. Once a
+day (`--checkins=19`) it is level 40 on day 9. The reference group keeps its gear up to date and never wipes, so real
+groups will be somewhat slower; the alpha will tell by how much. CI runs it on every push.
 
 ## Browser build
 

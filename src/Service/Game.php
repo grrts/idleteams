@@ -209,26 +209,16 @@ class Game
                 $heroes[] = $h;
             }
         }
-        // Rewards follow how far the group got: packs count 1, bosses 2, 3 and 4. A full run is 15.
         $dungeon = Dungeons::get($b->dungeon);
         $plan = $dungeon['plan'];
-        $done = $rep['encountersDone'];
-        $units = 0.0;
-        foreach ($plan as $n => [$kind]) {
-            $w = $kind === 'boss' ? 1 + count(array_filter(array_slice($plan, 0, $n + 1), fn ($x) => $x[0] === 'boss')) : 1;
-            if ($n < $done) {
-                $units += $w;
-            } elseif ($n === $done && $rep['wiped']) {
-                $units += $w / 2; // half credit for the fight the group fell in
-            }
-        }
+        $units = Dungeons::units($dungeon, $rep);
         $keenEye = false;
         foreach ($heroes as $h) {
             $keenEye = $keenEye || $h->cls === 'rogue';
         }
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
-            $xp = (int) round(12 * $dl ** 1.5 * $units * ($h->race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $b->party->battlesTogether)) * (1 + $stats['xpBonus']));
+            $xp = Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']);
             // Heritage: Renown for running with your own race, twice for your own culture.
             $others = [];
             foreach ($heroes as $o) {

@@ -59,6 +59,9 @@ jobs:
       - name: Balance smoke test
         if: matrix.db == 'sqlite'
         run: php bin/console app:balance --env=test
+      - name: Pacing (level 50 in 6 to 8 days for an engaged group)
+        if: matrix.db == 'sqlite'
+        run: php bin/console app:pacing --env=test
 
   browser-build:
     name: Playable build is current

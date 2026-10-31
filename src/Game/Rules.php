@@ -381,6 +381,12 @@ final class Rules
         'starfall' => ['Starfall', 'MEGA crits hit every enemy'],
     ];
 
+    /** XP for one run: grows with the dungeon level and how far the group got, plus small bonuses. */
+    public static function battleXp(int $dungeonLevel, float $units, string $race, int $battlesTogether, float $xpBonus): int
+    {
+        return (int) round(10.5 * $dungeonLevel ** 1.5 * $units * ($race === 'human' ? 1.05 : 1.0) * (1 + 0.01 * min(10, $battlesTogether)) * (1 + $xpBonus));
+    }
+
     public static function xpForLevel(int $level): int
     {
         $base = 160 * $level ** 1.5;
