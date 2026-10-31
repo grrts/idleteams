@@ -11,6 +11,7 @@ use App\Game\Combatants;
 use App\Game\Dungeons;
 use App\Game\Heritage;
 use App\Game\Items;
+use App\Game\Marks;
 use App\Game\Rules;
 use App\Game\Simulator;
 use App\Game\Stats;
@@ -221,6 +222,7 @@ class Game
         foreach ($heroes as $h) {
             $keenEye = $keenEye || $h->cls === 'rogue';
         }
+        $group = array_map(fn (Hero $h) => ['race' => $h->race, 'real' => !$h->user->demo], $heroes);
         foreach ($heroes as $k => $h) {
             $stats = Stats::derive($this->build($h));
             $xp = Rules::battleXp($dl, $units, $h->race, $b->party->battlesTogether, $stats['xpBonus']);
@@ -250,13 +252,16 @@ class Game
             $c['dungeons'] = ($c['dungeons'] ?? 0) + ($rep['wiped'] ? 0 : 1);
             $c['bossKills'] += $rep['bossesKilled'];
             $c['deaths'] += $rep['heroes'][$k]['deaths'] ?? 0;
+            if (!$rep['wiped']) {
+                $c['cleared'] = array_values(array_unique([...$c['cleared'] ?? [], $dungeon['id']]));
+            }
             $h->career = $c;
             $rep['heroes'][$k]['xp'] = $xp;
             $rep['heroes'][$k]['gold'] = $gold;
             $rep['heroes'][$k]['materials'] = $mats;
             $this->addXp($h, $xp);
             $this->addSignatureXp($h, (int) ($rep['heroes'][$k]['sigXp'] ?? 0));
-            $this->earnMarks($h, $rep['heroes'][$k] ?? []);
+            $this->earnMarks($h, $k, $rep, $group, $dungeon['id']);
             if ($h->guild) {
                 $h->guild->xp += (int) round($units);
             }
@@ -349,23 +354,10 @@ class Game
         $this->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('Oath Day: %s swore to %s.', $h->name, $what), ['type' => 'hero', 'hero' => $h->id]);
     }
 
-    private function earnMarks(Hero $h, array $row): void
+    private function earnMarks(Hero $h, int $k, array $rep, array $group, string $dungeon): void
     {
-        $c = $h->career;
-        $marks = $h->marks;
-        if (($c['battles'] ?? 0) >= 1) {
-            $marks[] = 'firstBattle';
-        }
-        if (($c['bossKills'] ?? 0) >= 100) {
-            $marks[] = 'centurion';
-        }
-        if (($row['deaths'] ?? 0) >= 3) {
-            $marks[] = 'scarred';
-        }
-        if (($row['mechanics']['busterBlocked'] ?? 0) >= 3) {
-            $marks[] = 'dentedShield';
-        }
-        $h->marks = array_values(array_unique($marks));
+        $hero = ['level' => $h->level, 'role' => $h->role(), 'career' => $h->career];
+        $h->marks = array_values(array_unique([...$h->marks, ...Marks::fromBattle($hero, $k, $rep, $group, $dungeon, array_keys(Dungeons::all()))]));
     }
 
     // ------------------------------------------------------------------ chest

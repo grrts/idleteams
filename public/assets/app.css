@@ -880,3 +880,10 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 .legend-title { font-size: 0.6em; font-weight: normal; }
 .panel.legend.open { box-shadow: 0 0 0 2px #f0c23a55, 0 0 24px #f0c23a22; }
 .panel.legend .choice .eyebrow { color: #ffd25a; }
+
+/* All marks, earned and still to earn */
+.allmarks summary { cursor: pointer; margin-top: 4px; }
+.markgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin-top: 8px; }
+.markgrid .mk { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; padding: 6px 8px; border: 1px solid #ffffff14; border-radius: 4px; opacity: 0.55; }
+.markgrid .mk.on { opacity: 1; border-color: #f0c23a66; }
+.markgrid .mk .tiny { grid-column: 2; }

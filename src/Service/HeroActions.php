@@ -10,6 +10,7 @@ use App\Game\Heritage;
 use App\Game\Items;
 use App\Game\LifeStory;
 use App\Game\Legends;
+use App\Game\Marks;
 use App\Game\Rules;
 use App\Game\Talents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,16 +23,7 @@ class HeroActions
     public const MAX_RANK = 10;
 
     /** Marks are earned, never bought, and shown on the hero card. */
-    public const MARKS = [
-        'firstBattle' => ['First Blood', 'Finished a first battle'],
-        'oathsworn' => ['Oathsworn', 'Took the Oath at level 20'],
-        'centurion' => ['Centurion', '100 bosses defeated'],
-        'scarred' => ['Scarred', 'Died three times in one battle and kept going'],
-        'dentedShield' => ['Dented Shield', 'Blocked three Tank Busters in one battle'],
-        'legendFound' => ['Legend Finder', 'Won a legendary from a group chest'],
-        'signature' => ['Signed', 'Made one skill their own at level 30'],
-        'legend' => ['Legend', 'Took a Legend form at level 50'],
-    ];
+    public const MARKS = Marks::ALL;
 
     /** Look keys the creator may set, with the values the pixel renderer knows. */
     private const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal'];
@@ -79,6 +71,7 @@ class HeroActions
         $h->origin = $in['origin'];
         $h->story = $story;
         $this->startBackstory($h, $story['answers']['youth']);
+        $h->marks = ['storyteller'];
         $h->look = $look;
         $h->createdAt = time();
         $this->em->persist($h);
@@ -317,6 +310,7 @@ class HeroActions
         $tree = Heritage::tree($h->race);
         $h->story = $story;
         $h->backstory = $story['answers']['youth'];
+        $h->marks = array_values(array_unique([...$h->marks, 'storyteller']));
         $h->culture = $culture;
         $h->renown += Heritage::BACKSTORY_RENOWN;
         $h->heritage = array_filter($h->heritage, fn ($id) => isset($tree['nodes'][$id]) && in_array($tree['nodes'][$id]['culture'], [null, $culture], true), ARRAY_FILTER_USE_KEY);

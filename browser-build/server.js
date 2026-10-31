@@ -146,6 +146,7 @@
       if (n < done) units += w; else if (n === done && rep.wiped) units += w / 2;
     });
     const keenEye = heroes.some((h) => h.cls === 'rogue');
+    const group = heroes.map((h) => ({ race: h.race, real: !(userOf(h) || {}).demo }));
     heroes.forEach((h, k) => {
       const stats = S.derive(build(h)), row = rep.heroes[k] || {};
       const xp = Math.round(10.5 * dl ** 1.5 * units * (h.race === 'human' ? 1.05 : 1) * (1 + 0.01 * Math.min(10, p.battlesTogether)) * (1 + stats.xpBonus));
@@ -160,6 +161,7 @@
       h.gold += gold; h.materials += mats;
       const c = Object.assign({ battles: 0, dungeons: 0, bossKills: 0, deaths: 0 }, h.career);
       c.battles++; c.dungeons += rep.wiped ? 0 : 1; c.bossKills += rep.bossesKilled; c.deaths += row.deaths || 0;
+      if (!rep.wiped) c.cleared = uniq([...(c.cleared || []), dungeon.id]);
       h.career = c;
       Object.assign(row, { xp, gold, materials: mats });
       addXp(h, xp);
@@ -169,7 +171,7 @@
         const now = R.signatureMastery(h.signatureXp);
         if (Math.floor(now / 10) > Math.floor(before / 10)) post(heroChannel(h), h.name + "'s " + (h.signatureName || R.classSkills(h.cls)[h.signature][0]) + ' reached Mastery ' + now + '.', { type: 'hero', hero: h.id });
       }
-      earnMarks(h, row);
+      earnMarks(h, k, rep, group, dungeon.id);
       const g = guildOf(h); if (g) g.xp += Math.round(units);
     });
     p.battlesTogether++;
@@ -204,13 +206,8 @@
     const what = h.path ? D.CLASSES[h.cls].paths[h.path][0] : 'their Path';
     post(heroChannel(h), 'Oath Day: ' + h.name + ' swore to ' + what + '.', { type: 'hero', hero: h.id });
   }
-  function earnMarks(h, row) {
-    const c = h.career, marks = [...h.marks];
-    if ((c.battles || 0) >= 1) marks.push('firstBattle');
-    if ((c.bossKills || 0) >= 100) marks.push('centurion');
-    if ((row.deaths || 0) >= 3) marks.push('scarred');
-    if (((row.mechanics || {}).busterBlocked || 0) >= 3) marks.push('dentedShield');
-    h.marks = uniq(marks);
+  function earnMarks(h, k, rep, group, dungeon) {
+    h.marks = uniq([...h.marks, ...E.Marks.fromBattle({ level: h.level, career: h.career }, k, rep, group, dungeon, Object.keys(D.DUNGEONS))]);
   }
 
   function roll(b, h, idx, choice) {
@@ -388,6 +385,7 @@
     });
     h.story = story;
     startBackstory(h, story.answers.youth);
+    h.marks = ['storyteller'];
     // Starter kit: plain commons in the class's own style. Everything after this drops, gets crafted or traded.
     const c = D.CLASSES[h.cls], r = new Rng(E.crc(name));
     for (const [slot, base] of Object.entries(c.kit)) {
@@ -514,6 +512,7 @@
     const tree = H.tree(h.race), culture = story.answers.home;
     h.story = story;
     h.backstory = story.answers.youth;
+    h.marks = uniq([...h.marks, 'storyteller']);
     h.culture = culture;
     h.renown += D.HERITAGE.BACKSTORY_RENOWN;
     h.heritage = Object.fromEntries(Object.entries(h.heritage).filter(([n]) => tree.nodes[n] && [null, culture].includes(tree.nodes[n].culture)));
@@ -748,14 +747,14 @@
     if (h.gold < 100) fail('Founding a guild costs 100 gold.');
     h.gold -= 100;
     const g = ins('guilds', { name, tag, motto: String(input.motto || '').trim().slice(0, 160), xp: 0, createdAt: time() });
-    h.guild = g.id; h.guildRank = 'leader';
+    h.guild = g.id; h.guildRank = 'leader'; h.marks = uniq([...h.marks, 'founder', 'bannerBearer']);
     post('tavern', h.name + ' founded the guild ' + name + ' [' + tag + '].');
     return g;
   }
   function joinGuild(h, g) {
     if (h.guild) fail('Leave your guild first.');
     if (guildMembers(g).length >= GUILD_MAX) fail('That guild is full.');
-    h.guild = g.id; h.guildRank = 'member';
+    h.guild = g.id; h.guildRank = 'member'; h.marks = uniq([...h.marks, 'bannerBearer']);
     post('guild:' + g.id, h.name + ' joined the guild. Say hello!');
   }
   function leaveGuild(h) {

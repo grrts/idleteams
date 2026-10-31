@@ -286,6 +286,7 @@ class Social
         $h->guild = $g;
         $h->guildRank = 'leader';
         $g->members->add($h);
+        $h->marks = array_values(array_unique([...$h->marks, 'founder', 'bannerBearer']));
         $this->game->post('tavern', sprintf('%s founded the guild %s [%s].', $h->name, $name, $tag));
 
         return $g;
@@ -302,6 +303,7 @@ class Social
         $h->guild = $g;
         $h->guildRank = 'member';
         $g->members->add($h);
+        $h->marks = array_values(array_unique([...$h->marks, 'bannerBearer']));
         $this->em->flush();
         $this->game->post('guild:'.$g->id, sprintf('%s joined the guild. Say hello!', $h->name));
     }

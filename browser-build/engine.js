@@ -94,6 +94,30 @@
       return { stat: f[3], skill };
     },
   });
+  // Marks a hero earns from one finished battle (Marks.php).
+  E.Marks = {
+    fromBattle(hero, k, rep, group, dungeon, dungeons) {
+      const c = hero.career, row = rep.heroes[k] || {}, mech = row.mechanics || {}, out = [];
+      const roles = rep.heroes.map((r) => D.CLASSES[r.cls].role), cleared = c.cleared || [];
+      const add = (id, ok) => { if (ok) out.push(id); };
+      add('firstBattle', (c.battles || 0) >= 1); add('firstClear', (c.dungeons || 0) >= 1);
+      add('level10', hero.level >= 10); add('level25', hero.level >= 25); add('level40', hero.level >= 40);
+      add('veteran', (c.battles || 0) >= 100); add('ironVeteran', (c.battles || 0) >= 1000); add('hundredClears', (c.dungeons || 0) >= 100);
+      add('centurion', (c.bossKills || 0) >= 100); add('thousandBosses', (c.bossKills || 0) >= 1000); add('floor', (c.deaths || 0) >= 50);
+      add('cartographer', dungeons.every((d) => cleared.includes(d))); add('wyvernSlayer', cleared.includes('wyvern-roost'));
+      add('scarred', (row.deaths || 0) >= 3); add('dentedShield', (mech.busterBlocked || 0) >= 3); add('untouchable', (mech.busterDodged || 0) >= 3);
+      add('curseBreaker', (mech.curseResisted || 0) >= 3); add('grounded', (mech.shockResisted || 0) >= 3);
+      add('notAScratch', !rep.wiped && rep.heroes.reduce((a, r) => a + (r.deaths || 0), 0) === 0);
+      add('lastStanding', rep.wiped && (row.deaths || 0) === 0 && rep.heroes.length > 1);
+      add('overflowing', (row.healing || 0) > 0 && (row.overheal || 0) > (row.healing || 0));
+      const dmg = rep.heroes.map((r) => r.damage || 0), max = Math.max(...dmg), top = dmg.indexOf(max);
+      add('tankTop', top === k && roles[k] === 'tank' && max > 0); add('battleMedic', top === k && roles[k] === 'healer' && max > 0);
+      const races = group.map((g) => g.race), distinct = new Set(races).size;
+      add('fullTable', group.length >= 5 && group.filter((g) => g.real).length >= 5);
+      add('oneBlood', races.length >= 5 && distinct === 1); add('manyRoads', races.length >= 5 && distinct === races.length);
+      return out;
+    },
+  };
   const plans = {};
   const T = (E.Talents = {
     points: (level) => D.TALENT.POINTS_PER_LEVEL * Math.max(0, level - 1),
