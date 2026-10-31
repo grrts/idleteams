@@ -27,6 +27,7 @@ class SeasonsTest extends TestCase
             $this->assertCount(20, $all[$i]['track']['tiers']);
         }
         $this->assertSame('frostbite', Seasons::current(Seasons::get('s2')['startsAt'])['affix']);
+        $this->assertSame('undertow', Seasons::current(Seasons::get('s3')['startsAt'])['affix']);
     }
 
     public function testEveryLookOnTheTrackAndInTheShopIsDrawableAndShopArtNeverDrops(): void

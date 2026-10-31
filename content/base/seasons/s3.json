@@ -1,0 +1,180 @@
+{
+ "id": "s3",
+ "number": 3,
+ "name": "The Tidebound Season",
+ "starts": "2027-02-22",
+ "weeks": 8,
+ "summary": "The sea has risen along the Saltreach coast, and the bells of drowned harbours ring under the waves off Freeport. Wear the deep-sea blue, the coral of the reefs and the pearl of the tide-priests.",
+ "affix": "undertow",
+ "raid": "sundered-keep",
+ "items": "The Tidecaller Trident, the Coral Wand and the Pearl Diadem drop from bosses while the season runs.",
+ "track": {
+  "tierPoints": 300,
+  "tiers": [
+   {
+    "free": null,
+    "premium": "top|sailorStripe|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": "head|bandana|#e8f4f0|#ff7a5a|#d8dee4",
+    "premium": "weapon|fishingSpear|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": null,
+    "premium": "top|kimono|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": "cape|scarf|#0e3a4a|#7ae0d0|#c8b890",
+    "premium": "head|pirateHat|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "offhand|orb|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": "gloves|leather|#0e3a4a|#7ae0d0|#c8b890",
+    "premium": "top|moonRobe|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "weapon|cutlass|#e8f4f0|#ff7a5a|#d8dee4"
+   },
+   {
+    "free": "shoes|boots|#1a2a5a|#f4ecd8|#e8c870",
+    "premium": "head|tricorn|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": null,
+    "premium": "cape|cape|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": "weapon|mackerel|#e8f4f0|#ff7a5a|#d8dee4",
+    "premium": "offhand|heater|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "top|collared|#e8f4f0|#ff7a5a|#d8dee4"
+   },
+   {
+    "free": "top|sailor|#0e3a4a|#7ae0d0|#c8b890",
+    "premium": "head|chaperon|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "weapon|trident|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": "bottom|kilt|#0e3a4a|#7ae0d0|#c8b890",
+    "premium": "head|circlet|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "top|stoleRobe|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": "weapon|kris|#0e3a4a|#7ae0d0|#c8b890",
+    "premium": "weapon|coralWand|#e8f4f0|#ff7a5a|#d8dee4"
+   },
+   {
+    "free": null,
+    "premium": "head|tidecallerHood|#0e3a4a|#7ae0d0|#c8b890"
+   },
+   {
+    "free": "head|beanie|#e8f4f0|#ff7a5a|#d8dee4",
+    "premium": "top|harlequin|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": null,
+    "premium": "cape|cape|#1a2a5a|#f4ecd8|#e8c870"
+   },
+   {
+    "free": "cape|scarf|#1a2a5a|#f4ecd8|#e8c870",
+    "premium": "head|pearlDiadem|#1a2a5a|#f4ecd8|#e8c870"
+   }
+  ]
+ },
+ "worldRaid": {
+  "name": "The Drowned Leviathan",
+  "summary": "Every Saturday evening the tide pulls back from the Saltreach and something vast rises from the old Hollow under the sea. Up to fifty groups meet it at once; no single group can bring it down.",
+  "day": 6,
+  "hour": 18,
+  "level": 50,
+  "squads": 50,
+  "health": 2.5,
+  "damage": 1.4,
+  "needed": 0.5,
+  "reward": "cape|cape|#0e3a4a|#7ae0d0|#c8b890",
+  "fight": {
+   "name": "The Saltreach Shallows",
+   "wings": [
+    {
+     "name": "The Saltreach Shallows",
+     "scene": {
+      "sky": [
+       "#0a1a2a",
+       "#1e4a5a"
+      ],
+      "rock": "#3a5a5a",
+      "rock2": "#5a7a72",
+      "floor": "#c8b890",
+      "floor2": "#a89870",
+      "glow": "#7ae0d0",
+      "accent": "#ff7a5a",
+      "prop": "snow"
+     }
+    }
+   ],
+   "enemies": {
+    "crab": {
+     "name": "Tide Crab",
+     "kind": "shard",
+     "art": "tideCrab"
+    }
+   },
+   "packs": {},
+   "bosses": {
+    "leviathan": {
+     "name": "The Drowned Leviathan",
+     "art": "leviathan",
+     "scale": 2.6,
+     "health": 3.0,
+     "damage": 1.2,
+     "enrage": 150,
+     "hit": "Crushing Coil",
+     "mechanics": [
+      "buster",
+      "rain",
+      "shock",
+      "adds"
+     ]
+    }
+   },
+   "mechanics": {
+    "buster": {
+     "name": "Crushing Coil",
+     "every": 12
+    },
+    "rain": {
+     "name": "Brine Spray"
+    },
+    "shock": {
+     "name": "Tidal Wave",
+     "at": 20,
+     "every": 24
+    },
+    "adds": {
+     "name": "Tide Crabs",
+     "enemy": "crab",
+     "count": 3
+    }
+   },
+   "plan": [
+    [
+     "boss",
+     "leviathan",
+     0
+    ]
+   ]
+  }
+ }
+}
