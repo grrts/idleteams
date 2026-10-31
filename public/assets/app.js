@@ -323,6 +323,8 @@
     const app = $('#app');
     const keepScroll = $('.msgs') ? $('.msgs').scrollTop : null;
     const keepWin = $('.win-body') && S.lastWin === S.view ? $('.win-body').scrollTop : 0; S.lastWin = S.view;
+    // the bottom bar scrolls sideways on phones: keep where the player left it across re-renders
+    const keepSlots = $('.slots') ? $('.slots').scrollLeft : null, viewWas = S.slotsView; S.slotsView = S.view;
     TIPS.length = 0;
     keepInputs(app, () => {
       if (!S.st) app.innerHTML = authView();
@@ -335,6 +337,16 @@
     const msgs = $('.msgs');
     if (msgs) msgs.scrollTop = keepScroll != null && !S.chatJump ? keepScroll : msgs.scrollHeight;
     if (keepWin && $('.win-body')) $('.win-body').scrollTop = keepWin;
+    const slots = $('.slots');
+    if (slots) {
+      if (keepSlots != null) slots.scrollLeft = keepSlots;
+      // a new page: bring its button into view if it is off the edge
+      const on = viewWas !== S.view && slots.querySelector('.slot.on');
+      if (on) {
+        const b = slots.getBoundingClientRect(), r = on.getBoundingClientRect();
+        if (r.left < b.left || r.right > b.right) slots.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
+      }
+    }
     S.chatJump = false;
     if (S.st && S.st.hero) setupScene();
   }
@@ -1607,10 +1619,16 @@
       : '<form data-form="email" class="row wrap"><input name="email" type="email" required placeholder="you@example.com" value="' + esc(u.email || '') + '" style="flex:1;min-width:200px" autocomplete="email"><button type="submit">' + (u.email ? 'Change' : 'Add email') + '</button></form>' +
         (u.email ? '<p class="small ' + (u.emailVerified ? 'good' : 'muted') + '">' + (u.emailVerified ? '✓ Confirmed. You can reset your password with it.' : 'Not confirmed yet: open the link in the mail we sent.') + '</p>' : '<p class="small muted">Add an address so you can reset your password if you forget it. It is never shown to other players.</p>');
     const mod = u.admin ? '<div class="panel"><h3>Moderation</h3>' + modView() + '</div><div class="panel"><h3>First days</h3>' + funnelView() + '</div>' : '';
-    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + steamView() + rosterView() + pushView() + dataView() +
+    return '<div class="stack"><div class="panel"><h3>Account</h3><p class="small">Logged in as <b>' + esc(u.username || '') + '</b></p>' + email + '</div>' + soundView() + steamView() + rosterView() + pushView() + dataView() +
       '<div class="panel"><h3>Blocked heroes</h3>' + (blocked.length ? blocked.map((b) => '<div class="row between"><span>' + esc(b.name) + '</span><button class="small" data-act="unblock" data-hid="' + b.id + '">Unblock</button></div>').join('') : '<p class="small muted">Nobody. To block someone, tap their name in chat.</p>') + '</div>' +
       mod + '<div class="panel"><h3>Art workshop</h3><p class="small muted">Draw hats, hair, race features, tops, weapons and off-hands for the game, and copy them out as content files.</p><a class="btn small" href="#/workshop">Open the workshop</a></div>' +
       '<div class="row"><button data-act="logout">' + (window.IT_SERVER ? 'New game' : 'Log out') + '</button></div></div>';
+  }
+  function soundView() {
+    const X = window.ITS;
+    if (!X || !X.muted) return '';
+    return '<div class="panel"><h3>Sound</h3><div class="row wrap"><button class="small" data-act="sound" data-k="sfx" aria-pressed="' + !X.muted() + '">' + (X.muted() ? '🔇 Effects off' : '🔊 Effects on') + '</button>' +
+      '<button class="small" data-act="sound" data-k="music" aria-pressed="' + X.musicOn() + '">' + (X.musicOn() ? '♪ Music on' : '♪ Music off') + '</button></div></div>';
   }
   function steamView() {
     if (!NATIVE || NATIVE.platform !== 'steam') return '';
@@ -1838,7 +1856,18 @@
     tipEl.style.left = Math.min(window.innerWidth - r.width - 8, x + pad) + 'px';
     tipEl.style.top = Math.max(8, Math.min(window.innerHeight - r.height - 8, y + pad)) + 'px';
   }
-  document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); else tipEl.hidden = true; });
+  // Android's back button (mobile/src/native.js): close the top-most thing; false when nothing is open.
+  window.IT_BACK = () => {
+    if (!$('#modal').hidden) { closeModal(); return true; }
+    if (celebrate.el) { celebrate.close(); return true; }
+    if (S.chatOpen && window.innerWidth <= 900) { S.chatOpen = false; render(); return true; }
+    if (S.st && S.st.hero && S.view !== 'battle') { location.hash = '#/battle'; return true; }
+    return false;
+  };
+  // On a touch screen a tap is also a hover: a tile that opens its own details on tap shows no card over it.
+  let touched = false;
+  document.addEventListener('pointerdown', (e) => { touched = e.pointerType === 'touch'; }, true);
+  document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-tip]'); if (el && !(touched && el.dataset.act)) showTip(el, e.clientX, e.clientY); else tipEl.hidden = true; });
   document.addEventListener('mousemove', (e) => { if (!tipEl.hidden) { const el = e.target.closest && e.target.closest('[data-tip]'); if (el) showTip(el, e.clientX, e.clientY); } });
   window.addEventListener('hashchange', () => { tipEl.hidden = true; });
 
@@ -1948,6 +1977,7 @@
         (o.subscription && NATIVE.platform !== 'steam' ? '<p class="small muted">Renews every month until you cancel it in your ' + STORE + ' account.</p>' : '') +
         '<div class="row"><button class="primary" type="submit">Buy with ' + STORE + '</button><button type="button" data-act="closeModal">Cancel</button></div></form>');
     },
+    sound: (d) => { const X = window.ITS; if (d.k === 'music') X.setMusic(!X.musicOn()); else X.setMuted(!X.muted()); render(); },
     steamLogin: async (d, quiet) => {
       try {
         const r = await post('/token/steam', { ticket: await NATIVE.steamTicket() });
@@ -2171,11 +2201,11 @@
         await NATIVE.setToken(r.token);
         // the Steam build links the Steam account the first time, so next time it logs in by itself
         if (NATIVE.platform === 'steam' && S.steamLink) { await post('/account/steam', { ticket: await NATIVE.steamTicket() }).catch(() => null); S.steamLink = false; }
-        await refresh(); loadView(); nativeReady();
+        await refresh(); loadView(); nativeReady(); window.scrollTo(0, 0);
       } catch (err) { toast(err.message); }
       return;
     }
-    try { await post('/' + f.dataset.form, data); await refresh(); loadView(); } catch (err) { toast(err.message); }
+    try { await post('/' + f.dataset.form, data); await refresh(); loadView(); if (f.dataset.form === 'login' || f.dataset.form === 'register') window.scrollTo(0, 0); } catch (err) { toast(err.message); }
   });
 
   boot().catch((e) => { $('#app').innerHTML = '<div class="boot">Could not reach the server: ' + esc(e.message) + '</div>'; });

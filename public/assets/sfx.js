@@ -303,6 +303,7 @@
     if (b) { b.textContent = '♪'; b.style.opacity = musicOn ? '1' : '.45'; b.title = musicOn ? 'Music on' : 'Music off'; b.setAttribute('aria-pressed', String(musicOn)); }
   }
   S.muted = () => !sfxOn;
+  S.musicOn = () => musicOn;
   S.setMuted = (m) => { sfxOn = !m; save(); if (fxBus) fxBus.gain.setTargetAtTime(sfxOn ? SFX_VOL : 0, ctx.currentTime, 0.05); paint(); };
   S.setMusic = (on) => { musicOn = !!on; save(); if (musicBus) musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOL : 0, ctx.currentTime, 0.3); if (!musicOn) playing = null; paint(); };
   function mount() {

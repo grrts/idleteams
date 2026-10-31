@@ -764,8 +764,8 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
 
 /* phones and small tablets: scene on top, HUD stacked under it, windows as full sheets */
 @media (max-width: 900px) {
-  .hud { --hud-top: 60px; --hud-bot: calc(76px + env(safe-area-inset-bottom, 0px)); position: fixed; overflow: hidden; }
-  .hud-top { grid-template-columns: minmax(0, 1fr) auto; height: var(--hud-top); padding: 0 10px; gap: 8px; }
+  .hud { --hud-top: calc(60px + env(safe-area-inset-top, 0px)); --hud-bot: calc(76px + env(safe-area-inset-bottom, 0px)); position: fixed; overflow: hidden; }
+  .hud-top { grid-template-columns: minmax(0, 1fr) auto; height: var(--hud-top); padding: env(safe-area-inset-top, 0px) max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px)); gap: 8px; }
   .hud-top .runbar { display: none; }
   .pframe { width: 46px; height: 46px; border-width: 8px; }
   .plate .lv { left: 30px; top: 30px; height: 20px; min-width: 22px; font-size: .78rem; }
@@ -789,7 +789,8 @@ body:has(.creator) .sfx-toggle, body:has(.auth) .sfx-toggle { top: auto; bottom:
   .hud-loot { left: 8px; right: 8px; width: auto; top: calc(var(--hud-top) + 56.25vw + 112px); max-height: none; bottom: calc(var(--hud-bot) + 6px); z-index: 14; }
   .hud-bar { left: 0; right: 0; bottom: 0; transform: none; gap: 0; padding-bottom: env(safe-area-inset-bottom, 0px); background: #2c1f12; box-shadow: 0 -3px 0 #8a6232, 0 -4px 0 #110b06; }
   .orb { display: none; }
-  .slots { flex: 1; overflow-x: auto; border: 0; padding: 8px 6px; gap: 4px; box-shadow: none; scrollbar-width: none; }
+  .slots { flex: 1; overflow-x: auto; border: 0; padding: 8px max(6px, env(safe-area-inset-right, 0px)) 8px max(6px, env(safe-area-inset-left, 0px)); gap: 4px; box-shadow: none; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .slots::-webkit-scrollbar { display: none; }
   .slot { width: 56px; height: 56px; flex: none; } .slot .ico { width: 26px; height: 26px; } .slot .lbl { font-size: .58rem; display: block; } .slot kbd { display: none; }
   .slot .gem { right: -2px; top: -4px; }
   .hud .side.hud-chat { left: 0; right: 0; width: auto; top: var(--hud-top); bottom: var(--hud-bot); height: auto; z-index: 32; border-width: 8px; background: rgba(20,13,6,.97); }
@@ -983,3 +984,20 @@ table.funnel th:first-child, table.funnel td:first-child { text-align: left; }
 .lp-point b { display: block; margin-bottom: 2px; }
 .lp-point .ico { width: 28px; height: 28px; flex: none; }
 @media (max-width: 600px) { .lp-crowd { flex-wrap: nowrap; gap: 2px; } .lp-crowd .spr { width: 18vw !important; height: auto !important; } .landing { margin-top: 3vh; } }
+
+/* narrow phones: the purse and the name plate share one row */
+@media (max-width: 430px) {
+  .xpbar { width: 84px; } .pl-txt b { font-size: .9rem; }
+  .coin { padding: 3px 4px 4px 3px; font-size: .74rem; } .coin .ico { width: 14px; height: 14px; }
+  .purse .cog { padding: 3px 6px; }
+}
+@media (max-width: 520px) {
+  .banner-head { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .banner-head > :first-child { transform: scale(.55); transform-origin: top left; width: 64px; }
+  .heritage-top { gap: 12px; } .heritage-top .hbadge { width: 64px !important; height: 76px !important; }
+  .hbadge .eyebrow { display: none; } .hbadge .big { font-size: 1.8rem; }
+}
+
+/* in the game on a phone the floating buttons would sit on the page: sound lives in Settings there */
+@media (max-width: 900px) { body:has(.hud) .sfx-toggle, body:has(.hud) .sfx-toggle { display: none; } }
+@media (max-width: 720px) { body:has(.creator) .sfx-toggle { top: calc(10px + env(safe-area-inset-top, 0px)); bottom: auto; } }

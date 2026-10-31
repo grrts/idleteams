@@ -5,7 +5,9 @@
 //  - purchases through RevenueCat, which talks to the App Store and Google Play
 //  - push notifications through Firebase Cloud Messaging (APNs on iOS, behind Firebase)
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { Purchases, PRODUCT_CATEGORY } from '@revenuecat/purchases-capacitor';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 
@@ -89,4 +91,13 @@ window.IT_NATIVE = {
 FirebaseMessaging.addListener('notificationActionPerformed', (e) => {
   const url = e.notification && e.notification.data && e.notification.data.url;
   if (url && url.startsWith('#/')) location.hash = url.slice(1);
+});
+
+// Light status bar text on the game's dark top bar.
+StatusBar.setStyle({ style: Style.Dark }).catch(() => null);
+if (platform === 'android') StatusBar.setBackgroundColor({ color: '#1a130b' }).catch(() => null);
+
+// Android's back button: close what is open (a dialog, the chat, a window) before leaving the game.
+App.addListener('backButton', () => {
+  if (!(window.IT_BACK && window.IT_BACK())) App.minimizeApp();
 });
