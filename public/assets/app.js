@@ -323,6 +323,8 @@
     const app = $('#app');
     const keepScroll = $('.msgs') ? $('.msgs').scrollTop : null;
     const keepWin = $('.win-body') && S.lastWin === S.view ? $('.win-body').scrollTop : 0; S.lastWin = S.view;
+    // the bottom bar scrolls sideways on phones: keep where the player left it across re-renders
+    const keepSlots = $('.slots') ? $('.slots').scrollLeft : null, viewWas = S.slotsView; S.slotsView = S.view;
     TIPS.length = 0;
     keepInputs(app, () => {
       if (!S.st) app.innerHTML = authView();
@@ -335,6 +337,16 @@
     const msgs = $('.msgs');
     if (msgs) msgs.scrollTop = keepScroll != null && !S.chatJump ? keepScroll : msgs.scrollHeight;
     if (keepWin && $('.win-body')) $('.win-body').scrollTop = keepWin;
+    const slots = $('.slots');
+    if (slots) {
+      if (keepSlots != null) slots.scrollLeft = keepSlots;
+      // a new page: bring its button into view if it is off the edge
+      const on = viewWas !== S.view && slots.querySelector('.slot.on');
+      if (on) {
+        const b = slots.getBoundingClientRect(), r = on.getBoundingClientRect();
+        if (r.left < b.left || r.right > b.right) slots.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
+      }
+    }
     S.chatJump = false;
     if (S.st && S.st.hero) setupScene();
   }
