@@ -1,0 +1,24 @@
+{
+  "id": "base",
+  "name": "The Pact of Five",
+  "description": "The lore of the base game: the world of Valdren, its six peoples and their cultures, the seven callings, the Twelve Signs and everything a hero's life story touches.",
+  "order": 0,
+  "core": true,
+  "shelves": {
+    "world": { "title": "The world", "blurb": "Valdren, the Underflame beneath it and the Hollows that break through." },
+    "era": { "title": "History", "blurb": "The ages of Valdren, from the Dawnfire to the Waking." },
+    "place": { "title": "Places", "blurb": "Lands, cities and roads beyond the cultures' own homes." },
+    "faction": { "title": "Powers", "blurb": "Pacts, crowns, councils and the people who work against them." },
+    "faith": { "title": "Faiths", "blurb": "What the peoples of Valdren pray to, sing to and swear by." },
+    "beast": { "title": "Bestiary", "blurb": "What waits in the Hollows and on the roads between them." },
+    "hollow": { "title": "Hollows", "blurb": "The dungeons: wounds where the Underflame breaks through." },
+    "race": { "title": "Peoples", "blurb": "The six peoples of Valdren. Every one of them can play every role." },
+    "culture": { "title": "Cultures", "blurb": "Where a hero was raised: three cultures for every people." },
+    "heritage": { "title": "Heritage", "blurb": "The sagas, gifts and kinship each people passes down." },
+    "class": { "title": "Callings", "blurb": "The seven classes, and the orders and traditions behind them." },
+    "path": { "title": "Paths", "blurb": "The two ways each calling can be walked, chosen at level 10." },
+    "origin": { "title": "The Twelve Signs", "blurb": "The Origins: the sky-sign a hero was born under, and the way of life that follows it." },
+    "backstory": { "title": "Backstories", "blurb": "What a hero was known for as a child, and the circle that knew them." },
+    "answer": { "title": "Life story", "blurb": "Notes on the moments of a hero's life.", "hidden": true }
+  }
+}

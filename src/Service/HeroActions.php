@@ -1,0 +1,405 @@
+<?php
+
+namespace App\Service;
+
+use App\Entity\Hero;
+use App\Entity\Item;
+use App\Entity\User;
+use App\Game\Combatants;
+use App\Game\Heritage;
+use App\Game\Items;
+use App\Game\LifeStory;
+use App\Game\Legends;
+use App\Game\Marks;
+use App\Game\Rules;
+use App\Game\Talents;
+use Doctrine\ORM\EntityManagerInterface;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
+
+/** Character growth: creating a hero, spending points, Path, Keystones, talents, Heritage, skill ranks and the loadout. */
+class HeroActions
+{
+    public const MAX_RANK = 10;
+
+    /** Marks are earned, never bought, and shown on the hero card. */
+    public const MARKS = Marks::ALL;
+
+    /** Look keys the creator may set, with the values the pixel renderer knows. */
+    private const LOOK = ['skin', 'hair', 'hairColor', 'eyes', 'eyeColor', 'mouth', 'beard', 'acc', 'build', 'height', 'dye1', 'dye2', 'metal', 'feature'];
+
+    public function __construct(private EntityManagerInterface $em, private Game $game, private Present $present)
+    {
+    }
+
+    public function create(User $user, array $in): Hero
+    {
+        if (count($this->em->getRepository(Hero::class)->findBy(['user' => $user])) >= Roster::MAX) {
+            throw new GameError(sprintf('An account holds %d heroes.', Roster::MAX));
+        }
+        $name = trim((string) ($in['name'] ?? ''));
+        if (!preg_match('/^[\p{L}][\p{L}\' -]{2,19}$/u', $name)) {
+            throw new GameError('Names are 3 to 20 letters (spaces, hyphens and apostrophes are fine).');
+        }
+        if ($this->em->getRepository(Hero::class)->findOneBy(['name' => $name])) {
+            throw new GameError('That name is taken.');
+        }
+        foreach (['race' => Rules::RACES, 'cls' => Rules::CLASSES, 'origin' => Rules::ORIGINS] as $k => $list) {
+            if (!isset($list[$in[$k] ?? ''])) {
+                throw new GameError("Pick a $k.");
+            }
+        }
+        try {
+            $story = LifeStory::clean($in['race'], $in['story'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            throw new GameError($e->getMessage());
+        }
+        $look = [];
+        foreach (self::LOOK as $k) {
+            $v = $in['look'][$k] ?? null;
+            if (is_string($v) && preg_match('/^[#a-zA-Z0-9]{1,16}$/', $v) || is_int($v) || is_float($v)) {
+                $look[$k] = $v;
+            }
+        }
+        // The renderer needs every colour; a client that sends none still gets a drawable hero.
+        $look += ['skin' => '#e2b394', 'hairColor' => '#5a3a22', 'eyeColor' => '#3a6ea5', 'dye1' => '#2f6fd0', 'dye2' => '#f1c40f', 'metal' => '#b8c2cc'];
+        $h = new Hero();
+        $h->user = $user;
+        $h->name = $name;
+        $h->race = $in['race'];
+        $h->cls = $in['cls'];
+        $h->origin = $in['origin'];
+        $h->story = $story;
+        $this->startBackstory($h, $story['answers']['youth']);
+        $h->marks = ['storyteller'];
+        $h->look = $look;
+        $h->createdAt = time();
+        $this->em->persist($h);
+
+        // Starter kit: plain commons in the class's own style. Everything after this drops, gets crafted or traded.
+        $c = Rules::CLASSES[$h->cls];
+        $r = new Randomizer(new Mt19937(crc32($name)));
+        foreach ($c['kit'] as $slot => $base) {
+            if ($base === 'none') {
+                continue;
+            }
+            $item = Items::fromSpec(Items::generate($r, 1, 'common', $slot, $base, array_keys($c['suggest'])));
+            $item->owner = $h;
+            $item->equipped = $slot;
+            $this->game->collectLook($h, $item);
+            $this->em->persist($item);
+        }
+        $this->game->post('tavern', sprintf('%s the %s %s arrived at the tavern.', $name, Rules::RACES[$h->race]['name'], $c['name']));
+        // An alternate hero starts with the account's wardrobe and Codex, and is the one played from now on.
+        $this->em->flush();
+        $user->activeHero = $h->id;
+        \App\Game\Funnel::mark($user, 'hero');
+        (new Roster($this->em))->share($user);
+
+        return $h;
+    }
+
+    /** Spend (positive) or refund (negative) points. Points carved in at Oath Day can't be refunded. */
+    public function spend(Hero $h, array $delta): void
+    {
+        $spent = $h->spent;
+        foreach ($delta as $attr => $n) {
+            if (!isset(Rules::ATTRIBUTES[$attr]) || !is_int($n)) {
+                throw new GameError('Unknown attribute.');
+            }
+            $new = ($spent[$attr] ?? 0) + $n;
+            if ($new < ($h->carved[$attr] ?? 0)) {
+                throw new GameError(sprintf('%s points spent before your Oath are carved in.', Rules::ATTRIBUTES[$attr][0]));
+            }
+            $spent[$attr] = $new;
+        }
+        $spent = array_filter($spent);
+        if (array_sum($spent) > $h->totalPoints()) {
+            throw new GameError('Not enough unspent points.');
+        }
+        $h->spent = $spent;
+    }
+
+    /** The Path is picked at 10 and can be changed until the Oath at 20 seals it. */
+    public function choosePath(Hero $h, string $path): void
+    {
+        if ($h->level < Rules::PATH_LEVEL) {
+            throw new GameError('Paths open at level '.Rules::PATH_LEVEL.'.');
+        }
+        if ($h->oathTaken) {
+            throw new GameError('Your Oath sealed your Path.');
+        }
+        if (!isset(Rules::CLASSES[$h->cls]['paths'][$path])) {
+            throw new GameError('Unknown Path.');
+        }
+        $h->path = $path;
+        $h->loadout = Combatants::defaultLoadout($h->cls, $h->level, $path, $h->talents);
+    }
+
+    /** Keystones are permanent: once picked at a level, that slot is filled for good. */
+    public function chooseKeystone(Hero $h, int $level, string $id): void
+    {
+        if (!in_array($level, $this->present->keystoneLevels($h->level), true)) {
+            throw new GameError('That Keystone level is not open yet.');
+        }
+        if (isset($h->keystones[$level])) {
+            throw new GameError('That Keystone is already chosen.');
+        }
+        if (!isset(Rules::KEYSTONES[$h->role()][$id]) || in_array($id, $h->keystones, true)) {
+            throw new GameError('Pick a Keystone you do not have yet.');
+        }
+        $ks = $h->keystones;
+        $ks[$level] = $id;
+        ksort($ks);
+        $h->keystones = $ks;
+        if (count($ks) === 1) {
+            $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s chose the %s Keystone.', $h->name, Rules::KEYSTONES[$h->role()][$id][0]));
+        }
+    }
+
+    /** Level 30: one skill becomes the hero's Signature, for good. It may carry a name of the owner's choosing. */
+    public function chooseSignature(Hero $h, string $skill, string $name): void
+    {
+        if ($h->level < Rules::SIGNATURE_LEVEL) {
+            throw new GameError(sprintf('The Signature skill opens at level %d.', Rules::SIGNATURE_LEVEL));
+        }
+        if ($h->signature) {
+            throw new GameError('Your Signature is chosen for good.');
+        }
+        $avail = Combatants::available($h->cls, $h->level, $h->path, $h->talents);
+        $ult = Rules::CLASSES[$h->cls]['ultimate'][0];
+        if (!isset($avail[$skill]) && $skill !== $ult) {
+            throw new GameError('Pick a skill you have.');
+        }
+        $name = trim(preg_replace('/\s+/', ' ', $name));
+        if ($name !== '' && !preg_match("/^[\p{L}][\p{L}' -]{2,29}$/u", $name)) {
+            throw new GameError('A Signature name is 3 to 30 letters, spaces or apostrophes.');
+        }
+        $h->signature = $skill;
+        $h->signatureName = $name ?: null;
+        $h->marks = array_values(array_unique([...$h->marks, 'signature']));
+        $label = $name ?: Rules::classSkills($h->cls)[$skill][0];
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf("%s made %s their Signature: %s's %s.", $h->name, Rules::classSkills($h->cls)[$skill][0], $h->name, $label), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    /** Level 50: one of the two Legend forms of the hero's Path, for good. */
+    public function chooseLegend(Hero $h, string $form): void
+    {
+        if ($h->level < Legends::LEVEL) {
+            throw new GameError(sprintf('Legend forms open at level %d.', Legends::LEVEL));
+        }
+        if ($h->legend) {
+            throw new GameError('Your Legend form is taken for good.');
+        }
+        $f = Legends::get($h->path, $form) ?? throw new GameError('Pick one of the two forms of your Path.');
+        $h->legend = $form;
+        $h->marks = array_values(array_unique([...$h->marks, 'legend']));
+        $this->game->post('tavern', sprintf('%s has become a Legend: %s. %s', $h->name, Legends::titled($h->name, $h->path, $form), $f[1]), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    public function rankUp(Hero $h, string $skill): void
+    {
+        $all = Rules::classSkills($h->cls);
+        if (!isset($all[$skill])) {
+            throw new GameError('Unknown skill.');
+        }
+        $s = $all[$skill];
+        $taught = $s[7] === 'talent' && isset(Talents::grants($h->cls, $h->talents)[$skill]);
+        if ($s[1] > $h->level || ($s[7] !== 'core' && $s[7] !== 'ultimate' && $s[7] !== $h->path && !$taught)) {
+            throw new GameError('You have not unlocked that skill.');
+        }
+        if ($h->skillPoints() < 1) {
+            throw new GameError('No skill points left. You get one per level.');
+        }
+        $rank = max(1, $h->skillRanks[$skill] ?? 1);
+        if ($rank >= self::MAX_RANK) {
+            throw new GameError('That skill is at its highest rank.');
+        }
+        $ranks = $h->skillRanks;
+        $ranks[$skill] = $rank + 1;
+        $h->skillRanks = $ranks;
+    }
+
+    /** Skill points are free to move: resetting ranks costs nothing but a little gold. */
+    public function resetRanks(Hero $h): void
+    {
+        $cost = 10 * $h->level;
+        if ((int) $h->gold < $cost) {
+            throw new GameError("Resetting skill ranks costs $cost gold.");
+        }
+        $h->gold = (string) ((int) $h->gold - $cost);
+        $h->skillRanks = [];
+    }
+
+    public function setLoadout(Hero $h, array $ids): void
+    {
+        $avail = Combatants::available($h->cls, $h->level, $h->path, $h->talents);
+        $ids = array_values(array_unique(array_filter($ids, 'is_string')));
+        if (count($ids) > Rules::LOADOUT_SIZE) {
+            throw new GameError('Your loadout holds '.Rules::LOADOUT_SIZE.' skills.');
+        }
+        foreach ($ids as $id) {
+            if (!isset($avail[$id])) {
+                throw new GameError('You cannot slot that skill.');
+            }
+        }
+        $h->loadout = $ids;
+    }
+
+    /** Learns class talents in order (a whole path at once): all of them or none. */
+    public function learnTalent(Hero $h, array $nodes): void
+    {
+        $tree = Talents::tree($h->cls);
+        $t = $h->talents;
+        $free = $h->talentPoints();
+        if (!$nodes) {
+            throw new GameError('Pick a talent.');
+        }
+        foreach ($nodes as $node) {
+            if ($err = Talents::check($tree, $t, (string) $node, $free)) {
+                throw new GameError($err === 'No points left.' ? 'Not enough talent points. You get two per level.' : $err);
+            }
+            $t[$node] = 1;
+            --$free;
+        }
+        $h->talents = $t;
+        foreach ($nodes as $node) {
+            $n = $tree['nodes'][$node];
+            if (in_array($n['kind'], ['capstone', 'keystone'], true)) {
+                $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s mastered %s.', $h->name, $n['name']), ['type' => 'hero', 'hero' => $h->id]);
+            }
+        }
+    }
+
+    /** Talents can be moved for gold; skills they taught leave the loadout. */
+    public function resetTalents(Hero $h): void
+    {
+        $cost = self::talentResetCost($h);
+        if ((int) $h->gold < $cost) {
+            throw new GameError("Resetting talents costs $cost gold.");
+        }
+        $h->gold = (string) ((int) $h->gold - $cost);
+        $h->talents = [];
+        $avail = Combatants::available($h->cls, $h->level, $h->path);
+        $h->loadout = array_values(array_filter($h->loadout, fn ($id) => isset($avail[$id])));
+    }
+
+    public static function talentResetCost(Hero $h): int
+    {
+        return 25 * $h->level;
+    }
+
+    /** A backstory sets the culture, a head start of Renown and the first nodes along its branch. */
+    private function startBackstory(Hero $h, string $backstory): void
+    {
+        $h->backstory = $backstory;
+        $h->culture = Heritage::backstories($h->race)[$backstory][1];
+        $h->renown = max($h->renown, Heritage::BACKSTORY_RENOWN);
+        $h->heritage = Heritage::backstoryStart($h->race, $backstory);
+    }
+
+    /**
+     * Heroes made before life stories write theirs once. They get the Renown head start and follow the culture that
+     * raised them; learned nodes stay if they are in that culture or the trunk, and the rest come back as points.
+     */
+    public function writeStory(Hero $h, mixed $input): void
+    {
+        if ($h->story) {
+            throw new GameError('Your story is already written.');
+        }
+        try {
+            $story = LifeStory::clean($h->race, $input);
+        } catch (\InvalidArgumentException $e) {
+            throw new GameError($e->getMessage());
+        }
+        $culture = $story['answers']['home'];
+        $tree = Heritage::tree($h->race);
+        $h->story = $story;
+        $h->backstory = $story['answers']['youth'];
+        $h->marks = array_values(array_unique([...$h->marks, 'storyteller']));
+        $h->culture = $culture;
+        $h->renown += Heritage::BACKSTORY_RENOWN;
+        $h->heritage = array_filter($h->heritage, fn ($id) => isset($tree['nodes'][$id]) && in_array($tree['nodes'][$id]['culture'], [null, $culture], true), ARRAY_FILTER_USE_KEY);
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s told the tavern their life story.', $h->name), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    /** Follow one culture of your race. Switching later costs gold and gives back the points in the old culture. */
+    public function chooseCulture(Hero $h, string $culture): void
+    {
+        $tree = Heritage::tree($h->race);
+        if (!isset($tree['cultures'][$culture])) {
+            throw new GameError('Unknown culture.');
+        }
+        if (($h->heritage['root'] ?? 0) < 1) {
+            throw new GameError(sprintf('Learn %s first.', $tree['nodes']['root']['name']));
+        }
+        if ($h->culture === $culture) {
+            return;
+        }
+        if ($h->culture !== null) {
+            $cost = Heritage::CULTURE_SWAP_GOLD * $h->level;
+            if ((int) $h->gold < $cost) {
+                throw new GameError("Following another culture costs $cost gold.");
+            }
+            $h->gold = (string) ((int) $h->gold - $cost);
+            $h->heritage = array_filter($h->heritage, fn ($id) => $tree['nodes'][$id]['culture'] === null, ARRAY_FILTER_USE_KEY);
+        }
+        $h->culture = $culture;
+        $this->game->post($h->guild ? 'guild:'.$h->guild->id : 'tavern', sprintf('%s now follows the ways of %s.', $h->name, $tree['cultures'][$culture][0]), ['type' => 'hero', 'hero' => $h->id]);
+    }
+
+    /** Learns Heritage nodes in order (a whole path at once): all of them or none. */
+    public function learnHeritage(Hero $h, array $nodes): void
+    {
+        $tree = Heritage::tree($h->race);
+        $t = $h->heritage;
+        $free = $h->heritagePoints();
+        if (!$nodes) {
+            throw new GameError('Pick a node.');
+        }
+        foreach ($nodes as $node) {
+            if ($err = Talents::check($tree, $t, (string) $node, $free, $h->culture)) {
+                throw new GameError($err === 'No points left.' ? 'Not enough Heritage points. Run dungeons with your own race to earn Renown.' : $err);
+            }
+            $t[$node] = 1;
+            --$free;
+        }
+        $h->heritage = $t;
+    }
+
+    public function setLootPolicy(Hero $h, string $policy): void
+    {
+        if (!in_array($policy, ['upgrades', 'greed', 'pass'], true)) {
+            throw new GameError('Unknown loot setting.');
+        }
+        $h->lootPolicy = $policy;
+    }
+
+    /** Spends unspent points the class's suggested way. Used by the "suggest" button and by demo heroes. */
+    public function autoSpend(Hero $h): void
+    {
+        $left = $h->unspentPoints();
+        if ($left <= 0) {
+            return;
+        }
+        $w = Rules::CLASSES[$h->cls]['suggest'];
+        $sum = array_sum($w);
+        $spent = $h->spent;
+        $target = array_sum($spent) + $left;
+        foreach ($w as $a => $n) {
+            $want = (int) floor($target * $n / $sum);
+            $add = max(0, min($left, $want - ($spent[$a] ?? 0)));
+            $spent[$a] = ($spent[$a] ?? 0) + $add;
+            $left -= $add;
+        }
+        $first = array_key_first($w);
+        $spent[$first] = ($spent[$first] ?? 0) + $left;
+        $h->spent = array_filter($spent);
+    }
+
+    /** Owned items not worn, for convenience. @return Item[] */
+    public function bag(Hero $h): array
+    {
+        return $this->em->getRepository(Item::class)->findBy(['owner' => $h, 'equipped' => null, 'price' => null]);
+    }
+}

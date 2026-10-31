@@ -1,0 +1,40 @@
+{% extends 'legal/base.html.twig' %}
+{% block body %}
+<p>Idle Teams is run by {{ operator ?? '[operator]' }}{% if address %}, {{ address }}{% endif %}. We are the controller of the personal data described here. Questions and requests go to {% if contact %}<a href="mailto:{{ contact }}">{{ contact }}</a>{% else %}[contact address]{% endif %}.</p>
+<p>We keep only what the game needs to run. We do not sell data, show ads, or use tracking or advertising cookies.</p>
+
+<h2>What we keep and why</h2>
+<table>
+    <tr><th>Data</th><th>Why</th><th>Legal basis (GDPR)</th></tr>
+    <tr><td>Username and a hash of your password</td><td>To log you in</td><td>Contract, art. 6(1)(b)</td></tr>
+    <tr><td>Email address, if you add one</td><td>To reset a forgotten password and confirm the address</td><td>Contract, art. 6(1)(b)</td></tr>
+    <tr><td>Your heroes: names, looks, life stories, gear, progress, group and guild</td><td>That is the game</td><td>Contract, art. 6(1)(b)</td></tr>
+    <tr><td>Chat lines, tavern posts and group requests</td><td>Talking to other players</td><td>Contract, art. 6(1)(b)</td></tr>
+    <tr><td>Reports, mutes and blocks</td><td>Keeping chat safe</td><td>Legitimate interest, art. 6(1)(f)</td></tr>
+    <tr><td>Push subscription (an address from your browser's push service)</td><td>Telling you when your group falls or loot waits, only if you turn notifications on</td><td>Consent, art. 6(1)(a); turn it off any time in Settings</td></tr>
+    <tr><td>Your IP address, for at most an hour</td><td>Rate limits against abuse of login, sign-up and mail</td><td>Legitimate interest, art. 6(1)(f)</td></tr>
+    <tr><td>Purchases, if the shop is open: what you bought and when. Card details go to the payment provider and never reach us</td><td>Delivering what you bought, bookkeeping</td><td>Contract and legal obligation, art. 6(1)(b) and (c)</td></tr>
+    <tr><td>When your account first reached each step of the first days (made a hero, joined a group, first clear, came back the next day), kept with your account. We only ever look at totals</td><td>Making the first days better</td><td>Legitimate interest, art. 6(1)(f)</td></tr>
+</table>
+
+<h2>Cookies and storage</h2>
+<p>One cookie keeps you logged in. It is strictly necessary, so it needs no consent, and it ends when you log out. The game also keeps your sound and display settings in your browser's local storage. Nothing else is stored on your device.</p>
+
+<h2>What other players see</h2>
+<p>Your hero's name, looks, level, class, choices, gear, marks and life story, your chat lines and posts. Battle reports show the heroes in a run; they stay part of the other players' history after you leave a group or delete your account.</p>
+
+<h2>Who else handles it</h2>
+<p>Our hosting provider stores the data on our behalf, our mail provider sends account mail, and if you turn on notifications your browser's push service (for example Google, Mozilla or Apple) delivers them. When the shop is open, the payment provider (Stripe) handles payments as its own controller under its own privacy policy. Each works under a data processing agreement where the law asks for one. If data leaves the European Economic Area, it does so under an adequacy decision or the EU standard contractual clauses.</p>
+
+<h2>How long we keep it</h2>
+<p>Account and hero data until you delete your account. Rate limit records for an hour. Moderation reports for up to a year after they are closed. Purchase records for as long as tax law requires (seven years in the Netherlands). Backups roll over within 30 days, so deleted data leaves them by then.</p>
+
+<h2>Your rights</h2>
+<p>You can see and download everything we keep about you (Settings, Your data, Download my data), correct it, and delete your account and every hero on it (Settings, Your data, Delete my account). You can also object to processing based on legitimate interest, ask us to restrict it, and withdraw consent at any time. Write to us for anything the game does not do itself; we answer within a month. You can complain to your data protection authority; in the Netherlands that is the Autoriteit Persoonsgegevens.</p>
+
+<h2>Age</h2>
+<p>You must be 16 or older to make an account, or have permission from a parent or guardian.</p>
+
+<h2>Changes</h2>
+<p>When this policy changes we update the date at the top, and tell players in the game if the change matters.</p>
+{% endblock %}

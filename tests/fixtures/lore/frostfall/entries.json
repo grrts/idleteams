@@ -1,0 +1,5 @@
+{ "entries": {
+  "race:dwarf": { "summary": "Short, stubborn and now cold.", "sections": [{ "title": "The ice holds", "text": "Some dwarves went north to [[region:frostfall]]." }], "facts": [["Northern holds", "Three"]], "see": ["region:frostfall", "place:hold"] },
+  "region:frostfall": { "title": "Frostfall", "summary": "The frozen north.", "see": ["place:nowhere"] },
+  "place:hold": { "replace": true, "title": "The Old Hold", "summary": "A mountain, older than it looked." }
+} }

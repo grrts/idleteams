@@ -1,0 +1,1 @@
+{ "id": "core", "name": "Core", "order": 0, "core": true, "shelves": { "race": { "title": "Peoples" }, "place": { "title": "Places" } } }

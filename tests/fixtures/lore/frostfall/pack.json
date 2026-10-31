@@ -1,0 +1,1 @@
+{ "id": "frostfall", "name": "Frostfall", "order": 10, "requires": ["core"], "shelves": { "region": { "title": "Regions" } } }

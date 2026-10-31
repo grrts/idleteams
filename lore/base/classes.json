@@ -1,0 +1,109 @@
+{
+  "entries": {
+    "class:guardian": {
+      "title": "Guardian",
+      "kicker": "The shield in front",
+      "summary": "Armoured oath-keepers who stand between the band and whatever comes out of the dark. A guardian's job is simple: everything hits them, and they do not fall.",
+      "sections": [
+        { "title": "The calling", "text": "Guardians carry the oldest calling of the [[faction:pact|Pact]]. Brannoc Vale of the [[era:first-five|First Five]] was the first, and the shield oath he swore is still the one every guardian takes: I stand in front so you do not have to. Guardians train in sword, shield and plate, and in the hardest skill of all: standing still while terrible things happen." },
+        { "title": "Where they come from", "text": "The knightly yards of the [[culture:human.crownlands|Crownlands]] and the shieldwall of [[culture:dwarf.ironhold|Ironhold]] produce the most guardians, but the oath halls take anyone. Orc guardians are feared, draka guardians are almost impossible to move, and felkin guardians are rare and very smug about it." },
+        { "title": "Oathbound", "text": "A guardian's oath is said to make them stronger when a friend is in danger. Whether that is magic or just stubbornness, nobody has ever been able to tell." }
+      ],
+      "facts": [["Role", "Tank"], ["Resource", "Rage"], ["Order", "The Shieldsworn oath halls"], ["Famous guardian", "Brannoc Vale of the First Five"]],
+      "quote": ["I stand in front so you do not have to.", "The guardian's shield oath"],
+      "see": ["era:first-five", "culture:dwarf.ironhold", "culture:human.crownlands"]
+    },
+    "path:guardian.bulwark": { "title": "Bulwark", "summary": "The guardian as a wall: blocks, shields and armour raised over the whole band, the way the Ironhold shieldwall holds a tunnel.", "see": ["culture:dwarf.ironhold"] },
+    "path:guardian.vanguard": { "title": "Vanguard", "summary": "The guardian as a spearhead: holds every enemy's eye by hitting it hard, the way the Crownlands knights charged in the Banner Wars.", "see": ["era:banners"] },
+    "class:warden": {
+      "title": "Warden",
+      "kicker": "The wild as armour",
+      "summary": "Keepers of the wild roads who let the forest wear them: bark for skin, roots for feet and thorns for anyone who comes too close.",
+      "sections": [
+        { "title": "The calling", "text": "Wardens are the armoured hand of [[faith:green|the Green]]. Where a druid asks the forest to heal, a warden asks it to hold, and the forest answers by growing over them: bark across the skin, roots into the earth, thorns along the arms. A warden in full bark can stand in a river of fire and keep their footing." },
+        { "title": "Where they come from", "text": "The order began in the Elderwood before the [[era:sundering|Sundering]], guarding its roads. Elves of [[culture:elf.silverwood|Silverwood]] still keep its oldest lodges. The frontier folk of the [[culture:human.highmarch|Highmarch]] took the name for their pass-guards, and real wardens think this is sweet." },
+        { "title": "The cost", "text": "Wardens heal fast and hit back hard, but the bark does not always come off completely. Old wardens creak when they walk, and some of the oldest have quietly become trees." }
+      ],
+      "facts": [["Role", "Tank"], ["Resource", "Rage"], ["Faith", "[[faith:green|The Green]]"], ["Oldest lodge", "Silverwood"]],
+      "quote": ["Let it wear you. It knows what it is doing.", "Warden teaching"],
+      "see": ["faith:green", "culture:elf.silverwood"]
+    },
+    "path:warden.oakheart": { "title": "Oakheart", "summary": "The warden as the old oak: slow to fall, quick to mend, healing every wound the way a tree heals around an axe-cut.", "see": ["faith:green"] },
+    "path:warden.thornguard": { "title": "Thornguard", "summary": "The warden as the bramble: every blow against them comes back as thorns, and the bigger the crowd, the worse it goes for the crowd.", "see": ["faith:green"] },
+    "class:cleric": {
+      "title": "Cleric",
+      "kicker": "The light that mends",
+      "summary": "Priests of the Lantern Faith who carry the Undying Light into the Hollows, mending wounds, warding friends and smiting what does not belong.",
+      "sections": [
+        { "title": "The calling", "text": "Clerics are priests of the [[faith:lantern|Lantern Faith]] who have learned to fan the Undying Light in others. A touch from a cleric closes wounds, a prayer shields a friend before the blow lands, and a hymn can bring a whole band back from the edge." },
+        { "title": "Where they come from", "text": "Most clerics are human and trained in the chapels, but the Light lives in every heart. Dwarven rune-priests of [[culture:dwarf.runedeep|Runedeep]] who take the Lantern oath are formidable. Draka [[culture:draka.emberkin|Emberkin]] menders who become clerics heal with light and warmth at once. Durga Stonesong of the First Five healed with runes, but the clerics claim her anyway." },
+        { "title": "In the Hollow", "text": "The Undying Light burns brightest against the dark, which is why clerics are so strong in a [[world:hollows|Hollow]]. It is also why cinderborn go for them first." }
+      ],
+      "facts": [["Role", "Healer"], ["Resource", "Mana"], ["Faith", "[[faith:lantern|The Lantern Faith]]"]],
+      "quote": ["The Light is not mine. I am only holding the door.", "Cleric's prayer"],
+      "see": ["faith:lantern"]
+    },
+    "path:cleric.lightbearer": { "title": "Lightbearer", "summary": "The cleric as a beacon: great bursts of healing light that close the worst wounds in a single breath.", "see": ["faith:lantern"] },
+    "path:cleric.sentinel": { "title": "Sentinel", "summary": "The cleric as a warden of the Light: shields woven before the blow lands, so the wound never happens at all.", "see": ["faith:lantern"] },
+    "class:druid": {
+      "title": "Druid",
+      "kicker": "The healing of growing things",
+      "summary": "Healers of the Green who mend the way spring mends: slowly, then all at once. Their healing grows through a long fight and never quite stops.",
+      "sections": [
+        { "title": "The calling", "text": "Druids follow [[faith:green|the Green]] and heal through growth. Their spells plant life in a wound and let it bloom, so a druid's healing builds over a long fight until nothing can keep up with it. They call on the moon as well as the forest, and some call on the beasts too." },
+        { "title": "Where they come from", "text": "The healers of [[culture:elf.duskvale|Duskvale]] taught the first druids of other peoples, and the glades still train the best. Felkin of [[culture:felkin.hearthpaw|Hearthpaw]] make natural druids. Orc druids of the Stormcallers ask the rain to heal, and it usually listens." },
+        { "title": "Patience", "text": "A druid's greatest weapon is patience. They heal the wound before it happens, and the one after that, and keep going for as long as the band needs. In a three-hour Hollow, that is a very long time." }
+      ],
+      "facts": [["Role", "Healer"], ["Resource", "Mana"], ["Faith", "[[faith:green|The Green]]"], ["Best taught in", "Duskvale"]],
+      "quote": ["Spring is never in a hurry. It always arrives.", "Druid saying"],
+      "see": ["faith:green", "culture:elf.duskvale"]
+    },
+    "path:druid.grove": { "title": "Grove", "summary": "The druid as a garden: healing that grows and spreads through a long fight until every ally stands in bloom.", "see": ["faith:green"] },
+    "path:druid.wildcaller": { "title": "Wildcaller", "summary": "The druid as a friend of beasts: healing spirits of the wild that mend allies and bite enemies.", "see": ["faith:green"] },
+    "class:ranger": {
+      "title": "Ranger",
+      "kicker": "The arrow from the edge",
+      "summary": "Hunters, scouts and beast-friends of the Wayfarers' Lodge, who shoot what needs shooting from wherever is safest, and are very rarely wrong.",
+      "sections": [
+        { "title": "The calling", "text": "Rangers are trained by the [[faction:wayfarers|Wayfarers' Lodge]] in bow, trap and the company of beasts. They mark the prey, set the snare and put the arrow where it matters, and many walk with an animal companion that fights at their side." },
+        { "title": "Where they come from", "text": "Elves of [[culture:elf.silverwood|Silverwood]] are the most famous rangers: Ilyra of the [[era:first-five|First Five]] never missed. Highmarch scouts, orc outriders and Sandstrider runners all make fine rangers, and the lodge takes anyone who can sit still for a day." },
+        { "title": "The hunt", "text": "Rangers treat a Hollow like any other hunt: study the prey, find its weak spot, and wait. The waiting is the hard part, and the part they are best at." }
+      ],
+      "facts": [["Role", "Damage"], ["Resource", "Energy"], ["Order", "[[faction:wayfarers|The Wayfarers' Lodge]]"], ["Famous ranger", "Ilyra of the Silverwood"]],
+      "quote": ["Never take the second shot. Take the first one right.", "Wayfarer teaching"],
+      "see": ["faction:wayfarers", "culture:elf.silverwood"]
+    },
+    "path:ranger.sharpshooter": { "title": "Sharpshooter", "summary": "The ranger as Ilyra was: one target, one arrow, and a crit that ends the argument.", "see": ["era:first-five"] },
+    "path:ranger.beastmaster": { "title": "Beastmaster", "summary": "The ranger and their companion as one hunter with two bodies, the oldest way of the Wayfarers.", "see": ["faction:wayfarers"] },
+    "class:mage": {
+      "title": "Mage",
+      "kicker": "The weave of fire and frost",
+      "summary": "Scholars of the arcane who pull power out of the world's weave and throw it, as fire, frost or raw force. Mages win fights. They are also why fights are so loud.",
+      "sections": [
+        { "title": "The calling", "text": "Mages work with the weave that runs through everything, the same one [[faith:stars|Starlore]] reads in the sky. With training, they can pull at it: fire drawn up from the [[world:underflame|Underflame]], frost from the cold between stars, raw force from the weave itself." },
+        { "title": "Where they come from", "text": "The great school of magic is [[culture:elf.starspire|Starspire]], whose [[faction:conclave|Conclave]] trains mages over centuries. Human hedge-wizards learn faster and messier. Draka mages find fire very easy and frost very rude." },
+        { "title": "The danger", "text": "Fire magic draws on the Underflame, and the Underflame likes to be drawn on. Starspire teaches every mage frost alongside fire, so they never forget what it feels like to say no to the fire." }
+      ],
+      "facts": [["Role", "Damage"], ["Resource", "Mana"], ["School", "[[culture:elf.starspire|Starspire]]"]],
+      "quote": ["Fire is easy. That is the problem.", "Starspire archmage"],
+      "see": ["culture:elf.starspire", "faction:conclave", "world:underflame"]
+    },
+    "path:mage.arcanist": { "title": "Arcanist", "summary": "The mage who pulls the weave as hard as it will go: bursts of force and MEGA crits that leave nothing standing.", "see": ["faith:stars"] },
+    "path:mage.frostbinder": { "title": "Frostbinder", "summary": "The mage who says no to the fire: freezes and frost that slow the enemy and take the weight off the tank.", "see": ["beast:cinderborn"] },
+    "class:rogue": {
+      "title": "Rogue",
+      "kicker": "The knife in the dark",
+      "summary": "Duelists, thieves and tricksters of the Quiet Hand, who strike where it hurts most and are somewhere else before anyone can strike back.",
+      "sections": [
+        { "title": "The calling", "text": "Rogues fight with speed, poison and timing. They chain strikes on a single target, slip out of danger with smoke, and turn an enemy's armour against it. In a [[world:hollows|Hollow]] they are the ones who reach the heart." },
+        { "title": "Where they come from", "text": "The [[faction:quiet-hand|Quiet Hand]] trains most of them, from its first house in [[culture:human.freeport|Freeport]] to the rooftops of [[place:saffra|Saffra]]. Felkin of the [[culture:felkin.moonclaw|Moonclaw]] make natural rogues. Dwarven rogues are rare, loud, and somehow still effective." },
+        { "title": "Pell's luck", "text": "Pell Quickwhisker of the [[era:first-five|First Five]] stole the heart of the Cinder Gate out of its guardian's chest. Every rogue since has wanted to do something equally good, and equally showy." }
+      ],
+      "facts": [["Role", "Damage"], ["Resource", "Energy"], ["Guild", "[[faction:quiet-hand|The Quiet Hand]]"], ["Famous rogue", "Pell Quickwhisker"]],
+      "quote": ["Never steal from the band. Everyone else is fair game.", "Quiet Hand rule"],
+      "see": ["faction:quiet-hand", "culture:felkin.moonclaw"]
+    },
+    "path:rogue.duelist": { "title": "Duelist", "summary": "The rogue who picks one enemy and does not stop: combo chains on a single target, Freeport style.", "see": ["culture:human.freeport"] },
+    "path:rogue.trickster": { "title": "Trickster", "summary": "The rogue who fights dirty: poisons, debuffs and interrupts, the way the Moonclaw hunt the roofs.", "see": ["culture:felkin.moonclaw"] }
+  }
+}

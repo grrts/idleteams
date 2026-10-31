@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Deploy the current main (or the branch/tag given) on the server, in the app folder:
+#   bin/deploy            # main
+#   bin/deploy v0.3.0     # a tag
+# Takes a backup first, so a bad migration can be rolled back with the restore steps in the README.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+REF="${1:-main}"
+PHP="${PHP:-php}"
+COMPOSER="${COMPOSER:-composer}"
+
+echo "==> Fetching $REF"
+git fetch --tags origin
+if git rev-parse --verify --quiet "origin/$REF" >/dev/null; then TARGET="origin/$REF"; else TARGET="$REF"; fi
+BEFORE="$(git rev-parse --short HEAD)"
+git checkout --quiet --detach "$TARGET"
+echo "    $BEFORE -> $(git rev-parse --short HEAD)"
+
+echo "==> Dependencies"
+APP_ENV=prod "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress
+APP_ENV=prod "$COMPOSER" dump-env prod
+
+echo "==> Backup before migrating"
+"$PHP" bin/console app:backup --env=prod
+
+echo "==> Migrations"
+"$PHP" bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=prod
+
+echo "==> Cache"
+"$PHP" bin/console cache:clear --env=prod
+"$PHP" bin/console cache:warmup --env=prod
+
+if [ -n "${RELOAD_CMD:-}" ]; then
+  echo "==> Reloading: $RELOAD_CMD"
+  eval "$RELOAD_CMD"
+fi
+
+echo "==> Health"
+if [ -n "${HEALTH_URL:-}" ]; then
+  curl -fsS "$HEALTH_URL" && echo
+else
+  echo "    Set HEALTH_URL=https://your-domain/api/health to check it here."
+fi
+echo "Deployed $(git rev-parse --short HEAD). To go back: bin/deploy $BEFORE"

@@ -1,0 +1,8 @@
+{
+  "id": "base",
+  "name": "The Pact of Five",
+  "description": "The base game.",
+  "order": 0,
+  "core": true,
+  "enabled": true
+}

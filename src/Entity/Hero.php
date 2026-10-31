@@ -1,0 +1,210 @@
+<?php
+
+namespace App\Entity;
+
+use App\Game\Heritage;
+use App\Game\Rules;
+use App\Game\Talents;
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+class Hero
+{
+    #[ORM\Id, ORM\GeneratedValue, ORM\Column]
+    public ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    public User $user;
+
+    #[ORM\Column(length: 24, unique: true)]
+    public string $name = '';
+
+    // Permanent choices
+    #[ORM\Column(length: 16)]
+    public string $race = 'human';
+
+    #[ORM\Column(length: 16)]
+    public string $cls = 'guardian';
+
+    #[ORM\Column(length: 16)]
+    public string $origin = 'anvil';
+
+    #[ORM\Column(length: 16, nullable: true)]
+    public ?string $path = null;
+
+    /** True once Oath Day (level 20) has locked the Path and the points spent so far. */
+    #[ORM\Column]
+    public bool $oathTaken = false;
+
+    /** Appearance read by the pixel renderer: skin, hair, hairColor, eyes, eyeColor, mouth, beard, acc, build, height, dye1, dye2, metal. */
+    #[ORM\Column(type: 'json')]
+    public array $look = [];
+
+    #[ORM\Column]
+    public int $level = 1;
+
+    #[ORM\Column(type: 'bigint')]
+    public string $xp = '0';
+
+    /** Attribute points the player spent: attr => points. Race, class and Origin points are derived. */
+    #[ORM\Column(type: 'json')]
+    public array $spent = [];
+
+    /** Points carved in at Oath Day; they can't be refunded. */
+    #[ORM\Column(type: 'json')]
+    public array $carved = [];
+
+    #[ORM\Column(type: 'json')]
+    public array $skillRanks = [];
+
+    /** Up to four active skill ids; the ultimate is always slotted once unlocked. */
+    #[ORM\Column(type: 'json')]
+    public array $loadout = [];
+
+    /** Keystone level => keystone id. */
+    #[ORM\Column(type: 'json')]
+    public array $keystones = [];
+
+    /** Class talent tree: node id => rank. */
+    #[ORM\Column(type: 'json')]
+    public array $talents = [];
+
+    /** Race tree: node id => rank. */
+    #[ORM\Column(type: 'json')]
+    public array $heritage = [];
+
+    /** The culture of the hero's race they follow; only its branch of the race tree can be learned. */
+    #[ORM\Column(length: 16, nullable: true)]
+    public ?string $culture = null;
+
+    /** Chosen at creation: one per branch of each culture. Sets the starting culture and Heritage, and kin. */
+    #[ORM\Column(length: 16, nullable: true)]
+    public ?string $backstory = null;
+
+    /** The life story written at creation: [answers => [question => answer], notes]. See LifeStory. */
+    #[ORM\Column(type: 'json')]
+    public array $story = [];
+
+    /** Earned by running dungeons with groupmates of the same race. Sets the Heritage rank. */
+    #[ORM\Column]
+    public int $renown = 0;
+
+    /** Legendary powers found, kept forever. */
+    #[ORM\Column(type: 'json')]
+    public array $codex = [];
+
+    #[ORM\Column(type: 'json')]
+    public array $marks = [];
+
+    /** Level 30: the one skill that becomes this hero's own (permanent), the name its owner gave it, and its Mastery XP. */
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $signature = null;
+
+    #[ORM\Column(length: 30, nullable: true)]
+    public ?string $signatureName = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $signatureXp = 0;
+
+    /** Every look this hero has worn (Items::lookKey), kept for the wardrobe. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $wardrobe = [];
+
+    /** Shown instead of the worn item, per slot: a wardrobe look, or 'hidden' for head and back. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $outfit = [];
+
+    /** Joined a group in its tier's scarcest role: the next chests roll twice and keep the higher. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $bonusRolls = 0;
+
+    /** When the last scarce-role bonus was given (one a day). */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $scarceAt = 0;
+
+    /** The short first fight after the hero is made: played or skipped. */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $prologueDone = false;
+
+    /** Level 50: the Legend form of this hero's Path (permanent). */
+    #[ORM\Column(length: 30, nullable: true)]
+    public ?string $legend = null;
+
+    /** Career counters: battles, dungeons (full clears), bossKills, deaths, legendaries. */
+    #[ORM\Column(type: 'json')]
+    public array $career = [];
+
+    #[ORM\Column(type: 'bigint')]
+    public string $gold = '0';
+
+    #[ORM\Column]
+    public int $materials = 0;
+
+    #[ORM\Column]
+    public int $essence = 0;
+
+    /** How the server rolls for you when you don't: upgrades (need on upgrades, greed the rest), greed, pass. */
+    #[ORM\Column(length: 12)]
+    public string $lootPolicy = 'upgrades';
+
+    #[ORM\ManyToOne(targetEntity: Party::class, inversedBy: 'members')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    public ?Party $party = null;
+
+    #[ORM\ManyToOne(targetEntity: Guild::class, inversedBy: 'members')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    public ?Guild $guild = null;
+
+    #[ORM\Column(length: 12)]
+    public string $guildRank = 'member';
+
+    #[ORM\Column]
+    public int $createdAt = 0;
+
+    public function role(): string
+    {
+        return Rules::role($this->cls);
+    }
+
+    public function totalPoints(): int
+    {
+        return ($this->level - 1) * Rules::POINTS_PER_LEVEL;
+    }
+
+    public function unspentPoints(): int
+    {
+        return $this->totalPoints() - array_sum($this->spent);
+    }
+
+    public function talentPoints(): int
+    {
+        return Talents::points($this->level) - array_sum($this->talents);
+    }
+
+    public function heritageRank(): int
+    {
+        return Heritage::rank($this->renown);
+    }
+
+    public function heritagePoints(): int
+    {
+        return Heritage::points($this->heritageRank()) - array_sum($this->heritage);
+    }
+
+    public function skillPoints(): int
+    {
+        $spent = 0;
+        foreach ($this->skillRanks as $r) {
+            $spent += max(0, $r - 1);
+        }
+
+        return ($this->level - 1) - $spent;
+    }
+
+    /** New heroes are flagged on the tavern board for their first days, and veterans earn a bonus for taking them in. */
+    public function isNewcomer(?int $now = null): bool
+    {
+        return !$this->user->demo && $this->level < Rules::NEWCOMER_LEVEL && ($now ?? time()) - $this->createdAt < Rules::NEWCOMER_DAYS * 86400;
+    }
+}

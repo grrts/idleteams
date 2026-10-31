@@ -1,0 +1,594 @@
+{
+  "id": "sundered-keep",
+  "name": "The Sundered Keep",
+  "summary": "The keep above the old quarries, taken back from the dead and the trolls in a single night. Forty heroes, eight squads of five, four fronts and a king.",
+  "level": 50,
+  "health": 2.2,
+  "damage": 1.5,
+  "fronts": [
+    {
+      "name": "The Breach",
+      "summary": "Where the trolls broke the outer wall. Hold it, or the courtyard floods with them.",
+      "wings": [
+        {
+          "name": "The Broken Wall",
+          "scene": {
+            "sky": [
+              "#141c2a",
+              "#3a4a60"
+            ],
+            "rock": "#2c3440",
+            "rock2": "#3a4452",
+            "floor": "#a8b8c8",
+            "floor2": "#ccdae6",
+            "glow": "#ffd080",
+            "accent": "#a0e0ff",
+            "prop": "cliffs"
+          }
+        }
+      ],
+      "enemies": {
+        "whelp": {
+          "name": "Troll Whelp",
+          "kind": "add",
+          "art": "trollWhelp"
+        },
+        "troll": {
+          "name": "Siege Troll",
+          "kind": "brute",
+          "art": "frostTroll"
+        },
+        "spike": {
+          "name": "Ice Spike",
+          "kind": "shard",
+          "art": "iceSpike"
+        }
+      },
+      "packs": {
+        "a": {
+          "name": "Wall breakers",
+          "spawn": [
+            {
+              "enemy": "whelp",
+              "count": 3,
+              "health": "1/3"
+            }
+          ]
+        },
+        "b": {
+          "name": "Siege line",
+          "spawn": [
+            {
+              "enemy": "whelp",
+              "count": 2,
+              "health": 0.25
+            },
+            {
+              "enemy": "troll",
+              "count": 1,
+              "health": 0.5,
+              "damage": 1.8,
+              "swing": 2.5
+            }
+          ]
+        }
+      },
+      "bosses": {
+        "boss": {
+          "name": "Hulda the Siegebreaker",
+          "art": "siegeOgre",
+          "scale": 3.2,
+          "health": 1.0,
+          "damage": 1.0,
+          "enrage": 85,
+          "hit": "Ram Hammer",
+          "mechanics": [
+            "buster",
+            "shock",
+            "adds"
+          ]
+        }
+      },
+      "mechanics": {
+        "buster": {
+          "name": "Battering Blow",
+          "every": 13
+        },
+        "shock": {
+          "name": "Wall Collapse",
+          "at": 18,
+          "every": 24
+        },
+        "adds": {
+          "name": "Ice Spikes",
+          "enemy": "spike",
+          "count": 2
+        }
+      },
+      "plan": [
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "pack",
+          "b",
+          0
+        ],
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "boss",
+          "boss",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "The Undercroft",
+      "summary": "The crypts under the keep, where the old garrison never stayed buried.",
+      "wings": [
+        {
+          "name": "The Ossuary",
+          "scene": {
+            "sky": [
+              "#0c0a12",
+              "#1c1626"
+            ],
+            "rock": "#2a2236",
+            "rock2": "#383048",
+            "floor": "#262030",
+            "floor2": "#322a3e",
+            "glow": "#7ad0ff",
+            "accent": "#d8ccb0",
+            "prop": "crystal"
+          }
+        }
+      ],
+      "enemies": {
+        "raider": {
+          "name": "Bone Raider",
+          "kind": "add",
+          "art": "boneRaider"
+        },
+        "brute": {
+          "name": "Crypt Guard",
+          "kind": "brute",
+          "art": "boneRaider"
+        },
+        "seed": {
+          "name": "Grave Wisp",
+          "kind": "shard",
+          "art": "ashWisp"
+        }
+      },
+      "packs": {
+        "a": {
+          "name": "Restless dead",
+          "spawn": [
+            {
+              "enemy": "raider",
+              "count": 3,
+              "health": "1/3"
+            }
+          ]
+        },
+        "b": {
+          "name": "Crypt watch",
+          "spawn": [
+            {
+              "enemy": "raider",
+              "count": 2,
+              "health": 0.25
+            },
+            {
+              "enemy": "brute",
+              "count": 1,
+              "health": 0.5,
+              "damage": 1.8,
+              "swing": 2.5
+            }
+          ]
+        }
+      },
+      "bosses": {
+        "boss": {
+          "name": "The Bone Colossus",
+          "art": "boneColossus",
+          "scale": 3.2,
+          "health": 1.0,
+          "damage": 1.0,
+          "enrage": 85,
+          "hit": "Femur Club",
+          "mechanics": [
+            "buster",
+            "curse",
+            "adds"
+          ]
+        }
+      },
+      "mechanics": {
+        "buster": {
+          "name": "Crushing Step",
+          "every": 14
+        },
+        "curse": {
+          "name": "Grave Chill"
+        },
+        "adds": {
+          "name": "Grave Wisps",
+          "enemy": "seed",
+          "count": 3
+        }
+      },
+      "plan": [
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "pack",
+          "b",
+          0
+        ],
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "boss",
+          "boss",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "The Ember Gallery",
+      "summary": "The long hall where the Shade Queen keeps her court of ash.",
+      "wings": [
+        {
+          "name": "The Burnt Gallery",
+          "scene": {
+            "sky": [
+              "#140c14",
+              "#2a1620"
+            ],
+            "rock": "#3a1e2a",
+            "rock2": "#4c2836",
+            "floor": "#33201c",
+            "floor2": "#422a24",
+            "glow": "#c084ff",
+            "accent": "#ff9a5a",
+            "prop": "lava"
+          }
+        }
+      ],
+      "enemies": {
+        "wisp": {
+          "name": "Ash Wisp",
+          "kind": "add",
+          "art": "ashWisp"
+        },
+        "stalker": {
+          "name": "Shadow Stalker",
+          "kind": "brute",
+          "art": "shadowStalker"
+        },
+        "seed": {
+          "name": "Ember Seed",
+          "kind": "shard",
+          "art": "emberSeed"
+        }
+      },
+      "packs": {
+        "a": {
+          "name": "Ash court",
+          "spawn": [
+            {
+              "enemy": "wisp",
+              "count": 3,
+              "health": "1/3"
+            }
+          ]
+        },
+        "b": {
+          "name": "Shadow hunt",
+          "spawn": [
+            {
+              "enemy": "wisp",
+              "count": 2,
+              "health": 0.25
+            },
+            {
+              "enemy": "stalker",
+              "count": 1,
+              "health": 0.5,
+              "damage": 1.8,
+              "swing": 2.5
+            }
+          ]
+        }
+      },
+      "bosses": {
+        "boss": {
+          "name": "The Shade Queen",
+          "art": "shadeQueen",
+          "scale": 3.2,
+          "health": 1.0,
+          "damage": 1.0,
+          "enrage": 85,
+          "hit": "Shadow Lash",
+          "mechanics": [
+            "rain",
+            "curse",
+            "adds"
+          ]
+        }
+      },
+      "mechanics": {
+        "rain": {
+          "name": "Falling Ash",
+          "fire": true
+        },
+        "curse": {
+          "name": "Queen's Mark"
+        },
+        "adds": {
+          "name": "Ember Seeds",
+          "enemy": "seed",
+          "count": 2
+        }
+      },
+      "plan": [
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "pack",
+          "b",
+          0
+        ],
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "boss",
+          "boss",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "The Iron Yard",
+      "summary": "The forge yard, run now by goblin crews and the Warden they built.",
+      "wings": [
+        {
+          "name": "The Forge Yard",
+          "scene": {
+            "sky": [
+              "#14110c",
+              "#241c12"
+            ],
+            "rock": "#3a2e1e",
+            "rock2": "#4a3a26",
+            "floor": "#33291c",
+            "floor2": "#423624",
+            "glow": "#ffb340",
+            "accent": "#7fd0a0",
+            "prop": "forge"
+          }
+        }
+      ],
+      "enemies": {
+        "cutter": {
+          "name": "Goblin Cutter",
+          "kind": "add",
+          "art": "goblinCutter"
+        },
+        "bruiser": {
+          "name": "Goblin Bruiser",
+          "kind": "brute",
+          "art": "goblinBruiser"
+        },
+        "bomb": {
+          "name": "Spark Bomb",
+          "kind": "shard",
+          "art": "sparkBomb"
+        }
+      },
+      "packs": {
+        "a": {
+          "name": "Yard crew",
+          "spawn": [
+            {
+              "enemy": "cutter",
+              "count": 3,
+              "health": "1/3"
+            }
+          ]
+        },
+        "b": {
+          "name": "Forge guard",
+          "spawn": [
+            {
+              "enemy": "cutter",
+              "count": 2,
+              "health": 0.25
+            },
+            {
+              "enemy": "bruiser",
+              "count": 1,
+              "health": 0.5,
+              "damage": 1.8,
+              "swing": 2.5
+            }
+          ]
+        }
+      },
+      "bosses": {
+        "boss": {
+          "name": "The Iron Warden",
+          "art": "ironWarden",
+          "scale": 3.2,
+          "health": 1.0,
+          "damage": 1.0,
+          "enrage": 85,
+          "hit": "Anvil Fist",
+          "mechanics": [
+            "buster",
+            "rain",
+            "shock"
+          ]
+        }
+      },
+      "mechanics": {
+        "buster": {
+          "name": "Anvil Fist",
+          "every": 13
+        },
+        "rain": {
+          "name": "Slag Spray",
+          "fire": true
+        },
+        "shock": {
+          "name": "Steam Blast",
+          "at": 20,
+          "every": 25
+        }
+      },
+      "plan": [
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "pack",
+          "b",
+          0
+        ],
+        [
+          "pack",
+          "a",
+          0
+        ],
+        [
+          "boss",
+          "boss",
+          0
+        ]
+      ]
+    }
+  ],
+  "final": {
+    "name": "The Sundered Throne",
+    "summary": "Where the King waits. Only squads whose front held may reach him.",
+    "wings": [
+      {
+        "name": "The Throne Room",
+        "scene": {
+          "sky": [
+            "#120a10",
+            "#2a1018"
+          ],
+          "rock": "#3a1a22",
+          "rock2": "#4e2430",
+          "floor": "#2e1a1e",
+          "floor2": "#3e2228",
+          "glow": "#ff5a3a",
+          "accent": "#c9a040",
+          "prop": "lava"
+        }
+      }
+    ],
+    "enemies": {
+      "guard": {
+        "name": "Throne Guard",
+        "kind": "brute",
+        "art": "boneRaider"
+      },
+      "seed": {
+        "name": "Sundered Shard",
+        "kind": "shard",
+        "art": "emberSeed"
+      }
+    },
+    "packs": {
+      "guards": {
+        "name": "Throne guard",
+        "spawn": [
+          {
+            "enemy": "guard",
+            "count": 2,
+            "health": 0.5,
+            "damage": 1.6,
+            "swing": 2.5
+          }
+        ]
+      }
+    },
+    "bosses": {
+      "king": {
+        "name": "The Sundered King",
+        "art": "sunderedKing",
+        "scale": 3.0,
+        "health": 1.6,
+        "damage": 1.1,
+        "enrage": 110,
+        "hit": "Sundering Blade",
+        "mechanics": [
+          "buster",
+          "rain",
+          "shock",
+          "curse",
+          "adds"
+        ]
+      }
+    },
+    "mechanics": {
+      "buster": {
+        "name": "Sundering Blade",
+        "every": 12
+      },
+      "rain": {
+        "name": "Crown of Fire",
+        "fire": true
+      },
+      "shock": {
+        "name": "Throne Quake",
+        "at": 22,
+        "every": 26
+      },
+      "curse": {
+        "name": "The King's Debt"
+      },
+      "adds": {
+        "name": "Sundered Shards",
+        "enemy": "seed",
+        "count": 3
+      }
+    },
+    "plan": [
+      [
+        "pack",
+        "guards",
+        0
+      ],
+      [
+        "boss",
+        "king",
+        0
+      ]
+    ]
+  }
+}

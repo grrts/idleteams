@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Idle Teams</title>
+    <meta name="theme-color" content="#1a130b">
+    <link rel="icon" href="/icon-96.png">
+    <style>
+        :root { color-scheme: dark; }
+        body { margin: 0; background: #1a130b; color: #eadfcb; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+        main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+        h1 { font-size: 2rem; margin: 0 0 4px; color: #ffd25a; }
+        h2 { font-size: 1.2rem; margin: 2em 0 .4em; color: #ffb35a; }
+        a { color: #ffb35a; }
+        .muted { color: #a8987e; font-size: .9rem; }
+        .warn { border: 1px solid #8a3a4a; background: #2a1414; padding: 10px 14px; border-radius: 6px; }
+        table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+        th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #3a2c1c; }
+        nav { margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+<main>
+    <nav><a href="/">← Back to the game</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></nav>
+    <h1>{{ title }}</h1>
+    <p class="muted">Last changed {{ updated }}</p>
+    {% if not operator or not contact %}
+        <p class="warn">The operator's name and contact details are not set yet (LEGAL_OPERATOR, LEGAL_ADDRESS and LEGAL_CONTACT). They must be filled in before the game opens to the public.</p>
+    {% endif %}
+    {% block body %}{% endblock %}
+</main>
+</body>
+</html>

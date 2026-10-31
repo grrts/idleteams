@@ -1,0 +1,22 @@
+parameters:
+    game.battle_seconds: '%env(int:GAME_BATTLE_SECONDS)%'
+    game.chest_seconds: '%env(int:GAME_CHEST_SECONDS)%'
+    game.offline_cap_seconds: '%env(int:GAME_OFFLINE_CAP_SECONDS)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+when@test:
+    services:
+        logger:
+            class: Psr\Log\NullLogger
+        App\Tests\StripeMock: ~

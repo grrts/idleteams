@@ -1,0 +1,31 @@
+# Limits that keep one player or one script from flooding the server. Counts live in the app cache.
+framework:
+    rate_limiter:
+        # Chat lines per hero.
+        chat:
+            policy: token_bucket
+            limit: 5
+            rate: { interval: '4 seconds', amount: 1 }
+        # Accounts made from one IP address.
+        register:
+            policy: sliding_window
+            limit: 5
+            interval: '1 hour'
+        # Password reset and verification mails per IP address.
+        mail:
+            policy: sliding_window
+            limit: 5
+            interval: '1 hour'
+        # Every API call per IP address: generous, it only stops scripts.
+        api:
+            policy: sliding_window
+            limit: 600
+            interval: '1 minute'
+
+when@test:
+    framework:
+        rate_limiter:
+            api:
+                policy: no_limit
+            register:
+                policy: no_limit
