@@ -1,0 +1,241 @@
+{
+  "id": "starfall-observatory",
+  "name": "The Starfall Observatory",
+  "summary": "A Conclave star tower that a falling star split open. The Ashen Choir moved in to sing to the Hollow underneath, and the stars sing back.",
+  "levels": [
+    52,
+    62
+  ],
+  "order": 70,
+  "lore": "hollow:starfall-observatory",
+  "wings": [
+    {
+      "name": "The Broken Stair",
+      "scene": {
+        "sky": [
+          "#0a0c1c",
+          "#161a34"
+        ],
+        "rock": "#262a48",
+        "rock2": "#32385c",
+        "floor": "#20243c",
+        "floor2": "#2a304c",
+        "glow": "#a0b8ff",
+        "accent": "#ffe8a0",
+        "prop": "crystal"
+      }
+    },
+    {
+      "name": "The Orrery Hall",
+      "scene": {
+        "sky": [
+          "#0c0a1a",
+          "#1c1630"
+        ],
+        "rock": "#2c2444",
+        "rock2": "#3a3058",
+        "floor": "#26203a",
+        "floor2": "#322a4a",
+        "glow": "#c8a0ff",
+        "accent": "#ffd070",
+        "prop": "forge"
+      }
+    },
+    {
+      "name": "The Lens of Heaven",
+      "scene": {
+        "sky": [
+          "#04061a",
+          "#1a2050"
+        ],
+        "rock": "#22284a",
+        "rock2": "#2e365e",
+        "floor": "#1e2440",
+        "floor2": "#283052",
+        "glow": "#80e0ff",
+        "accent": "#fff0c0",
+        "prop": "cliffs"
+      }
+    }
+  ],
+  "enemies": {
+    "acolyte": {
+      "name": "Choir Acolyte",
+      "kind": "add",
+      "art": "choirAcolyte"
+    },
+    "sentinel": {
+      "name": "Star-Iron Sentinel",
+      "kind": "brute",
+      "art": "starSentinel"
+    },
+    "star": {
+      "name": "Fallen Star",
+      "kind": "shard",
+      "art": "fallenStar"
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Acolyte chorus",
+      "spawn": [
+        {
+          "enemy": "acolyte",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Sentinel watch",
+      "spawn": [
+        {
+          "enemy": "acolyte",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "sentinel",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    },
+    "elite": {
+      "name": "Starbound guard",
+      "spawn": [
+        {
+          "enemy": "sentinel",
+          "count": 2,
+          "health": "1/3",
+          "damage": 1.5,
+          "swing": 2.6
+        },
+        {
+          "enemy": "star",
+          "count": 2,
+          "health": "1/6",
+          "damage": 0.8,
+          "swing": 1.6
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "Archivist Sellune",
+      "art": "sellune",
+      "health": 0.6,
+      "damage": 0.95,
+      "enrage": 70,
+      "hit": "Gilded Tome",
+      "mechanics": [
+        "buster",
+        "curse",
+        "rain"
+      ],
+      "lore": "beast:sellune"
+    },
+    "b2": {
+      "name": "The Orrery Engine",
+      "art": "orreryEngine",
+      "scale": 3.2,
+      "health": 0.8,
+      "damage": 0.9,
+      "enrage": 80,
+      "hit": "Brass Ring",
+      "mechanics": [
+        "shock",
+        "adds",
+        "buster"
+      ],
+      "lore": "beast:orrery-engine"
+    },
+    "b3": {
+      "name": "Cantor Vey",
+      "art": "cantorVey",
+      "health": 1.0,
+      "damage": 1.0,
+      "enrage": 85,
+      "hit": "Ashen Hymn",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock",
+        "curse",
+        "adds"
+      ],
+      "lore": "beast:cantor-vey"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Starsteel Strike"
+    },
+    "rain": {
+      "name": "Starfall",
+      "fire": true,
+      "every": 9
+    },
+    "shock": {
+      "name": "Gravity Well"
+    },
+    "curse": {
+      "name": "Choir Whisper"
+    },
+    "adds": {
+      "name": "Falling Stars",
+      "enemy": "star",
+      "count": 2
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "pack",
+      "elite",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "elite",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

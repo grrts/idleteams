@@ -1,0 +1,243 @@
+{
+  "id": "cold-forge",
+  "name": "The Cold Forge",
+  "summary": "The halls under the Heartforge of Kaldera, where the draka fire has burned since the Dawnfire. It is cooling, because something down there is drinking it.",
+  "levels": [
+    70,
+    80
+  ],
+  "order": 90,
+  "lore": "hollow:cold-forge",
+  "wings": [
+    {
+      "name": "The Bellows",
+      "scene": {
+        "sky": [
+          "#140a08",
+          "#24120c"
+        ],
+        "rock": "#3a2018",
+        "rock2": "#4c2a20",
+        "floor": "#341c16",
+        "floor2": "#44261c",
+        "glow": "#ff8a3a",
+        "accent": "#ffd25a",
+        "prop": "forge"
+      }
+    },
+    {
+      "name": "The Slag Rivers",
+      "scene": {
+        "sky": [
+          "#1a0806",
+          "#30100a"
+        ],
+        "rock": "#441a12",
+        "rock2": "#58221a",
+        "floor": "#3a1610",
+        "floor2": "#4a1e16",
+        "glow": "#ff5a2a",
+        "accent": "#ffb340",
+        "prop": "lava"
+      }
+    },
+    {
+      "name": "The Heart Gone Cold",
+      "scene": {
+        "sky": [
+          "#0a1018",
+          "#14202e"
+        ],
+        "rock": "#2a3440",
+        "rock2": "#384452",
+        "floor": "#262e38",
+        "floor2": "#323c48",
+        "glow": "#a0e0ff",
+        "accent": "#ff8a3a",
+        "prop": "forge"
+      }
+    }
+  ],
+  "enemies": {
+    "imp": {
+      "name": "Slag Imp",
+      "kind": "add",
+      "art": "slagImp"
+    },
+    "warden": {
+      "name": "Forgebound Warden",
+      "kind": "brute",
+      "art": "forgeWarden"
+    },
+    "ember": {
+      "name": "Dying Ember",
+      "kind": "shard",
+      "art": "dyingEmber"
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Imp swarm",
+      "spawn": [
+        {
+          "enemy": "imp",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Warden patrol",
+      "spawn": [
+        {
+          "enemy": "imp",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "warden",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    },
+    "elite": {
+      "name": "Anvil guard",
+      "spawn": [
+        {
+          "enemy": "warden",
+          "count": 2,
+          "health": "1/3",
+          "damage": 1.5,
+          "swing": 2.6
+        },
+        {
+          "enemy": "ember",
+          "count": 2,
+          "health": "1/6",
+          "damage": 0.8,
+          "swing": 1.6
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "Flame-Speaker Varrak",
+      "art": "varrak",
+      "health": 0.6,
+      "damage": 0.95,
+      "enrage": 70,
+      "hit": "Forge Hammer",
+      "mechanics": [
+        "buster",
+        "rain",
+        "curse"
+      ],
+      "lore": "beast:varrak"
+    },
+    "b2": {
+      "name": "The Slag Colossus",
+      "art": "slagColossus",
+      "scale": 3.2,
+      "health": 0.85,
+      "damage": 0.95,
+      "enrage": 80,
+      "hit": "Molten Fist",
+      "mechanics": [
+        "buster",
+        "shock",
+        "adds",
+        "rain"
+      ],
+      "lore": "beast:slag-colossus"
+    },
+    "b3": {
+      "name": "Rimeheart",
+      "art": "rimeheart",
+      "health": 0.9,
+      "damage": 0.95,
+      "enrage": 88,
+      "hit": "Frozen Grasp",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock",
+        "curse",
+        "adds"
+      ],
+      "lore": "beast:rimeheart"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Hammerfall"
+    },
+    "rain": {
+      "name": "Slag Spray",
+      "fire": true,
+      "every": 8
+    },
+    "shock": {
+      "name": "Bellows Blast"
+    },
+    "curse": {
+      "name": "Heat Drain",
+      "every": 20
+    },
+    "adds": {
+      "name": "Dying Embers",
+      "enemy": "ember",
+      "count": 2
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "pack",
+      "elite",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "elite",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

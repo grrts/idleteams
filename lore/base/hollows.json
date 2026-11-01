@@ -353,7 +353,7 @@
     },
     "hollow:wyvern-roost": {
       "title": "The Wyvern Roost",
-      "kicker": "Level 44 and up",
+      "kicker": "Levels 44 to 53",
       "summary": "The cliffs of [[place:kaldera|Kaldera]], where the old dragon nests stood empty until the [[beast:wyvern|wyverns]] moved in. The [[race:draka|draka]] want them gone.",
       "sections": [
         {
@@ -437,6 +437,378 @@
         "hollow:wyvern-roost",
         "beast:wyvern",
         "race:draka"
+      ]
+    },
+    "hollow:starfall-observatory": {
+      "title": "The Starfall Observatory",
+      "kicker": "Levels 52 to 62",
+      "summary": "A star tower of the [[faction:conclave|Conclave]] that a falling star split open. The [[faction:ashen-choir|Ashen Choir]] moved in to sing to the Hollow underneath, and the stars sing back.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "The Conclave built the tower to watch the stars shift in the [[era:waking|Waking]]. One night a star came down instead, straight through the dome, and the Underflame came up through the crack it left. The mages fled. Within a month the Choir was holding services on the broken stair."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Broken Stair is guarded by [[beast:sellune|Archivist Sellune]], who stayed behind. The Orrery Hall belongs to [[beast:orrery-engine|the Orrery Engine]], still turning. At the Lens of Heaven, [[beast:cantor-vey|Cantor Vey]] leads the hymn."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "A hill a day's ride from the white towers of the Conclave"
+        ],
+        [
+          "Bosses",
+          "Archivist Sellune, the Orrery Engine, Cantor Vey"
+        ]
+      ],
+      "see": [
+        "faction:conclave",
+        "faction:ashen-choir",
+        "race:elf",
+        "era:waking"
+      ]
+    },
+    "beast:sellune": {
+      "title": "Archivist Sellune",
+      "kicker": "Keeper of the Broken Stair",
+      "summary": "The tower's archivist, an elf mage who would not leave her books when the star fell. She listened to the Choir instead.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Sellune spent three hundred years cataloguing what the stars said. When the Choir told her the stars were saying something new, she believed them, because she had heard it too."
+        },
+        {
+          "title": "In battle",
+          "text": "She hits the tank with a gilded tome heavy enough to dent plate, whispers the Choir's words into one mind at a time and calls small stars down on the group."
+        }
+      ],
+      "see": [
+        "hollow:starfall-observatory",
+        "faction:conclave"
+      ]
+    },
+    "beast:orrery-engine": {
+      "title": "The Orrery Engine",
+      "kicker": "Machine of the Orrery Hall",
+      "summary": "A brass model of the heavens as big as a house, built to follow the stars. It still follows them, and now they lead it.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Dwarf smiths built it for the Conclave over forty years. The star that fell knocked it off its tracks, and since then its rings turn on their own, faster every season."
+        },
+        {
+          "title": "In battle",
+          "text": "Its rings sweep the floor and pull the group off its feet, and every few turns it drops a fallen star into the fight. Kill the stars quickly."
+        }
+      ],
+      "see": [
+        "hollow:starfall-observatory",
+        "race:dwarf"
+      ]
+    },
+    "beast:cantor-vey": {
+      "title": "Cantor Vey",
+      "kicker": "Voice of the Choir",
+      "summary": "The highest singer of the [[faction:ashen-choir|Ashen Choir]] anyone has met and lived to tell. Vey stands in the lens of the tower and sings the Hollow wider.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Nobody knows what Vey was before the Choir. Vey says it does not matter, because the Underflame will make everyone the same in the end."
+        },
+        {
+          "title": "In battle",
+          "text": "Vey uses everything the tower has: starsteel strikes, starfall, gravity wells, the Choir's whisper and falling stars. The song gets louder as the fight goes on."
+        }
+      ],
+      "see": [
+        "hollow:starfall-observatory",
+        "faction:ashen-choir"
+      ]
+    },
+    "hollow:drowned-undercroft": {
+      "title": "The Drowned Undercroft",
+      "kicker": "Levels 61 to 71",
+      "summary": "The smugglers' vaults under Freeport harbour, flooded when a Hollow opened beneath the sea wall. The [[faction:syndics|Syndics]] want their cargo back and do not ask what is guarding it.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "Officially the vaults held grain. When the sea wall cracked and the tide came in hot, the Syndics hired the Pact quietly, paid in advance and did not answer questions. The things that came out of the water did not need to be asked."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Bonded Warehouse is still run by [[beast:harbourmaster-quell|Harbourmaster Quell]]. The Flooded Vaults are the hall of [[beast:barnacle-knight|the Barnacle Knight]]. At the Tide Gate waits [[beast:mother-brine|Mother Brine]]."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "Under the harbour of Freeport"
+        ],
+        [
+          "Bosses",
+          "Harbourmaster Quell, the Barnacle Knight, Mother Brine"
+        ]
+      ],
+      "see": [
+        "faction:syndics",
+        "faction:quiet-hand",
+        "world:hollows"
+      ]
+    },
+    "beast:harbourmaster-quell": {
+      "title": "Harbourmaster Quell",
+      "kicker": "Master of the Bonded Warehouse",
+      "summary": "The Syndics' harbourmaster, who kept the books of every cargo that was not on the books. He went down to save the ledgers and stayed.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Quell knew every crate in the undercroft by smell. When the water came in he would not leave without his ledgers, and the Hollow gave him time to find them all. It has been two years. He is still counting."
+        },
+        {
+          "title": "In battle",
+          "text": "He swings his iron hook at the tank, knocks the group around with crates and rots one hero at a time with salt water."
+        }
+      ],
+      "see": [
+        "hollow:drowned-undercroft",
+        "faction:syndics"
+      ]
+    },
+    "beast:barnacle-knight": {
+      "title": "The Barnacle Knight",
+      "kicker": "Warden of the Flooded Vaults",
+      "summary": "A knight of the old Crown who drowned in the vaults a hundred years ago, wearing armour the sea has been building on ever since.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Nobody knows why a knight of [[faction:crown|the Crown]] was in a smugglers' vault. The Syndics say he was a thief. The Crown says he was chasing one. He has not said."
+        },
+        {
+          "title": "In battle",
+          "text": "He cuts the tank with a coral blade, floods the vault in waves and calls tide crabs out of the walls."
+        }
+      ],
+      "see": [
+        "hollow:drowned-undercroft",
+        "faction:crown"
+      ]
+    },
+    "beast:mother-brine": {
+      "title": "Mother Brine",
+      "kicker": "Mistress of the Tide Gate",
+      "summary": "A sea serpent the size of a ship who came up through the cracked sea wall and coiled around the tide gate. She is why the harbour runs warm.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Old sailors tell of a serpent that followed the felkin spice ships south for a thousand years. They thought she had died. She had found somewhere warmer."
+        },
+        {
+          "title": "In battle",
+          "text": "She uses everything the undercroft has: anchor-heavy blows, floodwater, riptides, brine rot and swarms of crabs. Do not stand still when the tide turns."
+        }
+      ],
+      "see": [
+        "hollow:drowned-undercroft",
+        "world:hollows"
+      ]
+    },
+    "hollow:cold-forge": {
+      "title": "The Cold Forge",
+      "kicker": "Levels 70 to 80",
+      "summary": "The halls under the Heartforge of [[place:kaldera|Kaldera]], where the [[race:draka|draka]] fire has burned since the [[era:dawnfire|Dawnfire]]. It is cooling, because something down there is drinking it.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "The [[faction:fire-council|Fire Council]] argued for a year about why the Heartforge was cooling. Then the flame-speakers who went down to look stopped coming back, and the Council asked the Pact for help a second time. Nobody enjoyed it."
+        },
+        {
+          "title": "The three wings",
+          "text": "The Bellows are held by [[beast:varrak|Flame-Speaker Varrak]]. In the Slag Rivers walks [[beast:slag-colossus|the Slag Colossus]]. In the Heart Gone Cold waits [[beast:rimeheart|Rimeheart]], the thing that drinks the fire."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "Under the Heartforge of [[place:kaldera|Kaldera]]"
+        ],
+        [
+          "Bosses",
+          "Flame-Speaker Varrak, the Slag Colossus, Rimeheart"
+        ]
+      ],
+      "see": [
+        "place:kaldera",
+        "race:draka",
+        "faction:fire-council",
+        "world:underflame"
+      ]
+    },
+    "beast:varrak": {
+      "title": "Flame-Speaker Varrak",
+      "kicker": "Keeper of the Bellows",
+      "summary": "The draka flame-speaker who went down first to find out why the forge was cooling. He found out, and decided to keep it fed himself.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "Varrak spoke for his flight at the Fire Council for sixty years. He swore he would keep the Heartforge lit, and he is still trying, with whatever he can throw into it."
+        },
+        {
+          "title": "In battle",
+          "text": "He brings his forge hammer down on the tank, sprays slag over the group and drains the heat out of one hero at a time."
+        }
+      ],
+      "see": [
+        "hollow:cold-forge",
+        "race:draka"
+      ]
+    },
+    "beast:slag-colossus": {
+      "title": "The Slag Colossus",
+      "kicker": "Walker of the Slag Rivers",
+      "summary": "A giant of cooling slag that rose out of the forge's waste rivers. It is trying to stay warm.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The draka poured the forge's slag into the rivers for a thousand years. When the forge started cooling, the slag got up and walked toward the last of the heat."
+        },
+        {
+          "title": "In battle",
+          "text": "It pounds the tank with molten fists, blasts the group back with heat and sheds dying embers that must be put out before they burst."
+        }
+      ],
+      "see": [
+        "hollow:cold-forge",
+        "place:kaldera"
+      ]
+    },
+    "beast:rimeheart": {
+      "title": "Rimeheart",
+      "kicker": "The Thing in the Heart",
+      "summary": "A shape of frost and hunger curled around the Heartforge's core. It eats fire. It has been eating this one for years.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The draka say there is no such thing as a cold Hollow. Rimeheart is one anyway: a crack where the Underflame runs the wrong way, and something waiting at the end of it."
+        },
+        {
+          "title": "In battle",
+          "text": "It uses everything the forge has: hammer blows, slag spray, bellows blasts, heat drain and dying embers. Its frozen grasp gets colder as the forge dies around it."
+        }
+      ],
+      "see": [
+        "hollow:cold-forge",
+        "world:underflame"
+      ]
+    },
+    "hollow:dreaming-deep": {
+      "title": "The Dreaming Deep",
+      "kicker": "Level 79 and up",
+      "summary": "The bottom of the [[place:long-road|Long Road]], below the last dwarf hold, where the [[world:underflame|Underflame]] comes from. Something sleeps down there, and it is starting to dream.",
+      "sections": [
+        {
+          "title": "How it opened",
+          "text": "It did not open. It was always there. The dwarves dug the Long Road toward it for six hundred years and sealed the last door when they understood what they had found. In the [[era:waking|Waking]] the door broke from the other side."
+        },
+        {
+          "title": "The four wings",
+          "text": "The Last Hold is still guarded by [[beast:hollowhand|Thane Hollowhand]]. Through the Root of the World coils [[beast:root-wyrm|the Root Wyrm]]. In the Waking Halls sings [[beast:nightmare-choir|the Nightmare Choir]]. And in the Dragon's Dream sleeps [[beast:ysolvane|Ysolvane]], who does not wake, but fights anyway."
+        }
+      ],
+      "facts": [
+        [
+          "Where",
+          "The bottom of the [[place:long-road|Long Road]], under the [[place:greyteeth|Greyteeth]]"
+        ],
+        [
+          "Bosses",
+          "Thane Hollowhand, the Root Wyrm, the Nightmare Choir, Ysolvane"
+        ]
+      ],
+      "see": [
+        "place:long-road",
+        "world:underflame",
+        "era:dawnfire",
+        "era:waking",
+        "race:dwarf"
+      ]
+    },
+    "beast:hollowhand": {
+      "title": "Thane Hollowhand",
+      "kicker": "Lord of the Last Hold",
+      "summary": "The dwarf thane who sealed the last door of the Long Road six hundred years ago, and swore to guard it until the end of the world. He took that literally.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "His name was Durin Brask before the door. He gave his hand to the seal, and the rune-priests say the hand is still in it. The rest of him stayed on watch, and is not entirely alive any more."
+        },
+        {
+          "title": "In battle",
+          "text": "He hits the tank with a runed axe, shakes the hall with the old seal's power and lays dwarven curses on anyone he thinks does not belong."
+        }
+      ],
+      "see": [
+        "hollow:dreaming-deep",
+        "race:dwarf"
+      ]
+    },
+    "beast:root-wyrm": {
+      "title": "The Root Wyrm",
+      "kicker": "Coiled in the Root of the World",
+      "summary": "A wyrm of living fire as long as a river, coiled through the cracks at the root of the world. It is not the sleeper. It is what the sleeper breathes out.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The draka have a word for it that means 'the first breath'. They say every Hollow in [[world:valdren|Valdren]] is a place where the Root Wyrm once turned in its coils."
+        },
+        {
+          "title": "In battle",
+          "text": "It crushes the tank in burning coils, rains dreamfire on the whole group and breaks dream shards off the walls as it moves."
+        }
+      ],
+      "see": [
+        "hollow:dreaming-deep",
+        "race:draka"
+      ]
+    },
+    "beast:nightmare-choir": {
+      "title": "The Nightmare Choir",
+      "kicker": "Voices of the Waking Halls",
+      "summary": "Every hero, cultist and miner the Deep ever took, singing together in the sleeper's dream. Some of them are still trying to warn you.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The [[faction:ashen-choir|Ashen Choir]] believes it sings to the Underflame. The Nightmare Choir is what it sounds like from the other side."
+        },
+        {
+          "title": "In battle",
+          "text": "It sings dreamfire down on everyone, puts nightmares into one hero at a time, knocks the group back with discord and fills the hall with dream shards."
+        }
+      ],
+      "see": [
+        "hollow:dreaming-deep",
+        "faction:ashen-choir"
+      ]
+    },
+    "beast:ysolvane": {
+      "title": "Ysolvane, the Dreaming Dragon",
+      "kicker": "The sleeper under the world",
+      "summary": "One of the dragons of the [[era:dawnfire|Dawnfire]], asleep since the [[era:sundering|Sundering]]. She is not awake. What you fight is her dream of you.",
+      "sections": [
+        {
+          "title": "Origin",
+          "text": "The old songs say the dragons fell asleep when the Underflame broke through, and that the world will end the day they wake. Ysolvane is turning over. Every band that beats her dream buys the world a little more sleep."
+        },
+        {
+          "title": "In battle",
+          "text": "She uses everything the Deep has: sleeper's claws, dreamfire, the world turning over beneath the group, nightmares and dream shards. She never truly dies. She just sleeps more deeply, until next week."
+        }
+      ],
+      "see": [
+        "hollow:dreaming-deep",
+        "era:dawnfire",
+        "era:sundering"
       ]
     }
   }

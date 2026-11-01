@@ -44,14 +44,16 @@ client is a single page of vanilla JavaScript in `public/assets/` with no build 
 - Gear: wear anything (nothing binds), temper, socket glyphs for Resonance at 3/6/9, imprint Codex powers,
   reforge from level 50, salvage, craft, give to another player, sell on the market.
 - Group: start a group or join one from the tavern board, invite heroes, set the dungeon level, rest.
-- Battle: when the group has five heroes, it runs one dungeon, Ember Hollow: three wings, each with trash
-  packs and then a boss (Cinder Hound, Slag Matron, Ember Golem). The run is simulated on the server and
+- Battle: when the group has five heroes, it runs the newest dungeon its level has reached (or an older one the
+  leader picks): ten dungeons from Ember Hollow at level 1 to the Dreaming Deep at 79 and up, each with three
+  wings (the Dreaming Deep has four) of trash packs and then a boss. Past 50 come the Starfall Observatory (52),
+  the Drowned Undercroft (61), the Cold Forge (70) and the Dreaming Deep (79), the last one with no top level. The run is simulated on the server and
   played out on every member's screen in step with the clock, walking between fights. When it ends, every
   run pays materials (plus XP and gold for each fight won), and each boss may drop an item into the group
   chest for need/greed/pass. Loot is never guaranteed. Players who are away roll by their loot setting
   when the chest closes.
 - After the story: Heroic opens for a dungeon once the group outgrows it (its median level reaches the top of the
-  band): tougher enemies at the group's own level, 25% more rewards and better items. At level 50 the leader can
+  band, or ten levels in for the Dreaming Deep): tougher enemies at the group's own level, 25% more rewards and better items. At level 50 the leader can
   pick Mythic, an endless ladder: each tier adds health and damage, a clear moves the group up a tier (the leader
   may step down to any tier up to one past the best cleared), and item levels and rewards grow with the tier. The
   week's affixes (Monday to Monday, UTC) change fights: Fortified or Tyrannical from tier 1, and Volcanic, Raging,
@@ -263,12 +265,15 @@ a database and cron.
 
 ## Balance notes
 
-`app:balance` shows where tuning stands. A balanced group (guardian, cleric, ranger, mage, rogue) clears the
-whole dungeon at levels 1 to 65, 85% at 80, 95% at 100 and all of it at 120. Enemy health follows the reference
+`app:balance` shows where tuning stands, on Ember Hollow at every level or with `--dungeon=newest` on the
+dungeon each level reaches. A balanced group (guardian, cleric, ranger, mage, rogue) clears the whole dungeon at
+levels 1 to 65, 85% at 80, 95% at 100 and all of it at 120 on Ember Hollow, and 90 to 100% of the newest dungeon
+from 50 to 100. Enemy health follows the reference
 group's damage with talents; enemy hits follow its health and healing without them, so defensive talents make
 a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
-intended. Known gaps: a Warden plus Druid group falls behind on damage from level 50, and level 80+ needs
-another pass once gear past 50 is designed. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+intended. Known gaps: a group with a Warden tank falls behind from level 50 (with a Druid it clears about half
+of the newest dungeon at 50 to 70 and very little past 75; the Warden is the weak link), and the reference group
+dips between levels 104 and 114. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Pacing
 
@@ -276,7 +281,8 @@ another pass once gear past 50 is designed. Every number lives in `Rules.php`, `
 a wipe stopping the chain until the next check-in) through the dungeon bands with the real XP rules, and fails
 outside the target (`--target=28-38` days to level 50). Levelling is meant to take a season, not a week: with
 check-ins at 8, 12, 18 and 22 o'clock (or just morning and evening, since the cap covers the gap) the group reaches 10
-on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Once a day (`--checkins=19`) it is level 30 on
+on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Past 50 every level costs 8% more: 60 comes on day
+48, 70 on day 75 and 80 around day 120. Once a day (`--checkins=19`) it is level 30 on
 day 25 and 40 on day 42. The reference group keeps its gear up to date and never wipes, so real
 groups will be somewhat slower; the alpha will tell by how much. CI runs it on every push.
 

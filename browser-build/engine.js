@@ -105,7 +105,7 @@
       add('veteran', (c.battles || 0) >= 100); add('ironVeteran', (c.battles || 0) >= 1000); add('hundredClears', (c.dungeons || 0) >= 100);
       add('centurion', (c.bossKills || 0) >= 100); add('thousandBosses', (c.bossKills || 0) >= 1000); add('floor', (c.deaths || 0) >= 50);
       add('mentor', (c.mentored || 0) >= 10);
-      add('cartographer', dungeons.every((d) => cleared.includes(d))); add('wyvernSlayer', cleared.includes('wyvern-roost'));
+      add('cartographer', dungeons.every((d) => cleared.includes(d))); add('wyvernSlayer', cleared.includes('wyvern-roost')); add('dreamwalker', cleared.includes('dreaming-deep'));
       add('scarred', (row.deaths || 0) >= 3); add('dentedShield', (mech.busterBlocked || 0) >= 3); add('untouchable', (mech.busterDodged || 0) >= 3);
       add('curseBreaker', (mech.curseResisted || 0) >= 3); add('grounded', (mech.shockResisted || 0) >= 3);
       add('notAScratch', !rep.wiped && rep.heroes.reduce((a, r) => a + (r.deaths || 0), 0) === 0);
@@ -497,7 +497,7 @@
       const out = tier >= Md.SECOND_AT ? Md.weekly(week) : [Md.weekly(week)[0]], s = tier >= Md.SEASON_AT && Md.seasonal(week);
       return s ? [...out, s] : out;
     },
-    heroicOpen: (d, median) => median >= (d.levels[1] || Md.MYTHIC_LEVEL),
+    heroicOpen: (d, median) => median >= (d.levels[1] || Math.max(Md.MYTHIC_LEVEL, d.levels[0] + 10)),
     mythicOpen: (median) => median >= Md.MYTHIC_LEVEL,
     level: (d, level, mode) => (mode === 'normal' ? Math.max(d.levels[0], d.levels[1] > 0 ? Math.min(d.levels[1], level) : level) : Math.max(d.levels[1] || Md.MYTHIC_LEVEL, level)),
     mods(mode, tier, affixes) {
@@ -626,7 +626,7 @@
     }
     mechName(type) { return (this.d.mechanics[type] || {}).name || type; }
     every(type) { return (this.d.mechanics[type] || {}).every ?? D.MECHANIC_TIMING[type][1]; }
-    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * this.wing); }
+    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * Math.min(2, this.wing)); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
       hp *= this.hpMod; dmg *= this.dmgMod;
@@ -1063,10 +1063,11 @@
     emit(type, src, dst, amount, flags, extra = null) { const row = [Math.round(this.t * 10), type, src, dst, amount, flags]; if (extra) row.push(extra); this.ev.push(row); }
     explain() {
       const w = this.wipe, clock = Math.floor(w.t / 60) + ':' + String(Math.floor(w.t) % 60).padStart(2, '0');
-      const where = (c) => (this.d.plan[c][0] === 'boss' ? 'the ' + Dg.label(this.d, c) : 'a ' + Dg.label(this.d, c).toLowerCase() + ' in wing ' + (this.d.plan[c][2] + 1));
+      const the = (c) => 'the ' + Dg.label(this.d, c).replace(/^The /, '');
+      const where = (c) => (this.d.plan[c][0] === 'boss' ? the(c) : 'a ' + Dg.label(this.d, c).toLowerCase() + ' in wing ' + (this.d.plan[c][2] + 1));
       const at = where(w.clear) + ' at ' + clock, name = (i) => this.h[i].name;
       if (w.timeout) return 'The fight against ' + at + " ran too long: the group couldn't finish it.";
-      if (w.enraged) return 'The ' + Dg.label(this.d, w.clear) + ' enraged at ' + clock + ": the group's damage was too low to kill it in time.";
+      if (w.enraged) return 'T' + the(w.clear).slice(1) + ' enraged at ' + clock + ": the group's damage was too low to kill it in time.";
       for (const [i, o] of Object.entries(this.oomAt)) if (this.h[i].role === 'healer' && o.clear === w.clear) return name(i) + ' ran out of mana against ' + where(o.clear) + ': more Wisdom or a mana affix would keep the heals going.';
       for (const d of this.lastDeath) {
         if (d.clear !== w.clear) continue;
