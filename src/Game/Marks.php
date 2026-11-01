@@ -30,6 +30,7 @@ final class Marks
         'floor' => ['Knows the Floor', 'Died 50 times and kept coming back'],
         'cartographer' => ['Cartographer', 'Cleared every dungeon at least once'],
         'wyvernSlayer' => ['Wyvern Slayer', 'Cleared the Wyvern Roost'],
+        'dreamwalker' => ['Dreamwalker', 'Cleared the Dreaming Deep'],
         // One battle
         'scarred' => ['Scarred', 'Died three times in one battle and kept going'],
         'dentedShield' => ['Dented Shield', 'Blocked three Tank Busters in one battle'],
@@ -84,6 +85,7 @@ final class Marks
         $add('cartographer', !array_diff($dungeons, $c['cleared'] ?? []));
         $add('mentor', ($c['mentored'] ?? 0) >= 10);
         $add('wyvernSlayer', in_array('wyvern-roost', $c['cleared'] ?? [], true));
+        $add('dreamwalker', in_array('dreaming-deep', $c['cleared'] ?? [], true));
 
         $add('scarred', ($row['deaths'] ?? 0) >= 3);
         $add('dentedShield', ($mech['busterBlocked'] ?? 0) >= 3);

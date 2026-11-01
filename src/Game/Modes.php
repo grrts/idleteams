@@ -6,7 +6,7 @@ namespace App\Game;
  * After the story: every dungeon can be run on Heroic, and at level 50 on Mythic, an endless ladder of tiers.
  *
  * Heroic opens for a dungeon once the group has outgrown it (its median level reaches the top of the dungeon's band,
- * or 50 for the last one). It runs at the group's own level with tougher enemies and better loot.
+ * or ten levels past its start, and at least 50, for the last one). It runs at the group's own level with tougher enemies and better loot.
  *
  * Mythic opens at level 50. Each tier adds health and damage, and the week's affixes change how fights play: one of
  * Fortified (packs) or Tyrannical (bosses) from tier 1, and a second affix from tier 4. A clear raises the group's
@@ -76,7 +76,7 @@ final class Modes
 
     public static function heroicOpen(array $d, int $median): bool
     {
-        return $median >= ($d['levels'][1] ?: self::MYTHIC_LEVEL);
+        return $median >= ($d['levels'][1] ?: max(self::MYTHIC_LEVEL, $d['levels'][0] + 10));
     }
 
     public static function mythicOpen(int $median): bool

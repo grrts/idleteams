@@ -4,6 +4,7 @@ namespace App\Tests\Game;
 
 use App\Game\Combatants;
 use App\Game\Dungeons;
+use App\Game\Modes;
 use App\Game\Lore;
 use App\Game\Reference;
 use App\Game\Rules;
@@ -37,15 +38,20 @@ class DungeonsTest extends TestCase
         }
     }
 
-    public function testBandsCoverLevelsOneToFiftyAndGroupsMoveOn(): void
+    public function testBandsCoverEveryLevelAndGroupsMoveOn(): void
     {
-        for ($level = 1; $level <= 50; ++$level) {
+        for ($level = 1; $level <= 150; ++$level) {
             $d = Dungeons::newest($level);
             $this->assertGreaterThanOrEqual($d['levels'][0], $level);
             $this->assertSame($level, Dungeons::clamp($d, $level), "level $level fits the band of {$d['name']}");
         }
         $this->assertSame('ember-hollow', Dungeons::newest(1)['id']);
         $this->assertSame('wyvern-roost', Dungeons::newest(50)['id']);
+        $this->assertSame('starfall-observatory', Dungeons::newest(52)['id'], 'past 50 there are new dungeons');
+        $this->assertSame('dreaming-deep', Dungeons::newest(79)['id']);
+        $this->assertSame('dreaming-deep', Dungeons::newest(150)['id'], 'the last dungeon has no top level');
+        $this->assertFalse(Modes::heroicOpen(Dungeons::get('dreaming-deep'), 88), 'the last dungeon opens Heroic ten levels in');
+        $this->assertTrue(Modes::heroicOpen(Dungeons::get('dreaming-deep'), 89));
         $this->assertSame(10, Dungeons::clamp(Dungeons::get('ember-hollow'), 30), 'an old dungeon stays at its top level');
         $this->assertArrayNotHasKey('ashen-grove', Dungeons::unlocked(17));
     }

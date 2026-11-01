@@ -326,7 +326,6 @@ final class Simulator
         }
     }
 
-    /** Each wing is harder than the last; the first dungeons go easy on starter gear. */
     private function mechName(string $type): string
     {
         return $this->d['mechanics'][$type]['name'] ?? $type;
@@ -337,11 +336,12 @@ final class Simulator
         return $this->d['mechanics'][$type]['every'] ?? self::MECHANIC_TIMING[$type][1];
     }
 
+    /** Each wing is harder than the last, up to the third (a fourth is as hard); the first dungeons go easy on starter gear. */
     private function difficulty(): float
     {
         $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel);
 
-        return $ramp * (1 + 0.15 * $this->wing);
+        return $ramp * (1 + 0.15 * min(2, $this->wing));
     }
 
     private function spawn(string $kind, string $name, float $hp, float $dmg, float $swing): void
@@ -1449,14 +1449,15 @@ final class Simulator
     {
         $w = $this->wipe;
         $clock = sprintf('%d:%02d', (int) ($w['t'] / 60), (int) $w['t'] % 60);
-        $where = fn (int $c) => $this->d['plan'][$c][0] === 'boss' ? 'the '.Dungeons::label($this->d, $c) : 'a '.strtolower(Dungeons::label($this->d, $c)).' in wing '.($this->d['plan'][$c][2] + 1);
+        $the = fn (int $c) => 'the '.preg_replace('/^The /', '', Dungeons::label($this->d, $c));
+        $where = fn (int $c) => $this->d['plan'][$c][0] === 'boss' ? $the($c) : 'a '.strtolower(Dungeons::label($this->d, $c)).' in wing '.($this->d['plan'][$c][2] + 1);
         $at = sprintf('%s at %s', $where($w['clear']), $clock);
         $name = fn ($i) => $this->h[$i]['name'];
         if (!empty($w['timeout'])) {
             return "The fight against $at ran too long: the group couldn't finish it.";
         }
         if ($w['enraged']) {
-            return 'The '.Dungeons::label($this->d, $w['clear']).' enraged at '.$clock.": the group's damage was too low to kill it in time.";
+            return ucfirst($the($w['clear'])).' enraged at '.$clock.": the group's damage was too low to kill it in time.";
         }
         foreach ($this->oomAt as $i => $o) {
             if ($this->h[$i]['role'] === 'healer' && $o['clear'] === $w['clear']) {

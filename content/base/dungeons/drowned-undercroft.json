@@ -1,0 +1,242 @@
+{
+  "id": "drowned-undercroft",
+  "name": "The Drowned Undercroft",
+  "summary": "The smugglers' vaults under Freeport harbour, flooded when a Hollow opened beneath the sea wall. The Syndics want their cargo back and do not ask what is guarding it.",
+  "levels": [
+    61,
+    71
+  ],
+  "order": 80,
+  "lore": "hollow:drowned-undercroft",
+  "wings": [
+    {
+      "name": "The Bonded Warehouse",
+      "scene": {
+        "sky": [
+          "#0c1012",
+          "#182024"
+        ],
+        "rock": "#2a3234",
+        "rock2": "#363e40",
+        "floor": "#262c2c",
+        "floor2": "#323838",
+        "glow": "#ffc860",
+        "accent": "#7ae0d0",
+        "prop": "forge"
+      }
+    },
+    {
+      "name": "The Flooded Vaults",
+      "scene": {
+        "sky": [
+          "#061418",
+          "#0c2630"
+        ],
+        "rock": "#163a44",
+        "rock2": "#1e4a56",
+        "floor": "#14323a",
+        "floor2": "#1a3e48",
+        "glow": "#6af0e0",
+        "accent": "#ffe27a",
+        "prop": "crystal"
+      }
+    },
+    {
+      "name": "The Tide Gate",
+      "scene": {
+        "sky": [
+          "#04101a",
+          "#0a2234"
+        ],
+        "rock": "#123048",
+        "rock2": "#1a405c",
+        "floor": "#102a3e",
+        "floor2": "#163650",
+        "glow": "#40c0ff",
+        "accent": "#e8f4f0",
+        "prop": "crystal"
+      }
+    }
+  ],
+  "enemies": {
+    "cutthroat": {
+      "name": "Drowned Smuggler",
+      "kind": "add",
+      "art": "drownedSmuggler"
+    },
+    "brute": {
+      "name": "Barnacle Brute",
+      "kind": "brute",
+      "art": "barnacleBrute"
+    },
+    "crab": {
+      "name": "Tide Crab",
+      "kind": "shard",
+      "art": "tideCrab"
+    }
+  },
+  "packs": {
+    "small": {
+      "name": "Smuggler crew",
+      "spawn": [
+        {
+          "enemy": "cutthroat",
+          "count": 3,
+          "health": "1/3"
+        }
+      ]
+    },
+    "big": {
+      "name": "Barnacle gang",
+      "spawn": [
+        {
+          "enemy": "cutthroat",
+          "count": 2,
+          "health": 0.25
+        },
+        {
+          "enemy": "brute",
+          "count": 1,
+          "health": 0.5,
+          "damage": 1.8,
+          "swing": 2.5
+        }
+      ]
+    },
+    "elite": {
+      "name": "Deep watch",
+      "spawn": [
+        {
+          "enemy": "brute",
+          "count": 2,
+          "health": "1/3",
+          "damage": 1.5,
+          "swing": 2.6
+        },
+        {
+          "enemy": "crab",
+          "count": 2,
+          "health": "1/6",
+          "damage": 0.8,
+          "swing": 1.6
+        }
+      ]
+    }
+  },
+  "bosses": {
+    "b1": {
+      "name": "Harbourmaster Quell",
+      "art": "harbourmaster",
+      "health": 0.6,
+      "damage": 0.95,
+      "enrage": 70,
+      "hit": "Hook Hand",
+      "mechanics": [
+        "buster",
+        "shock",
+        "curse"
+      ],
+      "lore": "beast:harbourmaster-quell"
+    },
+    "b2": {
+      "name": "The Barnacle Knight",
+      "art": "barnacleKnight",
+      "health": 0.8,
+      "damage": 0.95,
+      "enrage": 80,
+      "hit": "Coral Blade",
+      "mechanics": [
+        "buster",
+        "rain",
+        "adds"
+      ],
+      "lore": "beast:barnacle-knight"
+    },
+    "b3": {
+      "name": "Mother Brine",
+      "art": "motherBrine",
+      "scale": 3.2,
+      "health": 1.0,
+      "damage": 1.0,
+      "enrage": 85,
+      "hit": "Crushing Coil",
+      "mechanics": [
+        "buster",
+        "rain",
+        "shock",
+        "curse",
+        "adds"
+      ],
+      "lore": "beast:mother-brine"
+    }
+  },
+  "mechanics": {
+    "buster": {
+      "name": "Anchor Swing",
+      "every": 13
+    },
+    "rain": {
+      "name": "Floodwater"
+    },
+    "shock": {
+      "name": "Riptide",
+      "at": 18,
+      "every": 24
+    },
+    "curse": {
+      "name": "Brine Rot"
+    },
+    "adds": {
+      "name": "Tide Crabs",
+      "enemy": "crab",
+      "count": 3
+    }
+  },
+  "plan": [
+    [
+      "pack",
+      "small",
+      0
+    ],
+    [
+      "pack",
+      "big",
+      0
+    ],
+    [
+      "boss",
+      "b1",
+      0
+    ],
+    [
+      "pack",
+      "small",
+      1
+    ],
+    [
+      "pack",
+      "elite",
+      1
+    ],
+    [
+      "boss",
+      "b2",
+      1
+    ],
+    [
+      "pack",
+      "big",
+      2
+    ],
+    [
+      "pack",
+      "elite",
+      2
+    ],
+    [
+      "boss",
+      "b3",
+      2
+    ]
+  ]
+}

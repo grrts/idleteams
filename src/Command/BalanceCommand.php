@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Game\Combatants;
+use App\Game\Dungeons;
 use App\Game\Reference;
 use App\Game\Simulator;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -19,7 +20,8 @@ class BalanceCommand extends Command
     protected function configure(): void
     {
         $this->addOption('runs', null, InputOption::VALUE_REQUIRED, 'Battles per mix and level', 40)
-            ->addOption('levels', null, InputOption::VALUE_REQUIRED, 'Comma-separated levels', '1,10,20,35,50,80');
+            ->addOption('levels', null, InputOption::VALUE_REQUIRED, 'Comma-separated levels', '1,10,20,35,50,80')
+            ->addOption('dungeon', null, InputOption::VALUE_REQUIRED, 'A dungeon id, or "newest" for the newest one each level reaches (default: the first dungeon at every level)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -36,6 +38,9 @@ class BalanceCommand extends Command
         $rows = [];
         foreach (explode(',', $input->getOption('levels')) as $level) {
             $level = (int) $level;
+            $pick = $input->getOption('dungeon');
+            $d = match ($pick) { null => Dungeons::get(), 'newest' => Dungeons::newest($level), default => Dungeons::get($pick) };
+            $dl = $pick === null ? $level : Dungeons::clamp($d, $level);
             foreach ($mixes as $label => $classes) {
                 $clears = 0;
                 $full = 0;
@@ -48,7 +53,7 @@ class BalanceCommand extends Command
                         $b['path'] = $level >= 10 ? array_key_first(\App\Game\Rules::CLASSES[$cls]['paths']) : null;
                         $party[] = Combatants::make($b, $n + 1, ucfirst($cls).$n);
                     }
-                    $res = (new Simulator())->run($party, $level, 1000 + $k);
+                    $res = (new Simulator())->run($party, $dl, 1000 + $k, $d);
                     $clears += $res['report']['bossesKilled'];
                     $full += $res['report']['wiped'] ? 0 : 1;
                     $len += $res['report']['length'];
@@ -59,7 +64,7 @@ class BalanceCommand extends Command
                     }
                 }
                 arsort($causes);
-                $rows[] = [$level, $label, round(100 * $full / $runs).'%', round($clears / $runs, 1), round($len / $runs), substr((string) array_key_first($causes), 0, 90)];
+                $rows[] = [$pick === null ? $level : $level.' '.$d['id'], $label, round(100 * $full / $runs).'%', round($clears / $runs, 1), round($len / $runs), substr((string) array_key_first($causes), 0, 90)];
             }
         }
         $io->table(['Level', 'Mix', 'Full clear', 'Avg bosses', 'Sim s', 'Top wipe cause'], $rows);
