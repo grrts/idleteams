@@ -30,6 +30,8 @@ class BalanceCommand extends Command
         $mixes = [
             'balanced (G, C, R, M, Ro)' => ['guardian', 'cleric', 'ranger', 'mage', 'rogue'],
             'warden + druid' => ['warden', 'druid', 'ranger', 'mage', 'rogue'],
+            'warden + cleric' => ['warden', 'cleric', 'ranger', 'mage', 'rogue'],
+            'guardian + druid' => ['guardian', 'druid', 'ranger', 'mage', 'rogue'],
             'no tank (C + 4 dps)' => ['cleric', 'ranger', 'mage', 'rogue', 'ranger'],
             'no healer (G + 4 dps)' => ['guardian', 'ranger', 'mage', 'rogue', 'mage'],
             'five dps' => ['ranger', 'mage', 'rogue', 'ranger', 'mage'],

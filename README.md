@@ -140,7 +140,7 @@ Demo heroes are played by the server: they spend points, pick Paths and Keystone
 on loot. Invite the ones on the tavern board to your own group and they accept at once.
 
 Run the tests with `vendor/bin/phpunit`, and the balance harness with `php bin/console app:balance`
-(full-clear rates for five group mixes at several levels).
+(full-clear rates for seven group mixes at several levels).
 
 ## Working rules
 
@@ -271,9 +271,10 @@ levels 1 to 65, 85% at 80, 95% at 100 and all of it at 120 on Ember Hollow, and 
 from 50 to 100. Enemy health follows the reference
 group's damage with talents; enemy hits follow its health and healing without them, so defensive talents make
 a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
-intended. Known gaps: a group with a Warden tank falls behind from level 50 (with a Druid it clears about half
-of the newest dungeon at 50 to 70 and very little past 75; the Warden is the weak link), and the reference group
-dips between levels 104 and 114. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+intended. A Warden tank holds threat as well as a Guardian: with a Cleric it clears the newest dungeon as often as
+the balanced group (95 to 100% from 50 to 70, about 90% from 80 to 100). Known gaps: Warden with a Druid still
+trails past 75 (65 to 75% of the newest dungeon, against 85 to 98% for Guardian with a Druid), and the reference
+group dips between levels 104 and 114. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Pacing
 
