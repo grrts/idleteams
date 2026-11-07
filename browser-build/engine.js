@@ -25,7 +25,7 @@
     signatureMastery: (xp) => Math.floor(Math.sqrt(Math.max(0, xp) / 120)),
     signatureXpFor: (m) => 120 * m * m,
     signatureTraits(m) { const out = { swift: 0, potent: 0, echo: 0 }; for (let k = 0; k < Math.floor(m / 10); k++) out[C.SIGNATURE_TRAITS[k % C.SIGNATURE_TRAITS.length]]++; return out; },
-    xpForLevel(level) { const curve = (l) => 160 * l ** 1.5 * (1 + (l - 1) / 5); return Math.round(level >= 50 ? curve(50) * 1.09 ** (level - 50) : curve(level)); },
+    xpForLevel(level) { const curve = (l) => 160 * l ** 1.5 * (1 + (l - 1) / 5); return Math.round(level >= 50 ? curve(50) * 1.08 ** (level - 50) : curve(level)); },
     role: (cls) => D.CLASSES[cls].role,
     classSkills(cls) {
       const c = D.CLASSES[cls], out = {};
@@ -530,7 +530,7 @@
       if (mods) this.mods = mods;
       this.r = new Rng(seed);
       this.dungeonLevel = Math.max(1, dungeonLevel);
-      this.ref = Ref.forLevel(this.dungeonLevel);
+      this.ref = Ref.forLevel(this.enemyLevel());
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
       this.applyKin();
       let done = 0, bosses = 0;
@@ -626,7 +626,9 @@
     }
     mechName(type) { return (this.d.mechanics[type] || {}).name || type; }
     every(type) { return (this.d.mechanics[type] || {}).every ?? D.MECHANIC_TIMING[type][1]; }
-    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + D.PAST_50 * Math.max(0, Math.min(100, this.dungeonLevel) - 50)) * (this.d.toughness ?? 1) * (1 + 0.15 * Math.min(2, this.wing)); }
+    // Past 50 enemies start at the band's first level and gain only CATCH_UP of each level the group gains there (a band with no top keeps pace after ten levels).
+    enemyLevel() { const from = this.d.levels?.[0] ?? 1; if (from < 50) return this.dungeonLevel; const n = Math.max(0, this.dungeonLevel - from); return Math.round(from + D.CATCH_UP * Math.min(10, n) + Math.max(0, n - 10)); }
+    difficulty() { const from = this.d.levels?.[0] ?? 1; return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (this.d.toughness ?? 1) * (from >= 50 ? D.PAST_50_TOUGHNESS * (1 + D.PAST_50 * (from - 50)) : 1) * (1 + 0.15 * Math.min(2, this.wing)); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
       hp *= this.hpMod; dmg *= this.dmgMod;

@@ -90,7 +90,7 @@ final class Simulator
         $this->mods = $mods ?? $this->mods;
         $this->r = new Randomizer(new Mt19937($seed));
         $this->dungeonLevel = max(1, $dungeonLevel);
-        $this->ref = Reference::forLevel($this->dungeonLevel);
+        $this->ref = Reference::forLevel($this->enemyLevel());
         foreach ($heroes as $i => $x) {
             $this->h[$i] = $this->initHero($i, $x);
             $this->report[$i] = ['damage' => 0, 'healing' => 0, 'overheal' => 0, 'taken' => 0, 'absorbed' => 0, 'deaths' => 0, 'mechanics' => [], 'casts' => 0, 'sigXp' => 0];
@@ -337,19 +337,39 @@ final class Simulator
     }
 
     /**
-     * Past level 50 every level makes enemies this much tougher (health and hits), up to level 100, on top of each
-     * dungeon's own `toughness`. Groups there sit close to the enrage timers, so a little goes a long way: a group in
-     * gear of its level clears less and less, and better gear is what carries it further.
+     * Past 50, level is what carries a group through a dungeon. Its enemies start at the first level of its band and
+     * gain only this share of each level the group gains there, so every level in the band makes the group stronger
+     * against it (about 7% per level). Gear and builds come second: good gear gets a group there a few levels
+     * sooner.
      */
-    public const PAST_50 = 0.0016;
+    public const CATCH_UP = 0.3;
+
+    /** How much tougher a dungeon past 50 is than its level alone, at level 50; it grows by PAST_50 per level after. */
+    public const PAST_50_TOUGHNESS = 1.4;
+    public const PAST_50 = 0.002;
+
+    /** The level the enemies are scaled to: the group's own, except in dungeons past 50, where they lag behind. */
+    private function enemyLevel(): int
+    {
+        $from = $this->d['levels'][0] ?? 1;
+        if ($from < 50) {
+            return $this->dungeonLevel;
+        }
+        // A dungeon with no top lags for its first ten levels and keeps pace after that.
+        $in = max(0, $this->dungeonLevel - $from);
+
+        return (int) round($from + self::CATCH_UP * min(10, $in) + max(0, $in - 10));
+    }
 
     /**
      * Each wing is harder than the last, up to the third (a fourth is as hard); the first dungeons go easy on starter
-     * gear, and dungeons past level 50 get harder with every level and by their `toughness`.
+     * gear, and a dungeon past 50 is tougher than its level (more so the later it starts) and by its `toughness`.
      */
     private function difficulty(): float
     {
-        $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel) * (1 + self::PAST_50 * max(0, min(100, $this->dungeonLevel) - 50)) * ($this->d['toughness'] ?? 1.0);
+        $from = $this->d['levels'][0] ?? 1;
+        $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel) * ($this->d['toughness'] ?? 1.0)
+            * ($from >= 50 ? self::PAST_50_TOUGHNESS * (1 + self::PAST_50 * ($from - 50)) : 1.0);
 
         return $ramp * (1 + 0.15 * min(2, $this->wing));
     }

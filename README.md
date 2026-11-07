@@ -267,16 +267,17 @@ a database and cron.
 
 `app:balance` shows where tuning stands, on Ember Hollow at every level or with `--dungeon=newest` on the
 dungeon each level reaches. Up to 50 a balanced group (guardian, cleric, ranger, mage, rogue) in gear of its level
-clears everything. Past 50 the climb is meant to be steep: enemies get 0.16% tougher per level (`Simulator::PAST_50`)
-on top of each dungeon's `toughness`, and the balanced group clears the newest dungeon about 75% of the time in the
-Starfall Observatory (52-60), 60% in the Drowned Undercroft (61-69), 45% in the Cold Forge (70-78) and 20 to 35% in
-the Dreaming Deep (80-100). Better than rare gear, talents and Heritage are what take a group further. Groups that
-stray from the balanced mix pay for it there: past 76 they clear 0 to 10%. Enemy health follows the reference
+clears everything. Past 50, level is what carries a group through a dungeon and gear comes second. A dungeon's enemies
+start at the first level of its band and gain only 30% of each level the group gains there (`Simulator::CATCH_UP`;
+a dungeon with no top keeps pace after ten levels), and the dungeon is 40% tougher than its level, a little more
+for each later band (`PAST_50_TOUGHNESS`, `PAST_50`). In good (rare) gear of its level the balanced group wipes in
+each new dungeon for its first 4 to 7 levels and then clears it: the Starfall Observatory from about 56, the Drowned
+Undercroft from 67, the Cold Forge from 76 and the Dreaming Deep from 86. Epic gear gets through a level or two after
+the start, legendary gear right away. Every mix with a tank and a healer, the Warden included, follows the same
+pattern within a level or so. Enemy health follows the reference
 group's damage with talents; enemy hits follow its health and healing without them, so defensive talents make
 a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
-intended. A Warden tank holds threat as well as a Guardian: Warden with a Cleric does about as well as Guardian with
-a Druid. Groups past 50 sit close to the enrage timers, so clear rates jump between neighbouring levels (level 60,
-for one, is a wall in gear of that level). Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+intended. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Pacing
 
@@ -284,11 +285,12 @@ for one, is a wall in gear of that level). Every number lives in `Rules.php`, `S
 a wipe stopping the chain until the next check-in) through the dungeon bands with the real XP rules, and fails
 outside the target (`--target=28-38` days to level 50). Levelling is meant to take a season, not a week: with
 check-ins at 8, 12, 18 and 22 o'clock (or just morning and evening, since the cap covers the gap) the group reaches 10
-on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Past 50 every level costs 9% more and the
-dungeons wipe the group about half the time: 60 comes on day 54, 70 on day 103, 80 around day 197 and 90 after about a
-year. Once a day (`--checkins=19`) it is level 30 on
-day 25 and 40 on day 42. The reference group keeps its gear up to date and rarely wipes before 50, so real
-groups will be somewhat slower; the alpha will tell by how much. CI runs it on every push.
+on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Past 50 every level costs 8% more and each
+new dungeon is a wall until the group out-levels it: 60 comes on day 58, 70 on day 116, 80 around day 234, 90 around
+day 387 and 100 around day 495. Once a day (`--checkins=19`) it is level 30 on
+day 25 and 40 on day 42. The reference group keeps its gear up to date but always runs the newest dungeon, walls
+included, so real groups will be somewhat slower before 50 and may be faster past it by farming an older one; the
+alpha will tell by how much. CI runs it on every push.
 
 ## Browser build
 
