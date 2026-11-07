@@ -40,7 +40,7 @@ class BrowserDataCommand extends Command
             'LEGENDS' => Legends::FORMS,
             'ITEM_PALETTES' => Rules::ITEM_PALETTES, 'DYES' => Rules::DYES, 'METALS' => Rules::METALS, 'DYE_COST' => Rules::DYE_COST,
             'PROLOGUE' => ['SECONDS' => Prologue::SECONDS, 'DUNGEON' => Prologue::DUNGEON, 'ENCOUNTERS' => Prologue::ENCOUNTERS, 'LEVEL' => Prologue::LEVEL, 'GUIDES' => Prologue::GUIDES],
-            'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING,
+            'CAPS' => Stats::CAPS, 'DUNGEONS' => Dungeons::all(), 'DEFAULT_DUNGEON' => Dungeons::DEFAULT, 'MECHANIC_TIMING' => Simulator::MECHANIC_TIMING, 'PAST_50' => Simulator::PAST_50, 'PAST_50_TOUGHNESS' => Simulator::PAST_50_TOUGHNESS, 'CATCH_UP' => Simulator::CATCH_UP,
             'DUNGEON_VIEWS' => array_map(Present::dungeon(...), Dungeons::all()),
             'MARKS' => HeroActions::MARKS, 'MODE_AFFIXES' => \App\Game\Modes::AFFIXES, 'SEASONS' => array_values(array_map(fn ($s) => ['id' => $s['id'], 'name' => $s['name'], 'startsAt' => $s['startsAt'], 'endsAt' => $s['endsAt'], 'affix' => $s['affix']], \App\Game\Seasons::all())), 'MAX_RANK' => HeroActions::MAX_RANK,
             'TWISTS' => Rules::TWISTS, 'TALENT_SKILLS' => Talents::SKILLS, 'TALENT_TREES' => Talents::trees(), 'HERITAGE_TREES' => Heritage::trees(),

@@ -530,7 +530,7 @@
       if (mods) this.mods = mods;
       this.r = new Rng(seed);
       this.dungeonLevel = Math.max(1, dungeonLevel);
-      this.ref = Ref.forLevel(this.dungeonLevel);
+      this.ref = Ref.forLevel(this.enemyLevel());
       heroes.forEach((x, i) => { this.h[i] = this.initHero(i, x); this.report[i] = this.newReport(); });
       this.applyKin();
       let done = 0, bosses = 0;
@@ -626,7 +626,9 @@
     }
     mechName(type) { return (this.d.mechanics[type] || {}).name || type; }
     every(type) { return (this.d.mechanics[type] || {}).every ?? D.MECHANIC_TIMING[type][1]; }
-    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * Math.min(2, this.wing)); }
+    // Past 50 enemies start at the band's first level and gain only CATCH_UP of each level the group gains there (a band with no top keeps pace after ten levels).
+    enemyLevel() { const from = this.d.levels?.[0] ?? 1; if (from < 50) return this.dungeonLevel; const n = Math.max(0, this.dungeonLevel - from); return Math.round(from + D.CATCH_UP * Math.min(10, n) + Math.max(0, n - 10)); }
+    difficulty() { const from = this.d.levels?.[0] ?? 1; return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (this.d.toughness ?? 1) * (from >= 50 ? D.PAST_50_TOUGHNESS * (1 + D.PAST_50 * (from - 50)) : 1) * (1 + 0.15 * Math.min(2, this.wing)); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
       hp *= this.hpMod; dmg *= this.dmgMod;

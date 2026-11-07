@@ -137,7 +137,7 @@ final class Dungeons
         foreach (['name', 'wings', 'enemies', 'packs', 'bosses', 'mechanics', 'plan'] as $k) {
             isset($d[$k]) || $fail("missing $k");
         }
-        $d += ['summary' => '', 'levels' => [1, 0], 'order' => 0, 'lore' => 'hollow:'.$d['id']];
+        $d += ['summary' => '', 'levels' => [1, 0], 'order' => 0, 'toughness' => 1.0, 'lore' => 'hollow:'.$d['id']];
         foreach ($d['enemies'] as $id => $e) {
             in_array($e['kind'] ?? '', ['add', 'brute', 'shard'], true) || $fail("enemy $id: kind must be add, brute or shard");
             $d['enemies'][$id] += ['art' => $id, 'name' => $id];

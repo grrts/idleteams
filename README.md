@@ -140,7 +140,7 @@ Demo heroes are played by the server: they spend points, pick Paths and Keystone
 on loot. Invite the ones on the tavern board to your own group and they accept at once.
 
 Run the tests with `vendor/bin/phpunit`, and the balance harness with `php bin/console app:balance`
-(full-clear rates for five group mixes at several levels).
+(full-clear rates for seven group mixes at several levels).
 
 ## Working rules
 
@@ -266,14 +266,18 @@ a database and cron.
 ## Balance notes
 
 `app:balance` shows where tuning stands, on Ember Hollow at every level or with `--dungeon=newest` on the
-dungeon each level reaches. A balanced group (guardian, cleric, ranger, mage, rogue) clears the whole dungeon at
-levels 1 to 65, 85% at 80, 95% at 100 and all of it at 120 on Ember Hollow, and 90 to 100% of the newest dungeon
-from 50 to 100. Enemy health follows the reference
+dungeon each level reaches. Up to 50 a balanced group (guardian, cleric, ranger, mage, rogue) in gear of its level
+clears everything. Past 50, level is what carries a group through a dungeon and gear comes second. A dungeon's enemies
+start at the first level of its band and gain only 30% of each level the group gains there (`Simulator::CATCH_UP`;
+a dungeon with no top keeps pace after ten levels), and the dungeon is 40% tougher than its level, a little more
+for each later band (`PAST_50_TOUGHNESS`, `PAST_50`). In good (rare) gear of its level the balanced group wipes in
+each new dungeon for its first 4 to 7 levels and then clears it: the Starfall Observatory from about 56, the Drowned
+Undercroft from 67, the Cold Forge from 76 and the Dreaming Deep from 86. Epic gear gets through a level or two after
+the start, legendary gear right away. Every mix with a tank and a healer, the Warden included, follows the same
+pattern within a level or so. Enemy health follows the reference
 group's damage with talents; enemy hits follow its health and healing without them, so defensive talents make
 a tank tougher instead of making enemies hit everyone harder. Groups without a tank or a healer fail, as
-intended. Known gaps: a group with a Warden tank falls behind from level 50 (with a Druid it clears about half
-of the newest dungeon at 50 to 70 and very little past 75; the Warden is the weak link), and the reference group
-dips between levels 104 and 114. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
+intended. Every number lives in `Rules.php`, `Stats.php` and `Simulator.php`.
 
 ## Pacing
 
@@ -281,10 +285,12 @@ dips between levels 104 and 114. Every number lives in `Rules.php`, `Stats.php` 
 a wipe stopping the chain until the next check-in) through the dungeon bands with the real XP rules, and fails
 outside the target (`--target=28-38` days to level 50). Levelling is meant to take a season, not a week: with
 check-ins at 8, 12, 18 and 22 o'clock (or just morning and evening, since the cap covers the gap) the group reaches 10
-on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Past 50 every level costs 8% more: 60 comes on day
-48, 70 on day 75 and 80 around day 120. Once a day (`--checkins=19`) it is level 30 on
-day 25 and 40 on day 42. The reference group keeps its gear up to date and never wipes, so real
-groups will be somewhat slower; the alpha will tell by how much. CI runs it on every push.
+on day 2.6, 20 on day 6.8, 30 on day 13, 40 on day 22 and 50 on day 33. Past 50 every level costs 8% more and each
+new dungeon is a wall until the group out-levels it: 60 comes on day 58, 70 on day 116, 80 around day 234, 90 around
+day 387 and 100 around day 495. Once a day (`--checkins=19`) it is level 30 on
+day 25 and 40 on day 42. The reference group keeps its gear up to date but always runs the newest dungeon, walls
+included, so real groups will be somewhat slower before 50 and may be faster past it by farming an older one; the
+alpha will tell by how much. CI runs it on every push.
 
 ## Browser build
 
