@@ -336,10 +336,20 @@ final class Simulator
         return $this->d['mechanics'][$type]['every'] ?? self::MECHANIC_TIMING[$type][1];
     }
 
-    /** Each wing is harder than the last, up to the third (a fourth is as hard); the first dungeons go easy on starter gear. */
+    /**
+     * Past level 50 every level makes enemies this much tougher (health and hits), up to level 100, on top of each
+     * dungeon's own `toughness`. Groups there sit close to the enrage timers, so a little goes a long way: a group in
+     * gear of its level clears less and less, and better gear is what carries it further.
+     */
+    public const PAST_50 = 0.0016;
+
+    /**
+     * Each wing is harder than the last, up to the third (a fourth is as hard); the first dungeons go easy on starter
+     * gear, and dungeons past level 50 get harder with every level and by their `toughness`.
+     */
     private function difficulty(): float
     {
-        $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel);
+        $ramp = min(1.0, 0.50 + 0.04 * $this->dungeonLevel) * (1 + self::PAST_50 * max(0, min(100, $this->dungeonLevel) - 50)) * ($this->d['toughness'] ?? 1.0);
 
         return $ramp * (1 + 0.15 * min(2, $this->wing));
     }

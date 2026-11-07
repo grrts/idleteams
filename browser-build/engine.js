@@ -25,7 +25,7 @@
     signatureMastery: (xp) => Math.floor(Math.sqrt(Math.max(0, xp) / 120)),
     signatureXpFor: (m) => 120 * m * m,
     signatureTraits(m) { const out = { swift: 0, potent: 0, echo: 0 }; for (let k = 0; k < Math.floor(m / 10); k++) out[C.SIGNATURE_TRAITS[k % C.SIGNATURE_TRAITS.length]]++; return out; },
-    xpForLevel(level) { const curve = (l) => 160 * l ** 1.5 * (1 + (l - 1) / 5); return Math.round(level >= 50 ? curve(50) * 1.08 ** (level - 50) : curve(level)); },
+    xpForLevel(level) { const curve = (l) => 160 * l ** 1.5 * (1 + (l - 1) / 5); return Math.round(level >= 50 ? curve(50) * 1.09 ** (level - 50) : curve(level)); },
     role: (cls) => D.CLASSES[cls].role,
     classSkills(cls) {
       const c = D.CLASSES[cls], out = {};
@@ -626,7 +626,7 @@
     }
     mechName(type) { return (this.d.mechanics[type] || {}).name || type; }
     every(type) { return (this.d.mechanics[type] || {}).every ?? D.MECHANIC_TIMING[type][1]; }
-    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + 0.15 * Math.min(2, this.wing)); }
+    difficulty() { return Math.min(1, 0.5 + 0.04 * this.dungeonLevel) * (1 + D.PAST_50 * Math.max(0, Math.min(100, this.dungeonLevel) - 50)) * (this.d.toughness ?? 1) * (1 + 0.15 * Math.min(2, this.wing)); }
     spawn(kind, name, hp, dmg, swing) {
       const id = ++this.enemySeq;
       hp *= this.hpMod; dmg *= this.dmgMod;
